@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* FORCE LIGHT MODE COLORS */
+:root {
+  --foreground-rgb: 93, 64, 55; /* Luxury Brown */
+  --background-rgb: 249, 248, 244; /* Cream */
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  /* Ensure no purple gradient can ever appear */
+  background-color: #F9F8F4; 
+}
+
+/* Custom Scrollbar for Luxury Feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F9F8F4; 
+}
+::-webkit-scrollbar-thumb {
+  background: #C6A87C; 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5D4037; 
+}
