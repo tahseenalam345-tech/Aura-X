@@ -1,4 +1,24 @@
-export const products = [
+// Define the Shape of a Product
+export interface Product {
+  id: number;
+  name: string;
+  brand?: string; // <--- ADDED THIS LINE (Optional string)
+  description: string;
+  price: number;
+  originalPrice: number;
+  discount: number;
+  rating: number;
+  reviews: number;
+  image: string;
+  thumbnails: string[]; 
+  category: string;
+  movement: string;
+  strap: string;
+  colors: string[];
+  isSale: boolean;
+}
+
+export const products: Product[] = [
   {
     id: 1,
     name: "Submariner Bluesy",
@@ -7,11 +27,13 @@ export const products = [
     originalPrice: 21000,
     discount: 12,
     rating: 5.0,
-    image: "/pic8.png", // Blue/Gold Rolex
+    reviews: 124,
+    image: "/pic8.png", 
+    thumbnails: ["/pic8.png", "/pic1.png", "/pic2.png"], // Added thumbnails
     category: "men",
     movement: "Automatic",
     strap: "Chain",
-    colors: ["#D4AF37", "#00008B"], // Gold, Dark Blue
+    colors: ["#D4AF37", "#00008B"], 
     isSale: true
   },
   {
@@ -22,11 +44,13 @@ export const products = [
     originalPrice: 0,
     discount: 0,
     rating: 4.8,
-    image: "/pic9.png", // Green Rectangular
+    reviews: 89,
+    image: "/pic9.png", 
+    thumbnails: ["/pic9.png", "/pic3.png", "/pic4.png"],
     category: "women",
     movement: "Quartz",
     strap: "Leather",
-    colors: ["#004d35", "#D4AF37"], // Green, Gold
+    colors: ["#004d35", "#D4AF37"], 
     isSale: false
   },
   {
@@ -37,11 +61,13 @@ export const products = [
     originalPrice: 8000,
     discount: 19,
     rating: 4.7,
-    image: "/pic10.png", // Brown MK
+    reviews: 210,
+    image: "/pic10.png", 
+    thumbnails: ["/pic10.png", "/pic5.png", "/pic6.png"],
     category: "women",
     movement: "Quartz",
     strap: "Chain",
-    colors: ["#5D4037", "#B87333"], // Brown, Copper
+    colors: ["#5D4037", "#B87333"], 
     isSale: true
   },
   {
@@ -52,11 +78,13 @@ export const products = [
     originalPrice: 6500,
     discount: 10,
     rating: 4.6,
-    image: "/pic11.png", // Rose Gold MK
+    reviews: 56,
+    image: "/pic11.png", 
+    thumbnails: ["/pic11.png", "/pic7.png", "/pic1.png"],
     category: "women",
     movement: "Quartz",
     strap: "Chain",
-    colors: ["#B76E79"], // Rose Gold
+    colors: ["#B76E79"], 
     isSale: true
   },
   {
@@ -67,11 +95,13 @@ export const products = [
     originalPrice: 12000,
     discount: 18,
     rating: 4.9,
-    image: "/pic12.png", // Leather Dress Watch
+    reviews: 340,
+    image: "/pic12.png", 
+    thumbnails: ["/pic12.png", "/pic2.png", "/pic3.png"],
     category: "men",
     movement: "Mechanical",
     strap: "Leather",
-    colors: ["#FFFFFF", "#5D4037"], // White, Brown
+    colors: ["#FFFFFF", "#5D4037"], 
     isSale: true
   },
   {
@@ -82,11 +112,13 @@ export const products = [
     originalPrice: 0,
     discount: 0,
     rating: 4.5,
-    image: "/pic13.png", // Simple Silver
+    reviews: 98,
+    image: "/pic13.png", 
+    thumbnails: ["/pic13.png", "/pic4.png", "/pic5.png"],
     category: "women",
     movement: "Quartz",
     strap: "Metal",
-    colors: ["#C0C0C0"], // Silver
+    colors: ["#C0C0C0"], 
     isSale: false
   },
   {
@@ -97,14 +129,15 @@ export const products = [
     originalPrice: 16000,
     discount: 9,
     rating: 5.0,
-    image: "/pic14.png", // Two-tone Rolex
+    reviews: 45,
+    image: "/pic14.png", 
+    thumbnails: ["/pic14.png", "/pic6.png", "/pic7.png"],
     category: "men",
     movement: "Automatic",
     strap: "Chain",
-    colors: ["#C0C0C0", "#D4AF37"], // Silver, Gold
+    colors: ["#C0C0C0", "#D4AF37"], 
     isSale: true
   },
-  // Adding a duplicate for Couple category for demo purposes
   {
     id: 8,
     name: "Royal Duo Set",
@@ -113,7 +146,9 @@ export const products = [
     originalPrice: 25000,
     discount: 12,
     rating: 5.0,
-    image: "/pic14.png", // Reusing image
+    reviews: 12,
+    image: "/pic14.png", 
+    thumbnails: ["/pic14.png", "/pic1.png", "/pic2.png"],
     category: "couple",
     movement: "Automatic",
     strap: "Chain",

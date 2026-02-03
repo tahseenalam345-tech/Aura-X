@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { products } from "@/lib/mockData";
 import { Navbar } from "@/components/Navbar";
-import { ProductCard } from "@/components/ProductCard"; // IMPORTED
-import { motion, AnimatePresence } from "framer-motion";
+import { ProductCard } from "@/components/ProductCard"; 
+import { motion, AnimatePresence, Variants } from "framer-motion"; // UPDATED IMPORT
 import { ChevronDown, Filter } from "lucide-react"; 
 import { useParams } from "next/navigation";
 
-const fadeInUp = {
+// --- UPDATED ANIMATION TYPE ---
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
 };

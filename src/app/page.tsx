@@ -4,27 +4,48 @@ import { products } from "@/lib/mockData";
 import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
-import { ProductCard } from "@/components/ProductCard"; // IMPORTED
-import { motion } from "framer-motion";
+import { ProductCard } from "@/components/ProductCard"; 
+import { motion, Variants } from "framer-motion"; // UPDATED IMPORT
 import { useState, useEffect } from "react";
 
-// ... (Keep existing Animation Settings, Carousel Data, and Category Data EXACTLY as they are) ...
-// (I will shorten them here for brevity, but you keep your existing code for those parts)
-
-// --- ANIMATION SETTINGS ---
-const fadeInUp = {
+// --- ANIMATION SETTINGS (FIXED TYPES) ---
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 60 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };
-const staggerContainer = {
+
+const staggerContainer: Variants = {
   visible: { transition: { staggerChildren: 0.2 } }
 };
 
-const watchImages = [ "/pic1.png", "/pic2.png", "/pic3.png", "/pic4.png", "/pic5.png", "/pic6.png", "/pic7.png" ];
+// --- CAROUSEL DATA ---
+const watchImages = [
+  "/pic1.png", "/pic2.png", "/pic3.png", "/pic4.png", 
+  "/pic5.png", "/pic6.png", "/pic7.png"
+];
 
-const menCat = { id: "men", title: "Gents' Heritage", subtitle: "EXPLORE MEN'S", image: "https://images.unsplash.com/photo-1617317376997-8748e6862c01?q=80&w=1200&auto=format&fit=crop", link: "/men" };
-const womenCat = { id: "women", title: "Ladies' Precision", subtitle: "EXPLORE WOMEN'S", image: "https://images.unsplash.com/photo-1590736969955-71cc94801759?q=80&w=1200&auto=format&fit=crop", link: "/women" };
-const coupleCat = { id: "couple", title: "Timeless Bond", subtitle: "FOR COUPLES", image: "https://images.unsplash.com/photo-1623998021450-85c29c644e0d?q=80&w=1200&auto=format&fit=crop", link: "/couple" };
+// --- CATEGORY DATA ---
+const menCat = {
+    id: "men",
+    title: "Gents' Heritage",
+    subtitle: "EXPLORE MEN'S",
+    image: "https://images.unsplash.com/photo-1617317376997-8748e6862c01?q=80&w=1200&auto=format&fit=crop",
+    link: "/men"
+};
+const womenCat = {
+    id: "women",
+    title: "Ladies' Precision",
+    subtitle: "EXPLORE WOMEN'S",
+    image: "https://images.unsplash.com/photo-1590736969955-71cc94801759?q=80&w=1200&auto=format&fit=crop",
+    link: "/women"
+};
+const coupleCat = {
+    id: "couple",
+    title: "Timeless Bond",
+    subtitle: "FOR COUPLES",
+    image: "https://images.unsplash.com/photo-1623998021450-85c29c644e0d?q=80&w=1200&auto=format&fit=crop",
+    link: "/couple"
+};
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -62,7 +83,7 @@ export default function Home() {
     <main className="min-h-screen text-aura-brown selection:bg-aura-gold selection:text-white overflow-hidden">
       <Navbar />
 
-      {/* HERO SECTION (Keep exactly as your code) */}
+      {/* HERO SECTION */}
       <section className="relative min-h-screen flex items-start pt-44 pb-12 px-6">
         <div className="absolute inset-0 -z-20 bg-[linear-gradient(120deg,#fdfbf7_0%,#e6dccf_50%,#fdfbf7_100%)] bg-[length:200%_200%] animate-luxury-flow"></div>
         <div className="absolute top-1/2 left-[10%] -translate-y-1/2 w-[600px] h-[600px] bg-aura-gold/10 rounded-full blur-[100px] -z-10"></div>
@@ -85,6 +106,7 @@ export default function Home() {
             </motion.div>
           </motion.div>
 
+          {/* CAROUSEL */}
           <div className="relative h-[600px] w-full order-1 lg:order-2 flex justify-center perspective-1000 -mt-10 lg:-mt-10">
              {watchImages.map((src, index) => {
                const pos = getPosition(index);
@@ -106,7 +128,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CATEGORY SECTION (Keep exactly as your code) */}
+      {/* CATEGORY SECTION */}
       <section className="py-20 px-6 md:px-12 bg-gradient-to-b from-white via-[#fffdf5] to-[#f4f1ea]">
         <div className="max-w-6xl mx-auto space-y-8">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-10">
@@ -123,7 +145,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ================= PRODUCT SECTION (UPDATED) ================= */}
+      {/* PRODUCT SECTION */}
       <section className="py-20 md:py-32 px-6 md:px-12 bg-white/50 backdrop-blur-sm border-t border-aura-gold/10">
         <div className="max-w-[1920px] mx-auto">
           <motion.h2 
@@ -144,7 +166,6 @@ export default function Home() {
                 whileInView="visible"
                 viewport={{ once: true }}
               >
-                {/* USING THE REUSABLE COMPONENT HERE */}
                 <ProductCard product={product} />
               </motion.div>
             ))}

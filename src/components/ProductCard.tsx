@@ -3,22 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Star, ShoppingCart } from "lucide-react";
+import { Product } from "@/lib/mockData"; // IMPORT SHARED TYPE
 
-// Define the shape of a Product
 interface ProductProps {
-  product: {
-    id: number;
-    name: string;
-    description?: string;
-    price: number;
-    originalPrice?: number;
-    discount?: number;
-    rating?: number;
-    image: string;
-    isSale?: boolean;
-    colors?: string[];
-    category: string;
-  };
+  product: Product; // Use the interface from mockData
 }
 
 export function ProductCard({ product }: ProductProps) {
@@ -79,7 +67,7 @@ export function ProductCard({ product }: ProductProps) {
         {/* Price & Button */}
         <div className="mt-auto pt-4 border-t border-gray-200/50 flex items-end justify-between">
           <div>
-            {product.originalPrice && (
+            {product.originalPrice > 0 && (
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs text-red-500 font-bold bg-red-50 px-1.5 py-0.5 rounded">
                   {product.discount}% OFF

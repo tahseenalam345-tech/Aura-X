@@ -1,221 +1,164 @@
 "use client";
 
-import { products } from "@/lib/mockData";
-import Image from "next/image";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import { products, Product } from "@/lib/mockData"; // Import Type
 import { Navbar } from "@/components/Navbar";
-import { 
-  ArrowLeft, ShoppingBag, Star, Truck, ShieldCheck, 
-  Minus, Plus, ChevronDown, Share2, Heart
-} from "lucide-react";
+import { Star, ShoppingCart, Heart, Share2, ShieldCheck, RefreshCw, Truck } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function ProductPage() {
   const params = useParams();
-  const product = products.find((p) => p.id === Number(params.id));
-  
-  const [selectedImage, setSelectedImage] = useState(product?.image);
-  const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState("desc");
-  
-  if (!product) return <div className="text-center py-20 text-white">Product not found</div>;
+  const [product, setProduct] = useState<Product | null>(null); // Use correct type
+  const [selectedImage, setSelectedImage] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const currentImage = selectedImage || product.image;
+  useEffect(() => {
+    // Find product safely
+    if (params?.id) {
+        const found = products.find((p) => p.id === Number(params.id));
+        if (found) {
+            setProduct(found);
+            setSelectedImage(found.image);
+        }
+    }
+    setLoading(false);
+  }, [params]);
+
+  if (loading) return <div className="min-h-screen bg-[#F2F0E9] flex items-center justify-center">Loading...</div>;
+  if (!product) return <div className="min-h-screen bg-[#F2F0E9] flex items-center justify-center">Product not found.</div>;
 
   return (
-    <main className="min-h-screen transition-colors duration-500 bg-gradient-light dark:bg-gradient-dark text-gray-800 dark:text-white relative overflow-hidden">
-      
-      {/* 1. BACKGROUND GLOW */}
-      <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[600px] h-[600px] bg-aura-gold/20 dark:bg-aura-cyan/20 rounded-full blur-[120px] -z-0"></div>
-
-      {/* 2. PROFESSIONAL FIXED HEADER */}
+    <main className="min-h-screen bg-[#F2F0E9] text-aura-brown">
       <Navbar />
 
-      {/* Main Content Container */}
-      {/* Added 'pt-24' to ensure content starts below the fixed navbar */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-4 pt-24">
-        
-        {/* Back Button */}
-        <Link href="/">
-          <button className="flex items-center gap-2 text-aura-slate dark:text-aura-cyan hover:underline mb-8 font-medium transition-transform hover:-translate-x-1">
-            <ArrowLeft size={20} /> Back to Collection
-          </button>
-        </Link>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+      <div className="pt-32 pb-20 px-6 md:px-12 max-w-[1600px] mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           
-          {/* ================= LEFT: GALLERY ================= */}
-          <div className="space-y-6">
-            {/* Main Image with Animation */}
-            <motion.div 
-              layoutId={`image-container-${product.id}`}
-              className="relative h-[450px] md:h-[600px] w-full bg-white dark:bg-white/5 rounded-[2rem] overflow-hidden shadow-2xl border border-gray-200 dark:border-white/10"
-            >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentImage}
-                  initial={{ opacity: 0, scale: 1.1 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="relative h-full w-full"
-                >
-                  <Image 
-                    src={currentImage} 
+          {/* --- LEFT: GALLERY --- */}
+          <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
+             {/* Main Image */}
+             <div className="relative h-[500px] w-full bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-gray-100">
+                <Image 
+                    src={selectedImage} 
                     alt={product.name} 
                     fill 
                     className="object-cover"
-                    unoptimized={true}
-                  />
-                </motion.div>
-              </AnimatePresence>
-              
-              {/* Floating Badges */}
-              <div className="absolute top-6 left-6 flex flex-col gap-2">
-                 {product.discount && (
-                  <span className="bg-red-500 text-white px-4 py-1 text-sm font-bold rounded-full shadow-lg backdrop-blur-md">
-                    {product.discount}
-                  </span>
+                    unoptimized
+                />
+                {product.isSale && (
+                    <div className="absolute top-6 left-6 bg-red-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+                        Sale {product.discount}% Off
+                    </div>
                 )}
-              </div>
-            </motion.div>
+             </div>
 
-            {/* Thumbnails */}
-            <div className="flex gap-4 justify-center">
-              {product.thumbnails?.map((thumb, idx) => (
-                <button 
-                  key={idx}
-                  onClick={() => setSelectedImage(thumb)}
-                  className={`relative w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all duration-300 transform hover:-translate-y-1
-                    ${currentImage === thumb 
-                      ? "border-aura-gold dark:border-aura-cyan shadow-lg scale-105" 
-                      : "border-transparent opacity-60 hover:opacity-100"}`}
-                >
-                  <Image src={thumb} alt="thumbnail" fill className="object-cover" unoptimized={true} />
-                </button>
-              ))}
-            </div>
-          </div>
+             {/* Thumbnails (FIXED: Added Optional Chaining just in case) */}
+             <div className="flex gap-4 justify-center">
+                {product.thumbnails?.map((thumb, idx) => (
+                    <button 
+                        key={idx} 
+                        onClick={() => setSelectedImage(thumb)}
+                        className={`relative w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === thumb ? 'border-aura-brown' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                    >
+                        <Image src={thumb} alt="" fill className="object-cover" unoptimized/>
+                    </button>
+                ))}
+             </div>
+          </motion.div>
 
-          {/* ================= RIGHT: DETAILS CARD ================= */}
+          {/* --- RIGHT: DETAILS --- */}
           <motion.div 
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-[2rem] p-8 md:p-10 border border-white/20 shadow-xl"
+            className="flex flex-col justify-center"
           >
-            {/* Header Section inside Card */}
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <p className="text-sm font-bold text-aura-gold dark:text-aura-cyan uppercase tracking-widest mb-2">
-                  {product.category} Collection
-                </p>
-                <h1 className="text-4xl md:text-5xl font-bold text-aura-slate dark:text-white leading-tight">
-                  {product.name}
-                </h1>
-              </div>
-              
-              {/* Wishlist / Share Icons */}
-              <div className="flex gap-2">
-                <button className="p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-aura-gold hover:text-white dark:hover:bg-aura-cyan dark:hover:text-black transition-colors">
-                  <Heart size={20} />
-                </button>
-                <button className="p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-aura-gold hover:text-white dark:hover:bg-aura-cyan dark:hover:text-black transition-colors">
-                  <Share2 size={20} />
-                </button>
-              </div>
-            </div>
+             {/* Header */}
+             <div className="mb-8">
+                 <p className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-2">{product.brand || "AURA-X"}</p>
+                 <h1 className="text-4xl md:text-5xl font-serif font-bold text-aura-brown mb-4">{product.name}</h1>
+                 
+                 <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <div className="flex text-aura-gold">
+                        {[...Array(5)].map((_, i) => (
+                            <Star key={i} size={16} fill={i < Math.floor(product.rating) ? "currentColor" : "none"} />
+                        ))}
+                    </div>
+                    <span>({product.reviews} Reviews)</span>
+                 </div>
+             </div>
 
-            {/* Price & Rating */}
-            <div className="flex items-end gap-4 mb-8 pb-8 border-b border-gray-200 dark:border-white/10">
-              <div className="flex flex-col">
-                <span className="text-gray-500 text-sm line-through">Rs {product.originalPrice?.toLocaleString()}</span>
-                <span className="text-4xl font-bold text-aura-slate dark:text-white">
-                  Rs {product.price.toLocaleString()}
-                </span>
-              </div>
-              <div className="ml-auto flex items-center gap-2 bg-yellow-400/10 px-3 py-1 rounded-lg">
-                <Star fill="#EAB308" className="text-yellow-500" size={18} />
-                <span className="font-bold">{product.rating}</span>
-                <span className="text-sm opacity-60">({product.reviews} reviews)</span>
-              </div>
-            </div>
+             {/* Price */}
+             <div className="flex items-end gap-4 mb-8 pb-8 border-b border-aura-brown/10">
+                <span className="text-4xl font-bold text-aura-brown">Rs {product.price.toLocaleString()}</span>
+                {product.originalPrice > 0 && (
+                    <span className="text-xl text-gray-400 line-through mb-1">Rs {product.originalPrice.toLocaleString()}</span>
+                )}
+             </div>
 
-            {/* Selectors */}
-            <div className="space-y-6 mb-8">
-              <div>
-                <span className="block text-sm font-bold mb-3 opacity-80">Select Strap Color</span>
-                <div className="flex gap-3">
-                  {['bg-gray-900', 'bg-yellow-700', 'bg-gray-400'].map((color, i) => (
-                    <button key={i} className={`w-10 h-10 rounded-full ${color} border-2 border-white/20 hover:scale-110 shadow-md transition-transform`} />
-                  ))}
+             {/* Description */}
+             <p className="text-gray-600 leading-relaxed mb-8 font-light text-lg">
+                {product.description}
+             </p>
+
+             {/* Selectors */}
+             <div className="space-y-6 mb-10">
+                {/* Colors */}
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Color</p>
+                    <div className="flex gap-3">
+                        {product.colors?.map((col, i) => (
+                            <button key={i} className="w-8 h-8 rounded-full border border-gray-200 shadow-sm hover:scale-110 transition-transform" style={{ backgroundColor: col }}></button>
+                        ))}
+                    </div>
                 </div>
-              </div>
-            </div>
+                
+                {/* Specs */}
+                <div className="grid grid-cols-2 gap-4">
+                     <div className="bg-white p-4 rounded-xl border border-gray-100">
+                        <p className="text-[10px] uppercase text-gray-400 font-bold">Movement</p>
+                        <p className="text-aura-brown font-medium">{product.movement}</p>
+                     </div>
+                     <div className="bg-white p-4 rounded-xl border border-gray-100">
+                        <p className="text-[10px] uppercase text-gray-400 font-bold">Strap</p>
+                        <p className="text-aura-brown font-medium">{product.strap}</p>
+                     </div>
+                </div>
+             </div>
 
-            {/* Add to Cart Actions */}
-            <div className="flex gap-4 mb-10">
-              <div className="flex items-center bg-gray-100 dark:bg-white/5 rounded-full px-2 border border-gray-200 dark:border-white/10">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-3 hover:text-aura-cyan transition"><Minus size={18}/></button>
-                <span className="w-8 text-center font-bold">{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} className="p-3 hover:text-aura-cyan transition"><Plus size={18}/></button>
-              </div>
-              
-              <button className="flex-1 bg-aura-slate hover:bg-aura-gold dark:bg-aura-cyan dark:hover:bg-white dark:text-aura-navy text-white font-bold py-4 rounded-full shadow-lg shadow-aura-slate/20 dark:shadow-aura-cyan/20 hover:shadow-xl transition-all flex justify-center items-center gap-2 transform hover:-translate-y-1">
-                <ShoppingBag size={20} />
-                Add to Cart
-              </button>
-            </div>
+             {/* Actions */}
+             <div className="flex gap-4 mb-10">
+                 <button className="flex-1 bg-aura-brown text-white py-4 rounded-full font-bold uppercase tracking-wider hover:bg-aura-gold transition-colors flex items-center justify-center gap-2 shadow-xl">
+                    <ShoppingCart size={20} /> Add to Cart
+                 </button>
+                 <button className="p-4 rounded-full border border-aura-brown/20 text-aura-brown hover:bg-aura-brown hover:text-white transition-colors">
+                    <Heart size={20} />
+                 </button>
+                 <button className="p-4 rounded-full border border-aura-brown/20 text-aura-brown hover:bg-aura-brown hover:text-white transition-colors">
+                    <Share2 size={20} />
+                 </button>
+             </div>
 
-            {/* Info Tabs */}
-            <div className="space-y-2">
-              {/* Description */}
-              <div className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
-                <button onClick={() => setActiveTab(activeTab === "desc" ? "" : "desc")} className="flex justify-between items-center w-full p-4 bg-gray-50 dark:bg-white/5 font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition">
-                  Description
-                  <ChevronDown className={`transition-transform duration-300 ${activeTab === "desc" ? "rotate-180" : ""}`} />
-                </button>
-                <AnimatePresence>
-                  {activeTab === "desc" && (
-                    <motion.div initial={{height:0}} animate={{height:"auto"}} exit={{height:0}} className="overflow-hidden">
-                      <p className="p-4 text-gray-600 dark:text-gray-300 leading-relaxed text-sm">
-                        {product.description}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Specs */}
-              <div className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
-                <button onClick={() => setActiveTab(activeTab === "specs" ? "" : "specs")} className="flex justify-between items-center w-full p-4 bg-gray-50 dark:bg-white/5 font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition">
-                  Technical Specifications
-                  <ChevronDown className={`transition-transform duration-300 ${activeTab === "specs" ? "rotate-180" : ""}`} />
-                </button>
-                <AnimatePresence>
-                  {activeTab === "specs" && (
-                    <motion.div initial={{height:0}} animate={{height:"auto"}} exit={{height:0}} className="overflow-hidden">
-                      <div className="p-4 grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
-                         {product.specs ? Object.entries(product.specs).map(([key, val]) => (
-                            <div key={key}>
-                              <span className="text-gray-400 text-xs uppercase block mb-1">{key.replace(/([A-Z])/g, ' $1')}</span>
-                              <span className="font-medium text-aura-slate dark:text-white">{val}</span>
-                            </div>
-                         )) : <p>No specs.</p>}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* Trust Signals */}
-            <div className="mt-8 flex justify-center gap-6 text-xs text-gray-500 uppercase tracking-wider font-bold">
-               <span className="flex items-center gap-2"><Truck size={16}/> Free Delivery</span>
-               <span className="flex items-center gap-2"><ShieldCheck size={16}/> 1 Year Warranty</span>
-            </div>
+             {/* Trust Badges */}
+             <div className="grid grid-cols-3 gap-4 text-center text-xs text-gray-500">
+                <div className="flex flex-col items-center gap-2">
+                    <ShieldCheck size={24} className="text-aura-gold" />
+                    <span>2 Year Warranty</span>
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                    <Truck size={24} className="text-aura-gold" />
+                    <span>Free Shipping</span>
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                    <RefreshCw size={24} className="text-aura-gold" />
+                    <span>7 Day Returns</span>
+                </div>
+             </div>
 
           </motion.div>
         </div>
