@@ -5,11 +5,13 @@ import Image from "next/image";
 import { useState } from "react";
 import { ShoppingBag, Search, Menu, X, ChevronRight, User, LogIn, LayoutDashboard, Truck, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/context/AuthContext"; // Import Hook
+import { useAuth } from "@/context/AuthContext"; 
+import { useCart } from "@/context/CartContext";
 
 export function Navbar() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { user, isAdmin, logout } = useAuth(); // Get Status
+  const { user, isAdmin, logout } = useAuth(); 
+  const { totalItems } = useCart(); 
 
   const navLinks = [
     { name: 'Men', href: '/men' },
@@ -62,10 +64,16 @@ export function Navbar() {
                  </Link>
               )}
 
-              <button className="relative p-2 rounded-full hover:bg-aura-gold/10 transition-colors">
+              {/* CART ICON */}
+              <Link href="/cart" className="relative p-2 rounded-full hover:bg-aura-gold/10 transition-colors block">
                 <ShoppingBag className="w-6 h-6 text-aura-brown" />
-                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-aura-gold rounded-full animate-pulse"></span>
-              </button>
+                {totalItems > 0 && (
+                   <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow-md animate-in zoom-in">
+                     {totalItems}
+                   </span>
+                )}
+              </Link>
+
               <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 rounded-full hover:bg-aura-gold/10">
                 <Menu className="w-6 h-6 text-aura-brown" />
               </button>
@@ -102,6 +110,13 @@ export function Navbar() {
                 {/* 2. DYNAMIC LINKS */}
                 <div className="space-y-4">
                   
+                  {/* TRACK ORDER (ALWAYS VISIBLE FOR GUESTS TOO) */}
+                  <Link href="/track-order" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-4 text-lg font-bold text-aura-brown hover:pl-2 transition-all">
+                      <Truck size={18} /> Track Order
+                  </Link>
+
+                  <div className="h-[1px] w-full bg-gray-100 my-2 opacity-50"></div>
+                  
                   {/* NOT LOGGED IN */}
                   {!user && (
                       <Link href="/login" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-4 text-lg font-medium text-aura-brown/70 hover:text-aura-brown hover:pl-2 transition-all">
@@ -119,14 +134,9 @@ export function Navbar() {
                       </>
                   )}
 
-                  {/* USER */}
+                  {/* LOGGED IN USER INFO */}
                   {user && !isAdmin && (
-                      <>
-                        <Link href="/track-order" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-4 text-lg font-bold text-aura-brown hover:pl-2 transition-all">
-                            <Truck size={18} /> Track My Order
-                        </Link>
-                        <p className="text-xs text-gray-400 pl-3">Logged in as {user}</p>
-                      </>
+                      <p className="text-xs text-gray-400 pl-3">Logged in as {user}</p>
                   )}
 
                   {/* LOGOUT */}

@@ -2,90 +2,115 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Star, ShoppingCart } from "lucide-react";
-import { Product } from "@/lib/mockData"; // IMPORT SHARED TYPE
+import { Star, ShoppingBag } from "lucide-react";
 
-interface ProductProps {
-  product: Product; // Use the interface from mockData
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;      // Support for old mock data
+  main_image?: string; // Support for new Supabase data
+  category?: string;
+  original_price?: number; // Real DB field
+  discount?: number;       // Real DB field
+  rating?: number;
+  reviews_count?: number;
+  tags?: string[];
 }
 
-export function ProductCard({ product }: ProductProps) {
+export function ProductCard({ product }: { product: Product }) {
+  // 1. Resolve Image (DB uses 'main_image', Mock uses 'image')
+  const imageUrl = product.main_image || product.image || "/placeholder.jpg";
+
+  // 2. Resolve Original Price
+  // If DB has 'original_price', use it. Else calculate a fake one for the design effect.
+  const originalPrice = product.original_price && product.original_price > product.price
+      ? product.original_price 
+      : Math.round(product.price * 1.2); 
+
+  // 3. Resolve Discount %
+  const discount = product.discount 
+      ? product.discount 
+      : Math.round(((originalPrice - product.price) / originalPrice) * 100);
+
+  // 4. Resolve Reviews
+  const rating = product.rating || 5.0;
+  const reviewCount = product.reviews_count || 120; // Default to 120 if 0
+
   return (
-    <Link 
-      href={`/product/${product.id}`} 
-      className="group block relative bg-[#FDFBF7] rounded-[1.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100 h-full flex flex-col"
-    >
-      
-      {/* 1. IMAGE AREA */}
-      <div className="relative h-[300px] w-full bg-gray-50 overflow-hidden">
-        <Image 
-          src={product.image} 
-          alt={product.name}
-          fill
-          className="object-cover transition-transform duration-700 group-hover:scale-110"
-          unoptimized={true}
-        />
+    <Link href={`/product/${product.id}`} className="group block relative h-full">
+      <div className="relative h-full bg-gradient-to-b from-[#ffffff] to-[#fffdf5] rounded-[1.5rem] p-0 shadow-[0_5px_20px_rgba(0,0,0,0.03)] border border-aura-gold/20 group-hover:border-aura-gold group-hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] transition-all duration-500 flex flex-col overflow-hidden">
         
-        {/* Sale Badge */}
-        {product.isSale && (
-          <div className="absolute top-4 right-4 bg-red-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-md z-10">
-            Sale
-          </div>
+        {/* SALE BADGE */}
+        {discount > 0 && (
+            <div className="absolute top-3 right-3 z-20">
+                <span className="bg-[#8B0000] text-white text-[9px] font-bold px-2.5 py-1 rounded-full shadow-md tracking-wider">
+                    -{discount}%
+                </span>
+            </div>
         )}
 
-        {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-      </div>
+        {/* TAGS (If any exist in DB) */}
+        {product.tags && product.tags.length > 0 && (
+             <div className="absolute top-3 left-3 z-20 flex flex-col gap-1">
+                {product.tags.slice(0, 1).map(tag => ( // Show only 1 tag to keep design clean
+                    <span key={tag} className="bg-aura-gold/20 backdrop-blur-sm text-aura-brown border border-aura-brown/10 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                        {tag}
+                    </span>
+                ))}
+             </div>
+        )}
 
-      {/* 2. DETAILS AREA */}
-      <div className="p-6 flex flex-col flex-grow">
-        
-        {/* Name & Desc */}
-        <div className="mb-4">
-          <h3 className="text-xl font-serif font-bold text-aura-brown mb-1 line-clamp-1 group-hover:text-aura-gold transition-colors">
-            {product.name}
-          </h3>
-          <p className="text-xs text-gray-500 line-clamp-1">
-            {product.description || "Luxury timepiece defined by precision."}
-          </p>
+        {/* IMAGE AREA - FULL FIT FIX (Your Exact Design) */}
+        <div className="relative aspect-square w-full overflow-hidden bg-[#F4F1EA]/30 group-hover:bg-[#F4F1EA] transition-colors duration-500">
+          <Image
+            src={imageUrl}
+            alt={product.name}
+            fill
+            className="object-contain p-2 group-hover:scale-110 transition-transform duration-700 ease-out mix-blend-multiply"
+            sizes="(max-width: 768px) 150px, 300px"
+          />
         </div>
 
-        {/* Colors & Rating */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex -space-x-2">
-            {product.colors?.map((col, i) => (
-              <div key={i} className="w-5 h-5 rounded-full border border-white shadow-sm" style={{ backgroundColor: col }}></div>
-            )) || <div className="w-5 h-5 rounded-full bg-gray-300"></div>}
-          </div>
-          
-          <div className="flex items-center gap-1 bg-aura-gold/10 px-2 py-1 rounded-lg">
-            <Star size={12} className="text-aura-brown fill-aura-brown" />
-            <span className="text-xs font-bold text-aura-brown">{product.rating || 5.0}</span>
-          </div>
-        </div>
-
-        {/* Price & Button */}
-        <div className="mt-auto pt-4 border-t border-gray-200/50 flex items-end justify-between">
-          <div>
-            {product.originalPrice > 0 && (
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-red-500 font-bold bg-red-50 px-1.5 py-0.5 rounded">
-                  {product.discount}% OFF
-                </span>
-                <span className="text-xs text-gray-400 line-through">
-                  Rs {product.originalPrice.toLocaleString()}
-                </span>
-              </div>
-            )}
-            <div className="text-xl font-bold text-aura-brown">
-              Rs {product.price.toLocaleString()}
+        {/* CONTENT (Your Exact Design) */}
+        <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+            <div>
+                {/* Category Label */}
+                <p className="text-[10px] text-aura-gold font-bold tracking-[0.2em] uppercase mb-1">
+                    {product.category || "Luxury"}
+                </p>
+                
+                {/* Title */}
+                <h3 className="text-aura-brown font-serif font-bold text-sm md:text-base leading-tight line-clamp-2 group-hover:text-aura-gold transition-colors">
+                    {product.name}
+                </h3>
             </div>
-          </div>
 
-          <button className="bg-aura-brown text-white px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-aura-gold transition-colors shadow-lg flex items-center gap-2 group/btn">
-            Buy Now 
-            <ShoppingCart size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-          </button>
+            {/* Bottom Section */}
+            <div className="mt-2">
+                 {/* Rating */}
+                 <div className="flex items-center gap-1 mb-2">
+                    <Star size={10} className="fill-aura-gold text-aura-gold" />
+                    <span className="text-[10px] text-gray-500 font-medium">{rating} ({reviewCount} reviews)</span>
+                 </div>
+
+                <div className="flex items-end justify-between border-t border-aura-gold/10 pt-3">
+                    {/* Prices */}
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-gray-400 line-through decoration-aura-gold/50">
+                            Rs {originalPrice.toLocaleString()}
+                        </span>
+                        <span className="text-sm md:text-lg font-serif font-bold text-aura-brown">
+                            Rs {product.price.toLocaleString()}
+                        </span>
+                    </div>
+                    
+                    {/* Stylish Button */}
+                    <button className="bg-aura-brown text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg group-hover:bg-aura-gold group-hover:scale-110 transition-all duration-300">
+                        <ShoppingBag size={14} />
+                    </button>
+                </div>
+            </div>
         </div>
       </div>
     </Link>

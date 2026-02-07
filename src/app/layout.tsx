@@ -1,29 +1,30 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Playfair_Display, Lato } from "next/font/google";
 import "./globals.css";
-import { Footer } from "@/components/Footer";
-import { AuthProvider } from "@/context/AuthContext"; // IMPORT THIS
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
+import { CartProvider } from "@/context/CartContext";
+import { AuthProvider } from "@/context/AuthContext"; // <--- MUST BE HERE
+import { Toaster } from "react-hot-toast"; // <--- 1. IMPORT THIS
+const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair', display: 'swap' });
+const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable: '--font-lato', display: 'swap' });
 
 export const metadata: Metadata = {
   title: "AURA-X | Luxury Timepieces",
-  description: "Define your legacy with AURA-X.",
+  description: "Swiss Precision, Timeless Elegance.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${playfair.variable} font-sans bg-[#F2F0E9]`}>
-        <AuthProvider>
-          {children}
-          <Footer />
+      <body className={`${playfair.variable} ${lato.variable} font-sans antialiased bg-[#FDFBF7]`}>
+        
+        {/* ORDER MATTERS: AuthProvider OUTSIDE, CartProvider INSIDE */}
+        <AuthProvider>  
+          <CartProvider>
+            <Toaster position="top-center" /> {/* <--- 2. ADD THIS HERE */}
+            {children}
+          </CartProvider>
         </AuthProvider>
+
       </body>
     </html>
   );
