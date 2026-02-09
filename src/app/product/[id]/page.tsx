@@ -13,11 +13,12 @@ import {
   Minus, Plus, ShoppingBag, Heart, Share2, 
   ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check
 } from "lucide-react";
-import { useRouter } from "next/navigation"; // <--- Add this
-import toast from "react-hot-toast"; // <--- Add this
+import { useRouter } from "next/navigation"; 
+import toast from "react-hot-toast"; 
+
 export default function ProductDetail() {
   const { id } = useParams();
-  const router = useRouter(); // <--- Initialize Router
+  const router = useRouter(); 
   const { addToCart } = useCart(); 
 
   // --- STATE ---
@@ -83,6 +84,9 @@ export default function ProductDetail() {
            const baseCount = 800;
            const idNum = parseInt(currentProduct.id) || 1;
            setViewCount(baseCount + (idNum * 123) % 500);
+
+           // --- SEO: DYNAMIC TITLE UPDATE ---
+           document.title = `${currentProduct.name} | AURA-X Luxury Watches`;
        }
        setLoading(false);
     };
@@ -177,8 +181,36 @@ export default function ProductDetail() {
       return val;
   };
 
+  // --- SEO: PRODUCT SCHEMA (Rich Snippet) ---
+  const jsonLd = {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": product.name,
+    "image": product.main_image,
+    "description": product.description,
+    "brand": {
+      "@type": "Brand",
+      "name": "AURA-X"
+    },
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "PKR",
+      "price": product.price,
+      "availability": specs.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      "itemCondition": "https://schema.org/NewCondition",
+      "url": typeof window !== 'undefined' ? window.location.href : ''
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32 md:pb-24">
+      
+      {/* SEO: Inject JSON-LD Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <Navbar />
 
       {lightboxImage && (

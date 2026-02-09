@@ -86,6 +86,8 @@ export function Footer() {
                     <div>
                         <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Concierge</h4>
                         <ul className="space-y-4 text-sm text-white/60 font-light">
+                            {/* ADDED SUPPORT CENTER LINK BACK */}
+                            <li><Link href="/support" className="hover:text-white transition-colors duration-300">Support Center</Link></li>
                             <li><Link href="/track-order" className="hover:text-white transition-colors duration-300">Track Order</Link></li>
                             <li><Link href="/support/shipping" className="hover:text-white transition-colors duration-300">Shipping Policy</Link></li>
                             <li><Link href="/support/return" className="hover:text-white transition-colors duration-300">Return & Exchange</Link></li>
@@ -94,7 +96,7 @@ export function Footer() {
                     </div>
                 </div>
 
-                {/* 3. NEWSLETTER COLUMN (NOW WORKING) */}
+                {/* 3. NEWSLETTER COLUMN */}
                 <div className="lg:col-span-1 pt-4">
                     <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Newsletter</h4>
                     <p className="text-white/60 text-sm mb-6 font-light">
@@ -117,9 +119,8 @@ export function Footer() {
                         </button>
                     </div>
                     
-                    {/* CONTACT INFO (UPDATED) */}
+                    {/* CONTACT INFO */}
                     <div className="mt-8 space-y-3 text-white/50 text-xs">
-                        {/* WhatsApp Link */}
                         <a 
                             href="https://wa.me/923369871278" 
                             target="_blank" 
@@ -130,7 +131,6 @@ export function Footer() {
                             <span className="font-mono tracking-wide">0336 9871278</span>
                         </a>
 
-                        {/* Email Link */}
                         <a 
                             href="mailto:tahseenalam345@gmail.com" 
                             className="flex items-center gap-3 hover:text-aura-gold transition-colors"
