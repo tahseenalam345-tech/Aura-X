@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import { useCart } from "@/context/CartContext";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowLeft, ArrowRight, Lock, MapPin, Phone, User, Mail, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
+import { sendOrderEmails } from "@/lib/emailService"; // <--- IMPORT ADDED
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -26,9 +27,8 @@ export default function CheckoutPage() {
   const shippingCost = isFreeShipping ? 0 : STANDARD_SHIPPING_COST;
   const finalTotal = cartTotal + shippingCost;
 
-  // --- 2. GENERATE SHORT ID FUNCTION ---
+  // --- GENERATE SHORT ID FUNCTION ---
   const generateOrderCode = () => {
-    // Generates "ORD-" followed by 6 random uppercase characters/numbers
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
     for (let i = 0; i < 6; i++) {
@@ -54,11 +54,13 @@ export default function CheckoutPage() {
             addBox: item.addBox
         }));
 
-        const { error } = await supabase
+        // 1. SAVE TO DATABASE
+        // Added .select().single() to get the saved data back for the email
+        const { data, error } = await supabase
             .from('orders')
             .insert([
                 {
-                    order_code: shortId, // <--- SAVING THE SHORT ID
+                    order_code: shortId,
                     customer_name: `${formData.firstName} ${formData.lastName}`,
                     email: formData.email,
                     phone: formData.phone,
@@ -69,12 +71,20 @@ export default function CheckoutPage() {
                     items: orderItems,
                     admin_notes: ""
                 }
-            ]);
+            ])
+            .select()
+            .single();
 
         if (error) throw error;
 
+        // 2. SEND EMAILS (Background Process)
+        // We pass the 'data' we just got from Supabase to the email service
+        if (data) {
+            await sendOrderEmails(data); 
+        }
+
+        // 3. CLEANUP & REDIRECT
         clearCart();
-        // Redirect using the SHORT ID
         router.push(`/success?id=${shortId}&total=${finalTotal}&name=${formData.firstName}`);
 
     } catch (error) {
@@ -130,8 +140,8 @@ export default function CheckoutPage() {
                    <div className="space-y-4">
                       <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">Full Address</label><div className="relative"><MapPin className="absolute left-4 top-3 text-gray-300" size={18}/><textarea required name="address" onChange={handleInputChange} placeholder="House #, Street, Area" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold h-24 resize-none" /></div></div>
                       <div className="grid grid-cols-2 gap-4">
-                         <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">City</label><input required name="city" onChange={handleInputChange} type="text" placeholder="e.g. Lahore" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
-                         <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">Postal Code</label><input required name="postalCode" onChange={handleInputChange} type="text" placeholder="e.g. 54000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
+                          <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">City</label><input required name="city" onChange={handleInputChange} type="text" placeholder="e.g. Lahore" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
+                          <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">Postal Code</label><input required name="postalCode" onChange={handleInputChange} type="text" placeholder="e.g. 54000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
                       </div>
                    </div>
                 </div>

@@ -3,19 +3,21 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase"; 
 import Image from "next/image";
+import Link from "next/link"; 
 import { 
   Plus, Trash2, X, Save, Upload, LogOut, LayoutGrid, 
   ShoppingCart, Eye, Edit2, Flame, CheckCircle, 
   Clock, Truck, XCircle, Check, Phone, Mail, MapPin, 
   FileText, Menu, MessageCircle, Tag, Settings, Package, 
-  DollarSign, TrendingUp, TrendingDown, AlertCircle
+  DollarSign, TrendingUp, TrendingDown, AlertCircle, Lock, Home,
+  RotateCcw, MessageSquare, Bell, Users, Calendar // <--- ADDED NEW ICONS
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext"; 
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 // --- CONFIGURATION ---
-const PACKING_AND_SHIPPING_COST = 250; // Edit this value to change expense per order
+const PACKING_AND_SHIPPING_COST = 250; 
 
 // --- HELPER: Image Compression ---
 const compressImage = (file: File): Promise<Blob> => {
@@ -52,7 +54,8 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   // --- STATE ---
-  const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'finance'>('inventory');
+  // UPDATED: Added new tabs to the type
+  const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'finance' | 'returns' | 'messages' | 'marketing'>('inventory');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // DATA STATE
@@ -61,6 +64,11 @@ export default function AdminDashboard() {
   const [orderStatusFilter, setOrderStatusFilter] = useState("Processing");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [adminNote, setAdminNote] = useState("");
+
+  // --- NEW DATA STATES ---
+  const [returnRequests, setReturnRequests] = useState<any[]>([]);
+  const [contactMessages, setContactMessages] = useState<any[]>([]);
+  const [marketingData, setMarketingData] = useState<{launch: any[], newsletter: any[]}>({ launch: [], newsletter: [] });
 
   // FINANCE STATE
   const [financeStats, setFinanceStats] = useState({ revenue: 0, cost: 0, expenses: 0, profit: 0, cancelledLoss: 0 });
@@ -75,6 +83,7 @@ export default function AdminDashboard() {
     name: "", brand: "AURA-X", sku: "", stock: 10, category: "men", 
     price: 0, originalPrice: 0, discount: 0, costPrice: 0,
     tags: [] as string[], priority: 50, viewCount: 840,
+    isEidExclusive: false, 
     movement: "Quartz", waterResistance: "3ATM", glass: "Mineral", 
     caseMaterial: "Stainless Steel", caseColor: "Silver", caseShape: "Round", caseDiameter: "40mm", caseThickness: "10mm",
     strapMaterial: "Leather", strapColor: "Brown", strapWidth: "20mm", adjustable: true,
@@ -93,6 +102,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchProducts();
     fetchOrders();
+    fetchSupportData(); // <--- Fetch new data
 
     const channel = supabase
       .channel('realtime-orders')
@@ -119,6 +129,22 @@ export default function AdminDashboard() {
     if (data) setOrders(data);
   };
 
+  // --- NEW: FETCH SUPPORT & MARKETING DATA ---
+  const fetchSupportData = async () => {
+      // 1. Returns
+      const { data: returns } = await supabase.from('return_requests').select('*').order('created_at', { ascending: false });
+      if(returns) setReturnRequests(returns);
+
+      // 2. Messages
+      const { data: messages } = await supabase.from('contact_messages').select('*').order('created_at', { ascending: false });
+      if(messages) setContactMessages(messages);
+
+      // 3. Marketing (Waitlist + Newsletter)
+      const { data: launch } = await supabase.from('launch_notifications').select('*').order('created_at', { ascending: false });
+      const { data: news } = await supabase.from('newsletter_subscribers').select('*').order('created_at', { ascending: false });
+      setMarketingData({ launch: launch || [], newsletter: news || [] });
+  };
+
   // --- FINANCE LOGIC ---
   const calculateFinance = (currentOrders: any[], currentProducts: any[]) => {
       let revenue = 0;
@@ -128,17 +154,15 @@ export default function AdminDashboard() {
 
       currentOrders.forEach(order => {
           if (order.status === 'Cancelled') {
-              cancelledLoss += 0; // Future: Add ad spend here
+              cancelledLoss += 0; 
               return; 
           }
 
           revenue += Number(order.total);
           expenses += PACKING_AND_SHIPPING_COST;
 
-          // Calculate Cost of Goods based on matched Product ID or Name
           if (order.items) {
               order.items.forEach((item: any) => {
-                  // Find original product to get Cost Price (Saved in inventory)
                   const product = currentProducts.find(p => p.name === item.name);
                   const cost = product?.specs?.cost_price || 0;
                   costOfGoods += (Number(cost) * Number(item.quantity));
@@ -219,15 +243,17 @@ export default function AdminDashboard() {
           name: formData.name, brand: formData.brand, category: formData.category, 
           price: formData.price, original_price: formData.originalPrice, discount: formData.discount, 
           description: formData.description, main_image: formData.mainImage, tags: formData.tags, 
-          rating: formData.priority, is_sale: formData.discount > 0, colors: formData.colors, 
+          rating: formData.priority, is_sale: formData.discount > 0, 
+          is_eid_exclusive: formData.isEidExclusive, 
+          colors: formData.colors, 
           specs: { 
-             sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
-             movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
-             case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
-             strap: formData.strapMaterial, strap_color: formData.strapColor, strap_width: formData.strapWidth, adjustable: formData.adjustable,
-             dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay, weight: formData.weight,
-             warranty: formData.warranty, shipping_text: formData.shippingText, return_policy: formData.returnPolicy, box_included: formData.boxIncluded,
-             gallery: formData.gallery
+              sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
+              movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
+              case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
+              strap: formData.strapMaterial, strap_color: formData.strapColor, strap_width: formData.strapWidth, adjustable: formData.adjustable,
+              dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay, weight: formData.weight,
+              warranty: formData.warranty, shipping_text: formData.shippingText, return_policy: formData.returnPolicy, box_included: formData.boxIncluded,
+              gallery: formData.gallery
           }
       };
 
@@ -239,6 +265,14 @@ export default function AdminDashboard() {
           toast.success("Product Published");
       }
       setShowForm(false); fetchProducts();
+  };
+
+  // --- DELETE HANDLERS FOR NEW DATA ---
+  const deleteItem = async (table: string, id: number, refresh: () => void) => {
+      if(!confirm("Are you sure?")) return;
+      await supabase.from(table).delete().eq('id', id);
+      toast.success("Item deleted");
+      refresh();
   };
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -259,18 +293,47 @@ export default function AdminDashboard() {
                 <h2 className="text-2xl font-serif font-bold text-aura-gold">AURA-X</h2>
                 <p className="text-xs text-white/50 tracking-widest uppercase">Admin Portal</p>
             </div>
-            <nav className="flex-1 p-4 space-y-2 mt-16 md:mt-0">
-                <button onClick={() => { setActiveTab('inventory'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}><LayoutGrid size={20} /> Inventory</button>
+            <nav className="flex-1 p-4 space-y-1 mt-16 md:mt-0">
+                {/* INVENTORY */}
+                <button onClick={() => { setActiveTab('inventory'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                    <LayoutGrid size={20} /> Inventory
+                </button>
+                {/* ORDERS */}
                 <button onClick={() => { setActiveTab('orders'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'orders' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <ShoppingCart size={20} /> Orders 
-                    {orders.filter(o => o.status === 'Processing').length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 rounded-full">{orders.filter(o => o.status === 'Processing').length}</span>}
+                    {orders.filter(o => o.status === 'Processing').length > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{orders.filter(o => o.status === 'Processing').length}</span>}
                 </button>
+                {/* FINANCE */}
                 <button onClick={() => { setActiveTab('finance'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <DollarSign size={20} /> Finance
                 </button>
+
+                <div className="h-[1px] bg-white/10 my-4"></div>
+                <p className="px-4 text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">Support & CRM</p>
+
+                {/* RETURNS */}
+                <button onClick={() => { setActiveTab('returns'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'returns' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                    <RotateCcw size={20} /> Returns
+                    {returnRequests.length > 0 && <span className="ml-auto bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">{returnRequests.length}</span>}
+                </button>
+                {/* MESSAGES */}
+                <button onClick={() => { setActiveTab('messages'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'messages' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                    <MessageSquare size={20} /> Messages
+                    {contactMessages.length > 0 && <span className="ml-auto bg-purple-500 text-white text-[10px] px-2 py-0.5 rounded-full">{contactMessages.length}</span>}
+                </button>
+                {/* MARKETING */}
+                <button onClick={() => { setActiveTab('marketing'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'marketing' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                    <Users size={20} /> Marketing
+                </button>
             </nav>
-            <div className="p-4 border-t border-white/10 absolute bottom-0 w-full">
-                <button onClick={logout} className="flex items-center gap-2 text-red-400 hover:text-white transition w-full px-4 py-2"><LogOut size={16}/> Logout</button>
+            
+            <div className="p-4 border-t border-white/10 absolute bottom-0 w-full space-y-2 bg-[#1E1B18]">
+                <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5 transition w-full px-4 py-2 rounded-lg">
+                    <Home size={16}/> View Live Website
+                </Link>
+                <button onClick={logout} className="flex items-center gap-2 text-red-400 hover:text-white hover:bg-white/5 transition w-full px-4 py-2 rounded-lg">
+                    <LogOut size={16}/> Logout
+                </button>
             </div>
         </aside>
 
@@ -280,6 +343,108 @@ export default function AdminDashboard() {
         {/* MAIN CONTENT */}
         <div className="flex-1 p-4 md:p-8 overflow-y-auto h-screen pt-20 md:pt-8">
             
+            {/* === RETURNS TAB === */}
+            {activeTab === 'returns' && (
+                <div className="space-y-6 pb-20 animate-in fade-in">
+                    <h1 className="text-3xl font-bold text-[#1E1B18] mb-6">Return Requests</h1>
+                    {returnRequests.length === 0 ? <p className="text-gray-400">No return requests found.</p> : (
+                        <div className="grid gap-4">
+                            {returnRequests.map((req) => (
+                                <div key={req.id} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className="font-bold text-lg">Order #{req.orderId}</h3>
+                                            <p className="text-sm text-gray-500">{new Date(req.created_at).toLocaleDateString()} • {req.reason}</p>
+                                        </div>
+                                        <button onClick={() => deleteItem('return_requests', req.id, fetchSupportData)} className="text-red-400 hover:bg-red-50 p-2 rounded-full"><Trash2 size={18}/></button>
+                                    </div>
+                                    <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 mb-4">
+                                        <p className="font-bold mb-1">Details:</p>
+                                        "{req.details}"
+                                    </div>
+                                    <div className="flex flex-wrap gap-4 text-sm">
+                                        <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500"/> {req.name}</div>
+                                        <div className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> {req.phone}</div>
+                                        <div className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> {req.email}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* === MESSAGES TAB === */}
+            {activeTab === 'messages' && (
+                <div className="space-y-6 pb-20 animate-in fade-in">
+                    <h1 className="text-3xl font-bold text-[#1E1B18] mb-6">Inbox</h1>
+                    {contactMessages.length === 0 ? <p className="text-gray-400">No messages found.</p> : (
+                        <div className="grid gap-4">
+                            {contactMessages.map((msg) => (
+                                <div key={msg.id} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:border-aura-gold/50 transition-colors">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-bold text-lg text-aura-brown">{msg.subject}</h3>
+                                        <button onClick={() => deleteItem('contact_messages', msg.id, fetchSupportData)} className="text-gray-400 hover:text-red-500"><X size={18}/></button>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mb-4">From: {msg.name} ({msg.email}) • {new Date(msg.created_at).toLocaleString()}</p>
+                                    <p className="text-gray-700 bg-gray-50 p-4 rounded-lg text-sm leading-relaxed">{msg.message}</p>
+                                    <a href={`mailto:${msg.email}`} className="inline-block mt-4 text-xs font-bold text-aura-gold hover:underline">REPLY VIA EMAIL</a>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* === MARKETING TAB === */}
+            {activeTab === 'marketing' && (
+                <div className="space-y-8 pb-20 animate-in fade-in">
+                    <h1 className="text-3xl font-bold text-[#1E1B18]">Marketing Data</h1>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* NEWSLETTER SECTION */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="bg-green-50 p-3 rounded-full text-green-600"><Mail size={24}/></div>
+                                <div>
+                                    <h3 className="font-bold text-lg">Newsletter Subscribers</h3>
+                                    <p className="text-xs text-gray-400">Footer Signups</p>
+                                </div>
+                                <span className="ml-auto text-2xl font-bold">{marketingData.newsletter.length}</span>
+                            </div>
+                            <div className="max-h-[400px] overflow-y-auto space-y-2">
+                                {marketingData.newsletter.map((sub, i) => (
+                                    <div key={i} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg text-sm border-b border-gray-50 last:border-0">
+                                        <span className="text-gray-700">{sub.email}</span>
+                                        <span className="text-xs text-gray-400">{new Date(sub.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* EID WAITLIST SECTION */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="bg-purple-50 p-3 rounded-full text-purple-600"><Bell size={24}/></div>
+                                <div>
+                                    <h3 className="font-bold text-lg">Eid Collection Waitlist</h3>
+                                    <p className="text-xs text-gray-400">Launch Notifications</p>
+                                </div>
+                                <span className="ml-auto text-2xl font-bold">{marketingData.launch.length}</span>
+                            </div>
+                            <div className="max-h-[400px] overflow-y-auto space-y-2">
+                                {marketingData.launch.map((sub, i) => (
+                                    <div key={i} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg text-sm border-b border-gray-50 last:border-0">
+                                        <span className="text-gray-700">{sub.email}</span>
+                                        <span className="text-xs text-gray-400">{new Date(sub.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* === FINANCE TAB === */}
             {activeTab === 'finance' && (
                 <div className="space-y-6 animate-in fade-in zoom-in duration-300 pb-20">
@@ -327,13 +492,17 @@ export default function AdminDashboard() {
                                     <tr key={item.id} className="hover:bg-gray-50/50">
                                         <td className="p-4 flex items-center gap-3">
                                             <div className="w-10 h-10 bg-gray-100 rounded-lg relative overflow-hidden flex-shrink-0">{item.main_image && <Image src={item.main_image} alt="" fill className="object-cover" unoptimized />}</div>
-                                            <div className="truncate max-w-[150px]"><p className="font-bold text-aura-brown text-sm">{item.name}</p></div>
+                                            <div className="truncate max-w-[150px]">
+                                                <p className="font-bold text-aura-brown text-sm">{item.name}</p>
+                                                {/* Visual Badge for Eid Items */}
+                                                {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID EXCLUSIVE</span>}
+                                            </div>
                                         </td>
                                         <td className="p-4 text-sm">{item.specs?.stock}</td>
                                         <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={() => { setFormData({...initialFormState, ...item, ...item.specs}); setEditId(item.id); setIsEditing(true); setShowForm(true); }} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={14}/></button>
+                                                <button onClick={() => { setFormData({...initialFormState, ...item, ...item.specs, isEidExclusive: item.is_eid_exclusive }); setEditId(item.id); setIsEditing(true); setShowForm(true); }} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={14}/></button>
                                                 <button onClick={() => { if(confirm("Delete?")) { supabase.from('products').delete().eq('id', item.id).then(fetchProducts); } }} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={14}/></button>
                                             </div>
                                         </td>
@@ -369,7 +538,6 @@ export default function AdminDashboard() {
                                         {order.status === 'Processing' ? <Clock size={18}/> : <Check size={18}/>}
                                     </div>
                                     <div>
-                                        {/* Consistent ID Display */}
                                         <p className="font-bold text-aura-brown text-sm md:text-base">#{order.id.slice(0, 8).toUpperCase()}</p>
                                         <p className="text-xs text-gray-500">{order.customer_name} • {new Date(order.created_at).toLocaleDateString()}</p>
                                     </div>
@@ -501,6 +669,20 @@ export default function AdminDashboard() {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div><label className="text-xs font-bold text-gray-500">Priority (1-100)</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.priority} onChange={e => setFormData({...formData, priority: Number(e.target.value)})} /></div>
                                         <div><label className="text-xs font-bold text-gray-500">Fake Views</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.viewCount} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
+                                    </div>
+                                    
+                                    {/* EID EXCLUSIVE CHECKBOX */}
+                                    <div className="col-span-2">
+                                        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-gray-50 border-gray-200'}`}>
+                                            <input type="checkbox" className="hidden" checked={formData.isEidExclusive} onChange={e => setFormData({...formData, isEidExclusive: e.target.checked})} />
+                                            <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.isEidExclusive ? 'bg-aura-gold border-aura-gold text-black' : 'bg-white border-gray-300'}`}>
+                                                {formData.isEidExclusive && <Check size={14} strokeWidth={4} />}
+                                            </div>
+                                            <div>
+                                                <p className={`font-bold text-sm ${formData.isEidExclusive ? 'text-aura-gold' : 'text-gray-600'}`}>Mark as Eid Exclusive (Locked Content)</p>
+                                                <p className="text-xs text-gray-400">If checked, this item will be HIDDEN from normal shop and only visible on the Locked Eid Page.</p>
+                                            </div>
+                                        </label>
                                     </div>
                                 </div>
                             </section>

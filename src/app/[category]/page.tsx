@@ -5,8 +5,8 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard"; 
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { ChevronDown, Filter, X } from "lucide-react"; 
-import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase"; // <--- NEW IMPORT
+import { useParams, notFound } from "next/navigation"; // Added notFound
+import { supabase } from "@/lib/supabase"; 
 
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -16,12 +16,22 @@ const fadeInUp: Variants = {
 export default function CategoryPage() {
   const params = useParams();
   const categorySlug = params.category as string; 
+  
+  // --- SAFETY CHECK (NEW CODE) ---
+  // This prevents the Category Page from stealing system pages like Privacy Policy
+  const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection'];
+  
+  // If the URL matches a reserved page, stop rendering this component immediately.
+  if (reservedRoutes.includes(categorySlug)) {
+      return null; 
+  }
+  // --------------------------------
 
   // --- NEW: STATE FOR REAL DATA ---
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [priceRange, setPriceRange] = useState(500000); // Increased limit for luxury items
+  const [priceRange, setPriceRange] = useState(500000); 
   const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
   const [selectedStraps, setSelectedStraps] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("featured");
@@ -34,17 +44,21 @@ export default function CategoryPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
-      // Fetch items matching the category slug (men, women, couple)
+      // Fetch items matching category AND ensure they are NOT Eid Exclusive
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('category', categorySlug);
+        .eq('category', categorySlug)
+        .eq('is_eid_exclusive', false); // <--- THIS LINE HIDES THEM
       
       if (data) setProducts(data);
       setLoading(false);
     };
 
-    if (categorySlug) fetchProducts();
+    // Only run fetch if it's NOT a reserved route
+    if (categorySlug && !reservedRoutes.includes(categorySlug)) {
+        fetchProducts();
+    }
   }, [categorySlug]);
 
   // --- FILTERING LOGIC (Applied to Real Data) ---
@@ -53,7 +67,6 @@ export default function CategoryPage() {
     if (product.price > priceRange) return false;
     
     // 2. Movement Check
-    // We check inside product.specs because that's where we saved it in Admin
     if (selectedMovements.length > 0) {
         const move = product.specs?.movement || "Quartz";
         if (!selectedMovements.includes(move)) return false;
@@ -62,7 +75,6 @@ export default function CategoryPage() {
     // 3. Strap Check
     if (selectedStraps.length > 0) {
         const strap = product.specs?.strap || "Leather";
-        // Check if strap contains the keyword (e.g. "Genuine Leather" matches "Leather")
         const hasStrap = selectedStraps.some(s => strap.includes(s));
         if (!hasStrap) return false;
     }
@@ -220,7 +232,6 @@ export default function CategoryPage() {
                                 exit={{ opacity: 0, scale: 0.9 }}
                                 layout
                             >
-                                {/* We pass the whole product, ProductCard needs to handle the Supabase structure */}
                                 <ProductCard product={product} />
                             </motion.div>
                         ))}

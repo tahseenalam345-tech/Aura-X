@@ -2,9 +2,32 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Facebook, Instagram, Twitter, Youtube, ArrowRight, Phone } from "lucide-react";
+import { useState } from "react";
+import { Facebook, Instagram, Twitter, Youtube, ArrowRight, Phone, Mail, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "react-hot-toast";
 
 export function Footer() {
+  // --- NEWSLETTER LOGIC ---
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubscribe = async () => {
+    if (!email.includes("@")) return toast.error("Please enter a valid email");
+    setLoading(true);
+
+    const { error } = await supabase.from('newsletter_subscribers').insert([{ email }]);
+    
+    setLoading(false);
+    if (error) {
+        if (error.code === '23505') toast.error("You are already subscribed!");
+        else toast.error("Something went wrong.");
+    } else {
+        toast.success("Subscribed successfully!");
+        setEmail("");
+    }
+  };
+
   return (
     <footer className="bg-[#1E1B18] text-white pt-24 pb-10 border-t-4 border-aura-gold relative overflow-hidden">
         
@@ -18,13 +41,12 @@ export function Footer() {
                 
                 {/* 1. BRAND COLUMN */}
                 <div className="lg:col-span-1 space-y-8">
-                    {/* LOGO: Large Size & Original Colors (Filters removed) */}
-                    <Link href="/" className="block relative w-96 h-40 opacity-90 hover:opacity-100 transition-opacity -ml-4">
+                    {/* LOGO */}
+                    <Link href="/" className="block relative w-48 h-24 opacity-90 hover:opacity-100 transition-opacity">
                          <Image 
                             src="/logo.png" 
                             alt="AURA-X" 
                             fill 
-                            // CHANGED: Removed 'invert brightness-0' so it shows original Gold/Brand colors
                             className="object-contain object-left" 
                         /> 
                     </Link>
@@ -43,62 +65,79 @@ export function Footer() {
                 </div>
 
                 {/* 2. LINKS COLUMNS */}
-                <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-8 pt-4">
-                    {/* Col A */}
+                <div className="lg:col-span-2 grid grid-cols-2 gap-8 pt-4">
+                    
+                    {/* Col A: COLLECTIONS */}
                     <div>
                         <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Collections</h4>
                         <ul className="space-y-4 text-sm text-white/60 font-light">
                             <li><Link href="/men" className="hover:text-white transition-colors duration-300">Men's Watches</Link></li>
                             <li><Link href="/women" className="hover:text-white transition-colors duration-300">Women's Watches</Link></li>
                             <li><Link href="/couple" className="hover:text-white transition-colors duration-300">Couple Sets</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">New Arrivals</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Limited Edition</Link></li>
+                            <li>
+                                <Link href="/eid-collection" className="text-aura-gold font-bold flex items-center gap-2 hover:text-white transition-colors duration-300">
+                                    The Eid Edit <span className="animate-pulse">✨</span>
+                                </Link>
+                            </li>
                         </ul>
                     </div>
                     
-                    {/* Col B */}
-                    <div>
-                        <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Maison</h4>
-                        <ul className="space-y-4 text-sm text-white/60 font-light">
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Our Heritage</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Craftsmanship</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Sustainability</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Press Room</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Careers</Link></li>
-                        </ul>
-                    </div>
-
-                    {/* Col C */}
+                    {/* Col B: CONCIERGE */}
                     <div>
                         <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Concierge</h4>
                         <ul className="space-y-4 text-sm text-white/60 font-light">
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Contact Us</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Track Order</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Shipping & Returns</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Warranty Info</Link></li>
-                            <li><Link href="/" className="hover:text-white transition-colors duration-300">Book Appointment</Link></li>
+                            <li><Link href="/track-order" className="hover:text-white transition-colors duration-300">Track Order</Link></li>
+                            <li><Link href="/support/shipping" className="hover:text-white transition-colors duration-300">Shipping Policy</Link></li>
+                            <li><Link href="/support/return" className="hover:text-white transition-colors duration-300">Return & Exchange</Link></li>
+                            <li><Link href="/support/contact" className="hover:text-white transition-colors duration-300">Contact Support</Link></li>
                         </ul>
                     </div>
                 </div>
 
-                {/* 3. NEWSLETTER COLUMN */}
+                {/* 3. NEWSLETTER COLUMN (NOW WORKING) */}
                 <div className="lg:col-span-1 pt-4">
                     <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Newsletter</h4>
                     <p className="text-white/60 text-sm mb-6 font-light">
-                        Be the first to receive updates on new arrivals, special offers, and exclusive events.
+                        Be the first to receive updates on the Eid Collection reveal and exclusive offers.
                     </p>
                     <div className="relative group">
                         <input 
                             type="email" 
                             placeholder="Email Address" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-4 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-aura-gold transition-colors"
                         />
-                        <button className="absolute right-2 top-2 w-10 h-10 bg-aura-gold rounded-full flex items-center justify-center text-aura-brown hover:scale-110 transition-transform">
-                            <ArrowRight size={18} />
+                        <button 
+                            onClick={handleSubscribe} 
+                            disabled={loading}
+                            className="absolute right-2 top-2 w-10 h-10 bg-aura-gold rounded-full flex items-center justify-center text-aura-brown hover:scale-110 transition-transform disabled:opacity-50"
+                        >
+                            {loading ? <Loader2 size={18} className="animate-spin"/> : <ArrowRight size={18} />}
                         </button>
                     </div>
-                    <div className="mt-8 flex items-center gap-3 text-white/50 text-xs">
-                        <Phone size={14} /> <span>+92 326 1688628</span>
+                    
+                    {/* CONTACT INFO (UPDATED) */}
+                    <div className="mt-8 space-y-3 text-white/50 text-xs">
+                        {/* WhatsApp Link */}
+                        <a 
+                            href="https://wa.me/923369871278" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="flex items-center gap-3 hover:text-green-400 transition-colors"
+                        >
+                            <Phone size={14} className="text-aura-gold"/> 
+                            <span className="font-mono tracking-wide">0336 9871278</span>
+                        </a>
+
+                        {/* Email Link */}
+                        <a 
+                            href="mailto:tahseenalam345@gmail.com" 
+                            className="flex items-center gap-3 hover:text-aura-gold transition-colors"
+                        >
+                            <Mail size={14} className="text-aura-gold"/> 
+                            <span>tahseenalam345@gmail.com</span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -112,8 +151,8 @@ export function Footer() {
                 {/* Copyright */}
                 <div className="text-white/40 text-xs tracking-wider flex gap-6">
                     <span>© 2026 AURA-X</span>
-                    <Link href="/" className="hover:text-white transition">Privacy Policy</Link>
-                    <Link href="/" className="hover:text-white transition">Terms of Service</Link>
+                    <Link href="/admin" className="hover:text-aura-gold transition">Admin Login</Link>
+                    <Link href="/privacy-policy" className="hover:text-white transition">Privacy Policy</Link>
                 </div>
                 
                 {/* DESIGNED BY AURA DEPT */}
