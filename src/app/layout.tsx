@@ -13,21 +13,28 @@ const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable:
 
 // --- SEO: GLOBAL METADATA ---
 export const metadata: Metadata = {
- metadataBase: new URL('https://aura-x-three.vercel.app'), // <--- UPDATED
+  metadataBase: new URL('https://aura-x-three.vercel.app'),
   title: {
     default: "AURA-X | Luxury Timepieces",
-    template: "%s | AURA-X" // Example: "Men's Collection | AURA-X"
+    template: "%s | AURA-X"
   },
   description: "Discover AURA-X, the pinnacle of luxury watches in Pakistan. Shop our exclusive collection of Men's, Women's, and Couple's timepieces. Swiss Precision, Timeless Elegance.",
   keywords: ["luxury watches", "watches pakistan", "men watches", "women watches", "aura-x", "gift watches", "couple watches", "gold watches"],
+  
+  // --- ✅ GOOGLE VERIFICATION ADDED HERE ---
+  verification: {
+    google: '73OSZgKuDAA1E1m_rcm4CUyCYboI3yXk87hB_jp2-qo',
+  },
+  // -----------------------------------------
+
   openGraph: {
     title: "AURA-X | Luxury Timepieces",
     description: "Swiss Precision, Timeless Elegance.",
-   url: 'https://aura-x-three.vercel.app', // <--- UPDATED
+    url: 'https://aura-x-three.vercel.app',
     siteName: 'AURA-X',
     images: [
       {
-        url: '/og-image.jpg', // Make sure to add an image named 'og-image.jpg' to your public folder
+        url: '/og-image.jpg', 
         width: 1200,
         height: 630,
       },
@@ -46,8 +53,8 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "AURA-X",
-  "url": "https://aura-x-three.vercel.app", // <--- UPDATED
-  "logo": "https://aura-x-three.vercel.app/logo.png", // <--- UPDATED
+  "url": "https://aura-x-three.vercel.app",
+  "logo": "https://aura-x-three.vercel.app/logo.png",
   "description": "Luxury Watch Brand in Pakistan",
   "contactPoint": {
     "@type": "ContactPoint",
@@ -72,10 +79,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <CartProvider>
             <Toaster position="top-center" /> 
             <EidPopup />
-            {/* 2. WhatsApp Button (NEW) */}
             <WhatsAppButton />
             {children}
-            {/* 3. Footer (NOW ADDED HERE) */}
             <Footer />
           </CartProvider>
         
