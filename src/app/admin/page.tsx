@@ -317,6 +317,7 @@ export default function AdminDashboard() {
           price: formData.price, original_price: formData.originalPrice, discount: formData.discount, 
           description: formData.description, main_image: formData.mainImage, tags: formData.tags, 
           rating: formData.priority, is_sale: formData.discount > 0, 
+          priority: formData.priority, // <--- ADD THIS LINE HERE
           is_eid_exclusive: formData.isEidExclusive, 
           colors: formData.colors,
           manual_reviews: formData.manualReviews, // Save reviews

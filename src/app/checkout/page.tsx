@@ -9,7 +9,7 @@ import { useCart } from "@/context/CartContext";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowLeft, ArrowRight, Lock, MapPin, Phone, User, Mail, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
-import { sendOrderEmails } from "@/lib/emailService"; // <--- IMPORT ADDED
+import { sendOrderEmails } from "@/lib/emailService"; 
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -55,7 +55,6 @@ export default function CheckoutPage() {
         }));
 
         // 1. SAVE TO DATABASE
-        // Added .select().single() to get the saved data back for the email
         const { data, error } = await supabase
             .from('orders')
             .insert([
@@ -78,7 +77,6 @@ export default function CheckoutPage() {
         if (error) throw error;
 
         // 2. SEND EMAILS (Background Process)
-        // We pass the 'data' we just got from Supabase to the email service
         if (data) {
             await sendOrderEmails(data); 
         }
@@ -141,7 +139,18 @@ export default function CheckoutPage() {
                       <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">Full Address</label><div className="relative"><MapPin className="absolute left-4 top-3 text-gray-300" size={18}/><textarea required name="address" onChange={handleInputChange} placeholder="House #, Street, Area" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold h-24 resize-none" /></div></div>
                       <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">City</label><input required name="city" onChange={handleInputChange} type="text" placeholder="e.g. Lahore" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
-                          <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">Postal Code</label><input required name="postalCode" onChange={handleInputChange} type="text" placeholder="e.g. 54000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
+                          
+                          {/* UPDATED: Postal Code is now Optional */}
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase">Postal Code (Optional)</label>
+                            <input 
+                                name="postalCode" 
+                                onChange={handleInputChange} 
+                                type="text" 
+                                placeholder="e.g. 54000" 
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" 
+                            />
+                          </div>
                       </div>
                    </div>
                 </div>
