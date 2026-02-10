@@ -7,10 +7,10 @@ import Link from "next/link";
 import { 
   Plus, Trash2, X, Save, Upload, LogOut, LayoutGrid, 
   ShoppingCart, Eye, Edit2, Flame, CheckCircle, 
-  Clock, Truck, XCircle, Check, Phone, Mail, MapPin, 
-  FileText, Menu, MessageCircle, Tag, Settings, Package, 
-  DollarSign, TrendingUp, TrendingDown, AlertCircle, Lock, Home,
-  RotateCcw, MessageSquare, Bell, Users, Calendar // <--- ADDED NEW ICONS
+  Clock, Truck, Check, Phone, Mail, MapPin, 
+  Menu, MessageCircle, Tag, Settings, Package, 
+  DollarSign, TrendingUp, TrendingDown, Home,
+  RotateCcw, MessageSquare, Bell, Users, Video, Star, User // <--- ADDED Video, Star, User
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext"; 
 import { useRouter } from "next/navigation";
@@ -19,9 +19,17 @@ import toast from "react-hot-toast";
 // --- CONFIGURATION ---
 const PACKING_AND_SHIPPING_COST = 250; 
 
+// --- CONSTANTS ---
+const POPULAR_COLORS = [
+  "Silver", "Gold", "Rose Gold", "Black", "Two-Tone (Silver/Gold)", 
+  "Two-Tone (Silver/Rose)", "Blue", "Green", "White", "Brown", 
+  "Grey", "Gunmetal", "Red", "Tiffany Blue", "Champagne", 
+  "Mother of Pearl", "Navy", "Yellow", "Orange", "Purple"
+];
+
 // --- HELPER: Image Compression ---
 const compressImage = (file: File): Promise<Blob> => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -35,15 +43,19 @@ const compressImage = (file: File): Promise<Blob> => {
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => { if (blob) resolve(blob); }, "image/jpeg", 0.7);
+        canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error("Compression failed")); }, "image/jpeg", 0.7);
       };
     };
+    reader.onerror = (error) => reject(error);
   });
 };
 
-const uploadImageToSupabase = async (file: File | Blob, fileNameRaw: string) => {
-  const fileName = `${Date.now()}-${fileNameRaw.replace(/\s/g, '-')}.jpg`;
-  const { error } = await supabase.storage.from('product-images').upload(fileName, file);
+const uploadFileToSupabase = async (file: File | Blob, fileNameRaw: string, isVideo = false) => {
+  const folder = isVideo ? 'product-videos' : 'product-images'; // Ensure you create a 'product-videos' bucket or use 'product-images'
+  const ext = isVideo ? 'mp4' : 'jpg';
+  const fileName = `${Date.now()}-${fileNameRaw.replace(/\s/g, '-').slice(0, 10)}.${ext}`;
+  
+  const { error } = await supabase.storage.from('product-images').upload(fileName, file); // Using product-images bucket for all for simplicity
   if (error) { console.error("Upload Error", error); return null; }
   const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
   return publicUrl;
@@ -54,7 +66,6 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   // --- STATE ---
-  // UPDATED: Added new tabs to the type
   const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'finance' | 'returns' | 'messages' | 'marketing'>('inventory');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
@@ -65,7 +76,6 @@ export default function AdminDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [adminNote, setAdminNote] = useState("");
 
-  // --- NEW DATA STATES ---
   const [returnRequests, setReturnRequests] = useState<any[]>([]);
   const [contactMessages, setContactMessages] = useState<any[]>([]);
   const [marketingData, setMarketingData] = useState<{launch: any[], newsletter: any[]}>({ launch: [], newsletter: [] });
@@ -78,6 +88,9 @@ export default function AdminDashboard() {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
 
+  // MANUAL REVIEW STATE
+  const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", image: "" });
+
   // FORM DATA
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", stock: 10, category: "men", 
@@ -89,7 +102,9 @@ export default function AdminDashboard() {
     strapMaterial: "Leather", strapColor: "Brown", strapWidth: "20mm", adjustable: true,
     dialColor: "White", luminous: false, dateDisplay: false, weight: "150g",
     description: "", warranty: "1 Year Official Warranty", shippingText: "2-4 Working Days", returnPolicy: "7 Days Return Policy", boxIncluded: true,
-    mainImage: "", gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[]
+    mainImage: "", gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
+    video: "", // <--- ADDED VIDEO
+    manualReviews: [] as any[] // <--- ADDED MANUAL REVIEWS
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -102,7 +117,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchProducts();
     fetchOrders();
-    fetchSupportData(); // <--- Fetch new data
+    fetchSupportData();
 
     const channel = supabase
       .channel('realtime-orders')
@@ -120,7 +135,7 @@ export default function AdminDashboard() {
   }, [orders, products]);
 
   const fetchProducts = async () => {
-      const { data } = await supabase.from('products').select('*').order('rating', { ascending: false });
+      const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false }); // Sort by newest
       if (data) setProducts(data);
   };
 
@@ -129,23 +144,16 @@ export default function AdminDashboard() {
     if (data) setOrders(data);
   };
 
-  // --- NEW: FETCH SUPPORT & MARKETING DATA ---
   const fetchSupportData = async () => {
-      // 1. Returns
       const { data: returns } = await supabase.from('return_requests').select('*').order('created_at', { ascending: false });
       if(returns) setReturnRequests(returns);
-
-      // 2. Messages
       const { data: messages } = await supabase.from('contact_messages').select('*').order('created_at', { ascending: false });
       if(messages) setContactMessages(messages);
-
-      // 3. Marketing (Waitlist + Newsletter)
       const { data: launch } = await supabase.from('launch_notifications').select('*').order('created_at', { ascending: false });
       const { data: news } = await supabase.from('newsletter_subscribers').select('*').order('created_at', { ascending: false });
       setMarketingData({ launch: launch || [], newsletter: news || [] });
   };
 
-  // --- FINANCE LOGIC ---
   const calculateFinance = (currentOrders: any[], currentProducts: any[]) => {
       let revenue = 0;
       let costOfGoods = 0;
@@ -157,10 +165,8 @@ export default function AdminDashboard() {
               cancelledLoss += 0; 
               return; 
           }
-
           revenue += Number(order.total);
           expenses += PACKING_AND_SHIPPING_COST;
-
           if (order.items) {
               order.items.forEach((item: any) => {
                   const product = currentProducts.find(p => p.name === item.name);
@@ -171,10 +177,7 @@ export default function AdminDashboard() {
       });
 
       setFinanceStats({
-          revenue,
-          cost: costOfGoods,
-          expenses,
-          cancelledLoss,
+          revenue, cost: costOfGoods, expenses, cancelledLoss,
           profit: revenue - costOfGoods - expenses - cancelledLoss
       });
   };
@@ -218,13 +221,24 @@ export default function AdminDashboard() {
     setFormData(newForm);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'gallery' | 'color', index?: number) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'gallery' | 'color' | 'video' | 'review', index?: number) => {
     if (!e.target.files?.[0]) return;
-    const compressedBlob = await compressImage(e.target.files[0]);
-    const url = await uploadImageToSupabase(compressedBlob, e.target.files[0].name);
+    const file = e.target.files[0];
+    const isVideo = type === 'video';
+    
+    // Skip compression for videos
+    let fileToUpload: File | Blob = file;
+    if (!isVideo) {
+        fileToUpload = await compressImage(file);
+    }
+
+    const url = await uploadFileToSupabase(fileToUpload, file.name, isVideo);
     if (!url) return;
+
     if (type === 'main') setFormData({ ...formData, mainImage: url });
     else if (type === 'gallery') setFormData({ ...formData, gallery: [...formData.gallery, url] });
+    else if (type === 'video') setFormData({ ...formData, video: url });
+    else if (type === 'review') setNewReview({ ...newReview, image: url });
     else if (type === 'color' && index !== undefined) {
         const newColors = [...formData.colors];
         newColors[index].image = url;
@@ -232,9 +246,68 @@ export default function AdminDashboard() {
     }
   };
 
+  const removeImage = (type: 'main' | 'gallery' | 'video', index?: number) => {
+    if(type === 'main') setFormData({...formData, mainImage: ""});
+    else if(type === 'video') setFormData({...formData, video: ""});
+    else if(type === 'gallery' && index !== undefined) {
+        setFormData({...formData, gallery: formData.gallery.filter((_, i) => i !== index)});
+    }
+  };
+
   const toggleTag = (tag: string) => {
     if (formData.tags.includes(tag)) setFormData({ ...formData, tags: formData.tags.filter(t => t !== tag) });
     else setFormData({ ...formData, tags: [...formData.tags, tag] });
+  };
+
+  // --- REVIEW HANDLERS ---
+  const addReview = () => {
+    if(!newReview.user || !newReview.comment) return toast.error("Name and Comment required");
+    setFormData({...formData, manualReviews: [newReview, ...formData.manualReviews]});
+    setNewReview({ user: "", date: "", rating: 5, comment: "", image: "" });
+  };
+
+  const deleteReview = (index: number) => {
+    setFormData({...formData, manualReviews: formData.manualReviews.filter((_, i) => i !== index)});
+  };
+
+  // --- EDIT / NEW HANDLERS ---
+  const handleAddNewClick = () => {
+    // Generate Random SKU
+    const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Generate Random Views
+    const randomViews = Math.floor(500 + Math.random() * 1500);
+    
+    setFormData({
+        ...initialFormState,
+        sku: randomSku,
+        viewCount: randomViews,
+        luminous: false, dateDisplay: false, boxIncluded: false // Ensure these are unchecked
+    });
+    setIsEditing(false);
+    setShowForm(true);
+  };
+
+  const handleEditClick = (item: any) => {
+    setFormData({
+        ...initialFormState,
+        ...item,
+        // Explicitly map Supabase columns to State keys
+        mainImage: item.main_image || "",
+        originalPrice: item.original_price || 0,
+        isEidExclusive: item.is_eid_exclusive || false,
+        // Map Specs
+        ...item.specs,
+        gallery: item.specs?.gallery || [],
+        video: item.specs?.video || "",
+        // Map Colors & Tags
+        colors: item.colors || [],
+        tags: item.tags || [],
+        // Map Reviews
+        manualReviews: item.manual_reviews || []
+    });
+    setEditId(item.id);
+    setIsEditing(true);
+    setShowForm(true);
   };
 
   const handlePublish = async (e: React.FormEvent) => {
@@ -245,7 +318,8 @@ export default function AdminDashboard() {
           description: formData.description, main_image: formData.mainImage, tags: formData.tags, 
           rating: formData.priority, is_sale: formData.discount > 0, 
           is_eid_exclusive: formData.isEidExclusive, 
-          colors: formData.colors, 
+          colors: formData.colors,
+          manual_reviews: formData.manualReviews, // Save reviews
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
@@ -253,7 +327,8 @@ export default function AdminDashboard() {
               strap: formData.strapMaterial, strap_color: formData.strapColor, strap_width: formData.strapWidth, adjustable: formData.adjustable,
               dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay, weight: formData.weight,
               warranty: formData.warranty, shipping_text: formData.shippingText, return_policy: formData.returnPolicy, box_included: formData.boxIncluded,
-              gallery: formData.gallery
+              gallery: formData.gallery,
+              video: formData.video
           }
       };
 
@@ -267,7 +342,6 @@ export default function AdminDashboard() {
       setShowForm(false); fetchProducts();
   };
 
-  // --- DELETE HANDLERS FOR NEW DATA ---
   const deleteItem = async (table: string, id: number, refresh: () => void) => {
       if(!confirm("Are you sure?")) return;
       await supabase.from(table).delete().eq('id', id);
@@ -294,39 +368,30 @@ export default function AdminDashboard() {
                 <p className="text-xs text-white/50 tracking-widest uppercase">Admin Portal</p>
             </div>
             <nav className="flex-1 p-4 space-y-1 mt-16 md:mt-0">
-                {/* INVENTORY */}
                 <button onClick={() => { setActiveTab('inventory'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <LayoutGrid size={20} /> Inventory
                 </button>
-                {/* ORDERS */}
                 <button onClick={() => { setActiveTab('orders'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'orders' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <ShoppingCart size={20} /> Orders 
                     {orders.filter(o => o.status === 'Processing').length > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{orders.filter(o => o.status === 'Processing').length}</span>}
                 </button>
-                {/* FINANCE */}
                 <button onClick={() => { setActiveTab('finance'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <DollarSign size={20} /> Finance
                 </button>
-
                 <div className="h-[1px] bg-white/10 my-4"></div>
                 <p className="px-4 text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">Support & CRM</p>
-
-                {/* RETURNS */}
                 <button onClick={() => { setActiveTab('returns'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'returns' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <RotateCcw size={20} /> Returns
                     {returnRequests.length > 0 && <span className="ml-auto bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">{returnRequests.length}</span>}
                 </button>
-                {/* MESSAGES */}
                 <button onClick={() => { setActiveTab('messages'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'messages' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <MessageSquare size={20} /> Messages
                     {contactMessages.length > 0 && <span className="ml-auto bg-purple-500 text-white text-[10px] px-2 py-0.5 rounded-full">{contactMessages.length}</span>}
                 </button>
-                {/* MARKETING */}
                 <button onClick={() => { setActiveTab('marketing'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'marketing' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <Users size={20} /> Marketing
                 </button>
             </nav>
-            
             <div className="p-4 border-t border-white/10 absolute bottom-0 w-full space-y-2 bg-[#1E1B18]">
                 <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5 transition w-full px-4 py-2 rounded-lg">
                     <Home size={16}/> View Live Website
@@ -336,8 +401,6 @@ export default function AdminDashboard() {
                 </button>
             </div>
         </aside>
-
-        {/* OVERLAY for Mobile */}
         {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)}></div>}
 
         {/* MAIN CONTENT */}
@@ -400,16 +463,11 @@ export default function AdminDashboard() {
             {activeTab === 'marketing' && (
                 <div className="space-y-8 pb-20 animate-in fade-in">
                     <h1 className="text-3xl font-bold text-[#1E1B18]">Marketing Data</h1>
-                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* NEWSLETTER SECTION */}
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="bg-green-50 p-3 rounded-full text-green-600"><Mail size={24}/></div>
-                                <div>
-                                    <h3 className="font-bold text-lg">Newsletter Subscribers</h3>
-                                    <p className="text-xs text-gray-400">Footer Signups</p>
-                                </div>
+                                <div><h3 className="font-bold text-lg">Newsletter Subscribers</h3></div>
                                 <span className="ml-auto text-2xl font-bold">{marketingData.newsletter.length}</span>
                             </div>
                             <div className="max-h-[400px] overflow-y-auto space-y-2">
@@ -421,15 +479,10 @@ export default function AdminDashboard() {
                                 ))}
                             </div>
                         </div>
-
-                        {/* EID WAITLIST SECTION */}
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="bg-purple-50 p-3 rounded-full text-purple-600"><Bell size={24}/></div>
-                                <div>
-                                    <h3 className="font-bold text-lg">Eid Collection Waitlist</h3>
-                                    <p className="text-xs text-gray-400">Launch Notifications</p>
-                                </div>
+                                <div><h3 className="font-bold text-lg">Eid Collection Waitlist</h3></div>
                                 <span className="ml-auto text-2xl font-bold">{marketingData.launch.length}</span>
                             </div>
                             <div className="max-h-[400px] overflow-y-auto space-y-2">
@@ -449,8 +502,6 @@ export default function AdminDashboard() {
             {activeTab === 'finance' && (
                 <div className="space-y-6 animate-in fade-in zoom-in duration-300 pb-20">
                     <h1 className="text-3xl font-bold text-[#1E1B18]">Financial Overview</h1>
-                    
-                    {/* Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                             <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Total Revenue</p><div className="bg-green-50 p-2 rounded-full text-green-600"><TrendingUp size={16}/></div></div>
@@ -459,12 +510,10 @@ export default function AdminDashboard() {
                         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                             <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Cost of Goods</p><div className="bg-red-50 p-2 rounded-full text-red-500"><TrendingDown size={16}/></div></div>
                             <p className="text-2xl font-bold text-red-400 mt-2">- Rs {financeStats.cost.toLocaleString()}</p>
-                            <p className="text-[10px] text-gray-400 mt-1">Based on 'Cost Price' in inventory</p>
                         </div>
                         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                             <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Expenses</p><div className="bg-orange-50 p-2 rounded-full text-orange-500"><Truck size={16}/></div></div>
                             <p className="text-2xl font-bold text-orange-400 mt-2">- Rs {financeStats.expenses.toLocaleString()}</p>
-                            <p className="text-[10px] text-gray-400 mt-1">Calculated as Rs {PACKING_AND_SHIPPING_COST} / order</p>
                         </div>
                         <div className="bg-[#1E1B18] p-6 rounded-2xl border border-gray-100 shadow-lg text-white relative overflow-hidden">
                             <div className="relative z-10">
@@ -482,7 +531,7 @@ export default function AdminDashboard() {
                 <>
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
-                        <button onClick={() => { setFormData(initialFormState); setIsEditing(false); setShowForm(true); }} className="bg-aura-brown text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base"><Plus size={18} /> Add New</button>
+                        <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base"><Plus size={18} /> Add New</button>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto pb-20">
                         <table className="w-full text-left min-w-[600px]">
@@ -494,7 +543,6 @@ export default function AdminDashboard() {
                                             <div className="w-10 h-10 bg-gray-100 rounded-lg relative overflow-hidden flex-shrink-0">{item.main_image && <Image src={item.main_image} alt="" fill className="object-cover" unoptimized />}</div>
                                             <div className="truncate max-w-[150px]">
                                                 <p className="font-bold text-aura-brown text-sm">{item.name}</p>
-                                                {/* Visual Badge for Eid Items */}
                                                 {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID EXCLUSIVE</span>}
                                             </div>
                                         </td>
@@ -502,7 +550,7 @@ export default function AdminDashboard() {
                                         <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={() => { setFormData({...initialFormState, ...item, ...item.specs, isEidExclusive: item.is_eid_exclusive }); setEditId(item.id); setIsEditing(true); setShowForm(true); }} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={14}/></button>
+                                                <button onClick={() => handleEditClick(item)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={14}/></button>
                                                 <button onClick={() => { if(confirm("Delete?")) { supabase.from('products').delete().eq('id', item.id).then(fetchProducts); } }} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={14}/></button>
                                             </div>
                                         </td>
@@ -520,7 +568,6 @@ export default function AdminDashboard() {
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Orders</h1>
                     </div>
-                    {/* Status Tabs */}
                     <div className="flex gap-2 mb-6 border-b border-gray-200 pb-1 overflow-x-auto scrollbar-hide">
                         {["Processing", "Shipped", "Delivered", "Cancelled"].map(status => (
                             <button key={status} onClick={() => setOrderStatusFilter(status)} className={`px-4 md:px-6 py-3 whitespace-nowrap rounded-t-xl font-bold text-sm transition-all relative ${orderStatusFilter === status ? 'bg-white text-aura-brown border-t border-x border-gray-200 -mb-[1px] z-10' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>
@@ -529,7 +576,6 @@ export default function AdminDashboard() {
                             </button>
                         ))}
                     </div>
-
                     <div className="space-y-4 pb-20">
                         {orders.filter(o => o.status === orderStatusFilter).map((order) => (
                             <div key={order.id} onClick={() => openOrderDetails(order)} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer hover:border-aura-gold transition-colors">
@@ -552,23 +598,16 @@ export default function AdminDashboard() {
                 </>
             )}
 
-            {/* === ORDER DETAIL MODAL (MOBILE RESPONSIVE FIX) === */}
+            {/* === ORDER DETAIL MODAL === */}
             {selectedOrder && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    {/* Changed flex-row to flex-col on mobile, added max-h-[90vh] */}
                     <div className="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl flex flex-col md:flex-row animate-in zoom-in duration-300 shadow-2xl relative">
-                        
-                        {/* Close Button Mobile */}
                         <button onClick={() => setSelectedOrder(null)} className="absolute top-4 right-4 md:hidden p-2 bg-gray-100 rounded-full z-50"><X size={20}/></button>
-
-                        {/* LEFT: DETAILS */}
                         <div className="flex-1 p-6 md:p-8 bg-gray-50 overflow-y-auto">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-serif text-2xl font-bold text-aura-brown">Order #{selectedOrder.id.slice(0,8).toUpperCase()}</h3>
                                 <button onClick={() => setSelectedOrder(null)} className="hidden md:block p-2 hover:bg-gray-200 rounded-full"><X size={24}/></button>
                             </div>
-                            
-                            {/* Actions */}
                             <div className="bg-white p-4 rounded-xl border border-gray-200 mb-6 shadow-sm">
                                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
                                     {["Processing", "Shipped", "Delivered", "Cancelled"].map(st => (
@@ -576,7 +615,6 @@ export default function AdminDashboard() {
                                     ))}
                                 </div>
                             </div>
-
                             <div className="space-y-4 mb-8 bg-white p-4 rounded-xl border border-gray-200">
                                 <div className="flex justify-between items-center border-b pb-2 mb-2">
                                     <h4 className="font-bold text-aura-brown text-sm">Customer Details</h4>
@@ -589,15 +627,12 @@ export default function AdminDashboard() {
                                     <div className="flex gap-3"><MapPin size={16} className="text-gray-400"/> <span>{selectedOrder.address}, {selectedOrder.city}</span></div>
                                 </div>
                             </div>
-
                             <div>
                                 <h4 className="font-bold text-aura-brown mb-2 text-sm">Admin Notes</h4>
                                 <textarea className="w-full p-3 text-sm border border-gray-300 rounded-xl bg-white h-20" placeholder="Internal notes (visible only to you)..." value={adminNote} onChange={(e) => setAdminNote(e.target.value)} />
                                 <button onClick={saveAdminNote} className="mt-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-xs font-bold w-full md:w-auto">Save Note</button>
                             </div>
                         </div>
-
-                        {/* RIGHT: ITEMS LIST */}
                         <div className="w-full md:w-[400px] bg-white border-l border-gray-100 p-6 md:p-8">
                             <h4 className="font-bold text-aura-brown mb-4">Items ({selectedOrder.items?.length})</h4>
                             <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto">
@@ -626,23 +661,23 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {/* === ADD PRODUCT FORM (Mobile Responsive) === */}
+            {/* === ADD/EDIT PRODUCT FORM (Mobile Full Screen Fix) === */}
             {showForm && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] w-full max-w-6xl h-[90vh] overflow-y-auto shadow-2xl relative">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4">
+                    <div className="bg-white rounded-none md:rounded-[2rem] w-full max-w-6xl h-full md:h-[90vh] overflow-y-auto shadow-2xl relative">
                         <button onClick={() => setShowForm(false)} className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full z-50"><X /></button>
                         <div className="p-8 border-b border-gray-100 sticky top-0 bg-white z-40">
                              <h2 className="text-2xl font-bold font-serif text-aura-brown">{isEditing ? "Edit Timepiece" : "Add New Timepiece"}</h2>
                         </div>
                         
-                        <form onSubmit={handlePublish} className="p-8 space-y-12">
+                        <form onSubmit={handlePublish} className="p-4 md:p-8 space-y-12 pb-32">
                             {/* 1. IDENTITY */}
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Tag size={16}/> Identity</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Product Name</label><input required className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Royal Oak Rose Gold" /></div>
                                     <div><label className="text-xs font-bold text-gray-500">Brand</label><input className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">SKU</label><input className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} placeholder="AX-001" /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">SKU (Auto)</label><input className="w-full p-4 bg-gray-100 border rounded-xl" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} /></div>
                                     <div><label className="text-xs font-bold text-gray-500">Category</label><select className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}><option value="men">Men's</option><option value="women">Women's</option><option value="couple">Couple</option></select></div>
                                     <div><label className="text-xs font-bold text-gray-500">Stock Qty</label><input type="number" className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.stock} onChange={e => setFormData({...formData, stock: Number(e.target.value)})} /></div>
                                 </div>
@@ -659,19 +694,17 @@ export default function AdminDashboard() {
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Flame size={16}/> Marketing & Sorting</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500">Tags</label>
+                                        <label className="text-xs font-bold text-gray-500">Tags (Select Multiple)</label>
                                         <div className="flex flex-wrap gap-2 mt-2">
-                                            {["Featured", "Sale", "Limited Edition", "Fire", "New Arrival"].map(tag => (
+                                            {["Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"].map(tag => (
                                                 <button type="button" key={tag} onClick={() => toggleTag(tag)} className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${formData.tags.includes(tag) ? 'bg-aura-brown text-white border-aura-brown' : 'bg-white text-gray-400 border-gray-200'}`}>{tag}</button>
                                             ))}
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div><label className="text-xs font-bold text-gray-500">Priority (1-100)</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.priority} onChange={e => setFormData({...formData, priority: Number(e.target.value)})} /></div>
-                                        <div><label className="text-xs font-bold text-gray-500">Fake Views</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.viewCount} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
+                                        <div><label className="text-xs font-bold text-gray-500">Fake Views (Manual)</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.viewCount} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
                                     </div>
-                                    
-                                    {/* EID EXCLUSIVE CHECKBOX */}
                                     <div className="col-span-2">
                                         <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-gray-50 border-gray-200'}`}>
                                             <input type="checkbox" className="hidden" checked={formData.isEidExclusive} onChange={e => setFormData({...formData, isEidExclusive: e.target.checked})} />
@@ -701,36 +734,66 @@ export default function AdminDashboard() {
                             {/* 5. VISUALS */}
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals</h3>
-                                <div className="flex gap-6 mb-6">
-                                    <div className="w-40">
+                                <div className="flex flex-col md:flex-row gap-6 mb-6">
+                                    <div className="w-full md:w-40">
                                         <label className="block text-xs font-bold text-gray-500 mb-2">Main Image</label>
                                         <label className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}>
-                                            {formData.mainImage ? <Image src={formData.mainImage} alt="" fill className="object-cover" /> : <div className="text-center"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400">Upload</span></div>}
+                                            {formData.mainImage ? (
+                                                <>
+                                                    <Image src={formData.mainImage} alt="" fill className="object-cover" />
+                                                    <button type="button" onClick={(e) => {e.preventDefault(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
+                                                </>
+                                            ) : (
+                                                <div className="text-center"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400">Upload</span></div>
+                                            )}
                                             <input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'main')}/>
                                         </label>
                                     </div>
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-gray-500 mb-2">Gallery</label>
-                                        <div className="flex gap-4 overflow-x-auto pb-2">
-                                            {formData.gallery.map((img, i) => (<div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200"><Image src={img} alt="" fill className="object-cover"/></div>))}
+                                        <div className="flex flex-wrap gap-4">
+                                            {formData.gallery.map((img, i) => (
+                                                <div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200 group">
+                                                    <Image src={img} alt="" fill className="object-cover"/>
+                                                    <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button>
+                                                </div>
+                                            ))}
                                             <label className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold flex-shrink-0"><Plus size={20} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'gallery')}/></label>
                                         </div>
+                                    </div>
+                                    {/* VIDEO UPLOAD */}
+                                    <div className="w-full md:w-40">
+                                        <label className="block text-xs font-bold text-gray-500 mb-2">Short Video</label>
+                                        <label className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold ${formData.video ? 'border-aura-gold' : 'border-gray-300'}`}>
+                                            {formData.video ? (
+                                                <>
+                                                    <video src={formData.video} className="w-full h-full object-cover" autoPlay muted loop />
+                                                    <button type="button" onClick={(e) => {e.preventDefault(); removeImage('video');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
+                                                </>
+                                            ) : (
+                                                <div className="text-center"><Video size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400">Add Video</span></div>
+                                            )}
+                                            <input type="file" accept="video/*" className="hidden" onChange={(e) => handleImageUpload(e, 'video')}/>
+                                        </label>
                                     </div>
                                 </div>
                                 <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
                                     <label className="block text-xs font-bold text-gray-500 mb-4 uppercase">Color Variants</label>
                                     <div className="space-y-4">
                                         {formData.colors.map((color, index) => (
-                                            <div key={index} className="flex gap-4 items-center bg-white p-3 rounded-xl border border-gray-100">
+                                            <div key={index} className="flex flex-col md:flex-row gap-4 items-center bg-white p-3 rounded-xl border border-gray-100">
                                                 <input type="color" className="w-10 h-10 rounded border-none cursor-pointer" value={color.hex} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} />
-                                                <input placeholder="Color Name" className="flex-1 p-2 border rounded-lg text-sm" value={color.name} onChange={(e) => { const c = [...formData.colors]; c[index].name = e.target.value; setFormData({...formData, colors: c}); }} />
-                                                <label className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg text-xs font-bold cursor-pointer hover:bg-gray-200">
+                                                <select className="flex-1 p-2 border rounded-lg text-sm bg-white" value={color.name} onChange={(e) => { const c = [...formData.colors]; c[index].name = e.target.value; setFormData({...formData, colors: c}); }}>
+                                                    <option value="">Select Popular Color</option>
+                                                    {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                                <label className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg text-xs font-bold cursor-pointer hover:bg-gray-200 w-full md:w-auto justify-center">
                                                     {color.image ? "Image Uploaded" : "Upload Image"} <input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'color', index)}/>
                                                 </label>
                                                 <button type="button" onClick={() => setFormData({...formData, colors: formData.colors.filter((_, i) => i !== index)})} className="text-red-400"><Trash2 size={18}/></button>
                                             </div>
                                         ))}
-                                        <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, { name: "", hex: "#000000", image: "" }]})} className="text-sm font-bold text-aura-brown flex items-center gap-2"><Plus size={16} /> Add Color Variant</button>
+                                        <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, { name: "Silver", hex: "#C0C0C0", image: "" }]})} className="text-sm font-bold text-aura-brown flex items-center gap-2"><Plus size={16} /> Add Color Variant</button>
                                     </div>
                                 </div>
                             </section>
@@ -739,30 +802,66 @@ export default function AdminDashboard() {
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Specifications</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Case & Dial</h4></div>
+                                    <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Case & Dial</h4></div>
                                     <div><label className="text-xs font-bold text-gray-500">Case Material</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseMaterial} onChange={e => setFormData({...formData, caseMaterial: e.target.value})}><option>Stainless Steel</option><option>Alloy</option><option>Titanium</option></select></div>
                                     <div><label className="text-xs font-bold text-gray-500">Case Diameter</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseDiameter} onChange={e => setFormData({...formData, caseDiameter: e.target.value})} /></div>
                                     <div><label className="text-xs font-bold text-gray-500">Case Thickness</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseThickness} onChange={e => setFormData({...formData, caseThickness: e.target.value})} /></div>
                                     <div><label className="text-xs font-bold text-gray-500">Glass Type</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.glass} onChange={e => setFormData({...formData, glass: e.target.value})}><option>Mineral</option><option>Sapphire</option><option>Hardlex</option></select></div>
                                     <div><label className="text-xs font-bold text-gray-500">Dial Color</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.dialColor} onChange={e => setFormData({...formData, dialColor: e.target.value})} /></div>
 
-                                    <div className="col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Strap & Movement</h4></div>
+                                    <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Strap & Movement</h4></div>
                                     <div><label className="text-xs font-bold text-gray-500">Strap Material</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.strapMaterial} onChange={e => setFormData({...formData, strapMaterial: e.target.value})}><option>Leather</option><option>Metal</option><option>Chain</option><option>Silicon</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Strap Color</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.strapColor} onChange={e => setFormData({...formData, strapColor: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Strap Color</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.strapColor} onChange={e => setFormData({...formData, strapColor: e.target.value})}>{POPULAR_COLORS.map(c=><option key={c}>{c}</option>)}</select></div>
                                     <div><label className="text-xs font-bold text-gray-500">Movement</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.movement} onChange={e => setFormData({...formData, movement: e.target.value})}><option>Quartz (Battery)</option><option>Automatic (Mechanical)</option><option>Digital</option></select></div>
                                     <div><label className="text-xs font-bold text-gray-500">Water Resistance</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.waterResistance} onChange={e => setFormData({...formData, waterResistance: e.target.value})}><option>3ATM (Splash)</option><option>5ATM (Swim)</option><option>10ATM (Dive)</option></select></div>
                                     <div><label className="text-xs font-bold text-gray-500">Weight</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.weight} onChange={e => setFormData({...formData, weight: e.target.value})} /></div>
                                     
-                                    <div className="col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Features</h4></div>
-                                    <div className="flex gap-4">
-                                        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={formData.luminous} onChange={e => setFormData({...formData, luminous: e.target.checked})} /> Luminous Hands</label>
-                                        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={formData.dateDisplay} onChange={e => setFormData({...formData, dateDisplay: e.target.checked})} /> Date Display</label>
-                                        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={formData.boxIncluded} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> Box Included</label>
+                                    <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Features</h4></div>
+                                    <div className="flex gap-4 col-span-2 md:col-span-4">
+                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.luminous} onChange={e => setFormData({...formData, luminous: e.target.checked})} /> Luminous Hands</label>
+                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.dateDisplay} onChange={e => setFormData({...formData, dateDisplay: e.target.checked})} /> Date Display</label>
+                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.boxIncluded} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> Box Included</label>
                                     </div>
                                 </div>
                             </section>
 
-                            {/* 7. SHIPPING */}
+                            {/* 7. MANUAL REVIEWS */}
+                            <section className="space-y-6">
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Star size={16}/> Manual Reviews</h3>
+                                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
+                                    <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                        <input placeholder="Reviewer Name" className="p-3 border rounded-xl text-sm" value={newReview.user} onChange={e => setNewReview({...newReview, user: e.target.value})} />
+                                        <input type="date" className="p-3 border rounded-xl text-sm" value={newReview.date} onChange={e => setNewReview({...newReview, date: e.target.value})} />
+                                        <select className="p-3 border rounded-xl text-sm" value={newReview.rating} onChange={e => setNewReview({...newReview, rating: Number(e.target.value)})}>
+                                            <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+                                            <option value="4">⭐⭐⭐⭐ (4)</option>
+                                            <option value="3">⭐⭐⭐ (3)</option>
+                                        </select>
+                                        <label className="flex items-center gap-2 px-3 py-2 bg-white border rounded-xl text-xs font-bold cursor-pointer w-full md:w-auto justify-center">
+                                            {newReview.image ? "Pic Added" : "Add Pic"} <input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'review')}/>
+                                        </label>
+                                    </div>
+                                    <textarea placeholder="Review message..." className="w-full p-3 border rounded-xl text-sm mb-3" value={newReview.comment} onChange={e => setNewReview({...newReview, comment: e.target.value})}></textarea>
+                                    <button type="button" onClick={addReview} className="bg-aura-brown text-white px-4 py-2 rounded-lg text-sm font-bold">Add Fake Review</button>
+
+                                    <div className="mt-6 space-y-2">
+                                        {formData.manualReviews.map((rev, i) => (
+                                            <div key={i} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    {rev.image && <Image src={rev.image} width={30} height={30} alt="" className="rounded-full" />}
+                                                    <div>
+                                                        <p className="text-xs font-bold">{rev.user} <span className="text-aura-gold">{'★'.repeat(rev.rating)}</span></p>
+                                                        <p className="text-[10px] text-gray-500">{rev.comment}</p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" onClick={() => deleteReview(i)} className="text-red-400"><Trash2 size={14}/></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* 8. SHIPPING */}
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Package size={16}/> Shipping & Warranty</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

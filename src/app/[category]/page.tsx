@@ -4,32 +4,29 @@ import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard"; 
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { ChevronDown, Filter, X } from "lucide-react"; 
-import { useParams, notFound } from "next/navigation"; // Added notFound
+import { ChevronDown, Filter, X, Loader2 } from "lucide-react"; 
+import { useParams } from "next/navigation"; 
 import { supabase } from "@/lib/supabase"; 
 
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
 export default function CategoryPage() {
   const params = useParams();
   const categorySlug = params.category as string; 
   
-  // --- SAFETY CHECK (NEW CODE) ---
-  // This prevents the Category Page from stealing system pages like Privacy Policy
+  // --- SAFETY CHECK ---
   const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection'];
-  
-  // If the URL matches a reserved page, stop rendering this component immediately.
-  if (reservedRoutes.includes(categorySlug)) {
-      return null; 
-  }
-  // --------------------------------
+  if (reservedRoutes.includes(categorySlug)) return null; 
 
-  // --- NEW: STATE FOR REAL DATA ---
+  // --- STATE ---
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // ⚡ PERFORMANCE: Only show this many items initially
+  const [visibleCount, setVisibleCount] = useState(8);
 
   const [priceRange, setPriceRange] = useState(500000); 
   const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
@@ -40,39 +37,34 @@ export default function CategoryPage() {
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
-  // --- NEW: FETCH FROM SUPABASE ---
+  // --- FETCH DATA ---
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
-      // Fetch items matching category AND ensure they are NOT Eid Exclusive
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('products')
         .select('*')
         .eq('category', categorySlug)
-        .eq('is_eid_exclusive', false); // <--- THIS LINE HIDES THEM
+        .eq('is_eid_exclusive', false); 
       
       if (data) setProducts(data);
       setLoading(false);
     };
 
-    // Only run fetch if it's NOT a reserved route
     if (categorySlug && !reservedRoutes.includes(categorySlug)) {
         fetchProducts();
     }
   }, [categorySlug]);
 
-  // --- FILTERING LOGIC (Applied to Real Data) ---
+  // --- FILTERING LOGIC ---
   const filteredProducts = products.filter((product) => {
-    // 1. Price Check
     if (product.price > priceRange) return false;
     
-    // 2. Movement Check
     if (selectedMovements.length > 0) {
         const move = product.specs?.movement || "Quartz";
         if (!selectedMovements.includes(move)) return false;
     }
 
-    // 3. Strap Check
     if (selectedStraps.length > 0) {
         const strap = product.specs?.strap || "Leather";
         const hasStrap = selectedStraps.some(s => strap.includes(s));
@@ -83,8 +75,20 @@ export default function CategoryPage() {
   }).sort((a, b) => {
     if (sortBy === "low-high") return a.price - b.price;
     if (sortBy === "high-low") return b.price - a.price;
-    return 0; // Featured (Default)
+    return 0; 
   });
+
+  // ⚡ PAGINATION LOGIC: Slice the data to show only what is needed
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(8);
+  }, [priceRange, selectedMovements, selectedStraps, sortBy]);
+
+  const loadMore = () => {
+    setVisibleCount((prev) => prev + 8);
+  };
 
   const toggleFilter = (item: string, state: string[], setState: any) => {
     if (state.includes(item)) setState(state.filter((i: string) => i !== item));
@@ -188,7 +192,6 @@ export default function CategoryPage() {
         {/* --- MAIN GRID --- */}
         <div className="flex-1">
             <div className="flex justify-between items-center mb-8 pb-4 border-b border-aura-brown/10">
-                {/* Mobile Filter Toggle */}
                 <button 
                   onClick={() => setMobileFilterOpen(true)}
                   className="lg:hidden flex items-center gap-2 text-xs font-bold uppercase tracking-widest bg-aura-brown text-white px-4 py-2 rounded-full"
@@ -205,11 +208,7 @@ export default function CategoryPage() {
                     <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block">
                         <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
                             {["featured", "low-high", "high-low"].map((option) => (
-                              <button 
-                                key={option}
-                                onClick={() => setSortBy(option)} 
-                                className="block w-full text-left px-4 py-3 text-sm hover:bg-aura-gold/10 transition capitalize"
-                              >
+                              <button key={option} onClick={() => setSortBy(option)} className="block w-full text-left px-4 py-3 text-sm hover:bg-aura-gold/10 transition capitalize">
                                 {option.replace('-', ' ')}
                               </button>
                             ))}
@@ -221,31 +220,50 @@ export default function CategoryPage() {
             {loading ? (
                 <div className="h-64 flex items-center justify-center text-aura-brown animate-pulse">Loading Collection...</div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
-                    <AnimatePresence mode="popLayout">
-                        {filteredProducts.map((product) => (
-                            <motion.div 
-                                key={product.id}
-                                variants={fadeInUp}
-                                initial="hidden"
-                                animate="visible"
-                                exit={{ opacity: 0, scale: 0.9 }}
-                                layout
+                <div className="flex flex-col gap-12">
+                    {/* GRID CONFIGURATION:
+                       - grid-cols-2: Forces 2 columns on Mobile (Exact match to reference)
+                       - md:grid-cols-4: 4 columns on Desktop
+                       - gap-3: Tighter gap for sleek look
+                    */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+                        <AnimatePresence mode="popLayout">
+                            {visibleProducts.map((product) => (
+                                <motion.div 
+                                    key={product.id}
+                                    variants={fadeInUp}
+                                    initial="hidden"
+                                    animate="visible"
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    layout
+                                >
+                                    <ProductCard product={product} />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* LOAD MORE BUTTON */}
+                    {visibleCount < filteredProducts.length && (
+                        <div className="flex justify-center pt-8">
+                            <button 
+                                onClick={loadMore}
+                                className="group flex items-center gap-3 px-8 py-4 bg-white border border-aura-gold/30 rounded-full shadow-sm hover:shadow-lg hover:border-aura-gold transition-all duration-500"
                             >
-                                <ProductCard product={product} />
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
+                                <span className="text-xs font-bold tracking-[0.2em] uppercase text-aura-brown group-hover:text-aura-gold">Load More</span>
+                                <div className="w-8 h-8 rounded-full bg-aura-gold/10 flex items-center justify-center group-hover:bg-aura-gold group-hover:text-white transition-colors">
+                                    <ChevronDown size={16} />
+                                </div>
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
             
             {!loading && filteredProducts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-6">No pieces match these criteria.</p>
-                    <button 
-                      onClick={() => {setPriceRange(150000); setSelectedMovements([]); setSelectedStraps([]);}} 
-                      className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold transition-colors"
-                    >
+                    <button onClick={() => {setPriceRange(150000); setSelectedMovements([]); setSelectedStraps([]);}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold transition-colors">
                       CLEAR ALL FILTERS
                     </button>
                 </div>

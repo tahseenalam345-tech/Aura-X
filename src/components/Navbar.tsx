@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { ShoppingBag, Search, Menu, X, ChevronRight, User, LogIn, LayoutDashboard, Truck, LogOut, ArrowRight, Loader2, Star } from "lucide-react"; // Added Star
+import { ShoppingBag, Search, Menu, X, ChevronRight, User, LogIn, LayoutDashboard, Truck, LogOut, ArrowRight, Loader2, Star, Heart } from "lucide-react"; // Added Heart
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext"; 
 import { useCart } from "@/context/CartContext";
@@ -76,7 +76,7 @@ export function Navbar() {
     { name: 'Men', href: '/men' },
     { name: 'Women', href: '/women' },
     { name: 'Couple', href: '/couple' },
-    { name: 'Eid Edit', href: '/eid-collection', isSpecial: true } // <--- ADDED THIS
+    { name: 'Eid Edit', href: '/eid-collection', isSpecial: true } 
   ];
 
   const handleTagClick = (tag: string) => {
@@ -97,12 +97,12 @@ export function Navbar() {
                 animate={{ x: ["0%", "-100%"] }}
                 transition={{ repeat: Infinity, ease: "linear", duration: 80 }} // 30s = Slow & Smooth
               >
-                 {/* Repeated 3 times to ensure smooth infinite loop on wide screens */}
-                 {[...announcements, ...announcements, ...announcements].map((text, i) => (
+                  {/* Repeated 3 times to ensure smooth infinite loop on wide screens */}
+                  {[...announcements, ...announcements, ...announcements].map((text, i) => (
                     <span key={i} className="text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase flex items-center gap-2">
                        {text}
                     </span>
-                 ))}
+                  ))}
               </motion.div>
            </div>
         </div>
@@ -161,6 +161,15 @@ export function Navbar() {
           {/* --- 3. RIGHT SECTION (ICONS) --- */}
           <div className="flex items-center gap-2 md:gap-6 ml-auto md:ml-0 z-20">
               
+              {/* --- NEW: WISHLIST BUTTON (Desktop & Mobile) --- */}
+              <Link 
+                 href="/wishlist" 
+                 className="p-2 rounded-full hover:bg-aura-gold/10 transition-all active:scale-90 text-aura-brown group"
+                 title="My Wishlist"
+              >
+                 <Heart className="w-6 h-6 group-hover:fill-aura-brown transition-colors duration-300" />
+              </Link>
+
               {/* CART ICON (Always Visible, Right Aligned) */}
               <Link href="/cart" className="relative p-2 rounded-full hover:bg-aura-gold/10 transition-colors active:scale-90">
                 <ShoppingBag className="w-6 h-6 text-aura-brown" />
@@ -202,11 +211,11 @@ export function Navbar() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSearchOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]" />
             
             <motion.div 
-                initial={{ x: "100%" }} 
-                animate={{ x: 0 }} 
-                exit={{ x: "100%" }} 
-                transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                className="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#FDFBF7] z-[100] shadow-2xl flex flex-col"
+               initial={{ x: "100%" }} 
+               animate={{ x: 0 }} 
+               exit={{ x: "100%" }} 
+               transition={{ type: "spring", damping: 30, stiffness: 300 }}
+               className="fixed top-0 right-0 h-full w-full md:w-[500px] bg-[#FDFBF7] z-[100] shadow-2xl flex flex-col"
             >
                {/* Search Header */}
                <div className="p-6 border-b border-gray-100 flex items-center gap-4 pt-16 md:pt-6">
@@ -239,7 +248,7 @@ export function Navbar() {
                   {!isSearching && searchResults.length > 0 && (
                       <div>
                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            Found {searchResults.length} Results
+                           Found {searchResults.length} Results
                          </h3>
                          <div className="space-y-4">
                             {searchResults.map((product) => (
@@ -339,6 +348,11 @@ export function Navbar() {
                 <div className="h-[1px] w-full bg-aura-gold/20 mb-8"></div>
 
                 <div className="space-y-4">
+                  {/* --- NEW: MOBILE SIDEBAR WISHLIST LINK --- */}
+                  <Link href="/wishlist" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-4 text-lg font-bold text-aura-brown hover:pl-2 transition-all">
+                      <Heart size={18} /> My Wishlist
+                  </Link>
+
                   <Link href="/track-order" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-4 text-lg font-bold text-aura-brown hover:pl-2 transition-all">
                       <Truck size={18} /> Track Order
                   </Link>

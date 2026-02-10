@@ -9,7 +9,7 @@ import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight } from "lucide-react"; 
 
-// --- CONFIGURATION: SAME DATE AS EID PAGE ---
+// --- CONFIGURATION ---
 const TARGET_DATE = "2026-02-27T18:00:00"; 
 
 // --- ANIMATIONS ---
@@ -18,10 +18,9 @@ const fadeInUp: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };
 
-// --- DATA ---
+// --- STATIC DATA ---
 const watchImages = ["/pic1.png", "/pic2.png", "/pic3.png", "/pic4.png"]; 
 
-// LOCAL IMAGES FOR CATEGORIES
 const categories = [
   { 
     id: "men", 
@@ -46,46 +45,54 @@ const categories = [
   }
 ];
 
+// --- SUB-COMPONENTS (Defined OUTSIDE to prevent re-renders) ---
+const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
+    <Link href={cat.link} className={`relative group overflow-hidden rounded-3xl shadow-lg h-[280px] md:h-[450px] w-full block ${className}`}>
+        {/* SPEED FIX: quality={80} creates smaller files, loading faster */}
+        <Image 
+          src={cat.image} 
+          alt={cat.title} 
+          fill 
+          className="object-cover transition-transform duration-1000 group-hover:scale-110" 
+          sizes="(max-width: 768px) 100vw, 50vw" 
+          quality={80}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+        <div className="absolute bottom-6 left-6 text-white">
+          <p className="text-[10px] font-bold tracking-widest uppercase mb-1 text-aura-gold">{cat.subtitle}</p>
+          <h3 className="text-2xl md:text-3xl font-serif">{cat.title}</h3>
+        </div>
+    </Link>
+);
+
 export default function Home() {
   const [products, setProducts] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isEidLive, setIsEidLive] = useState(false);
 
-  // --- 1. REAL TIME CHECK LOGIC ---
-  // This removes the "30 second test" and checks the REAL date
+  // --- 1. REAL TIME CHECK (OPTIMIZED) ---
+  // SPEED FIX: Checks only ONCE on load, not every second. 
   useEffect(() => {
-    const checkTime = () => {
-        const now = new Date().getTime();
-        const target = new Date(TARGET_DATE).getTime();
-        
-        if (now >= target) {
-            setIsEidLive(true); // Unlock only if date has passed
-        } else {
-            setIsEidLive(false); // Keep locked otherwise
-        }
-    };
-    
-    checkTime(); // Check immediately on load
-    const interval = setInterval(checkTime, 1000); // Re-check every second
-    return () => clearInterval(interval);
+    const now = new Date().getTime();
+    const target = new Date(TARGET_DATE).getTime();
+    setIsEidLive(now >= target);
   }, []);
 
-  // Auto-Slide Banner
+  // --- 2. BANNER SLIDER ---
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % watchImages.length);
-    }, 3000); 
+    }, 4000); // Slowed down slightly for smoother feel
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch Real Products
+  // --- 3. FETCH PRODUCTS ---
   useEffect(() => {
     const fetchProducts = async () => {
-        // HIDE EID EXCLUSIVE ITEMS HERE
         const { data } = await supabase
             .from('products')
             .select('*')
-            .eq('is_eid_exclusive', false) // <--- THIS LINE PROTECTS THE HOMEPAGE
+            .eq('is_eid_exclusive', false) 
             .limit(8)
             .order('rating', { ascending: false });
         
@@ -94,7 +101,7 @@ export default function Home() {
     fetchProducts();
   }, []);
 
-  // Banner Animation Math
+  // Helper for Banner Animation
   const getPosition = (index: number) => {
     const diff = (index - currentIndex + watchImages.length) % watchImages.length;
     if (diff === 0) return { x: 0, scale: 1.1, zIndex: 50, opacity: 1, blur: 0 };
@@ -103,24 +110,15 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0, blur: 10 };
   };
 
-  const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
-    <Link href={cat.link} className={`relative group overflow-hidden rounded-3xl shadow-lg h-[280px] md:h-[450px] w-full block ${className}`}>
-        <Image src={cat.image} alt={cat.title} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" sizes="(max-width: 768px) 100vw, 50vw" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-        <div className="absolute bottom-6 left-6 text-white">
-          <p className="text-[10px] font-bold tracking-widest uppercase mb-1 text-aura-gold">{cat.subtitle}</p>
-          <h3 className="text-2xl md:text-3xl font-serif">{cat.title}</h3>
-        </div>
-    </Link>
-  );
-
   return (
     <main className="min-h-screen text-aura-brown overflow-x-hidden bg-[#F2F0E9]">
       <Navbar />
 
-      {/* --- HERO SECTION (TOP BANNER) --- */}
+      {/* --- HERO SECTION --- */}
       <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden">
-        <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-aura-gold/10 blur-[120px] rounded-full -z-10" />
+        {/* SPEED FIX: Using a static CSS gradient instead of a blur div for better mobile performance */}
+        <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-gradient-radial from-aura-gold/20 to-transparent opacity-50 -z-10" />
+        
         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="text-center lg:text-left z-20">
             <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
@@ -136,6 +134,7 @@ export default function Home() {
                </Link>
             </motion.div>
           </div>
+          
           <div className="relative h-[350px] md:h-[550px] w-full flex justify-center items-center">
              {watchImages.map((src, index) => {
                const pos = getPosition(index);
@@ -153,26 +152,26 @@ export default function Home() {
                         alt="Watch" 
                         fill 
                         className="object-contain drop-shadow-2xl"
+                        // SPEED FIX: Priority ONLY on the first/current image
                         priority={index === currentIndex}
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                        quality={85}
                       />
                    </div>
                  </motion.div>
                );
              })}
-             <div className="absolute -z-10 text-gray-200 font-bold text-9xl opacity-20">AURA</div>
+             <div className="absolute -z-10 text-gray-200 font-bold text-9xl opacity-20 select-none pointer-events-none">AURA</div>
           </div>
         </div>
       </section>
 
-      {/* --- DYNAMIC EID STRIP (Real Logic Now) --- */}
+      {/* --- DYNAMIC EID STRIP --- */}
       <Link href="/eid-collection" className="block bg-[#1E1B18] border-y border-aura-gold/20 py-4 overflow-hidden group relative cursor-pointer z-20">
         <div className="absolute inset-0 bg-aura-gold/5 group-hover:bg-aura-gold/10 transition-colors"></div>
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center relative z-10">
             <div className="flex items-center gap-4">
                 <span className="text-2xl animate-pulse">🌙</span>
                 <div className="text-left">
-                    {/* DYNAMIC TEXT HERE */}
                     <p className={`text-[10px] font-bold tracking-[0.2em] uppercase ${isEidLive ? 'text-green-400 animate-pulse' : 'text-aura-gold'}`}>
                         {isEidLive ? "● NOW LIVE" : "Coming Soon"}
                     </p>
@@ -208,6 +207,7 @@ export default function Home() {
              <h2 className="text-3xl md:text-4xl font-serif">Curated Pieces</h2>
              <Link href="/men" className="text-aura-gold text-xs font-bold uppercase tracking-widest border-b border-aura-gold pb-1">View All</Link>
           </div>
+          {/* SPEED FIX: Adjusted Grid to match Category Page (2 cols on mobile) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
             {products.length > 0 ? products.map((product) => (
               <ProductCard key={product.id} product={product} />

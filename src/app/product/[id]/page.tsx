@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -13,7 +13,6 @@ import {
   Minus, Plus, ShoppingBag, Heart, Share2, 
   ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check
 } from "lucide-react";
-import { useRouter } from "next/navigation"; 
 import toast from "react-hot-toast"; 
 
 export default function ProductDetail() {
@@ -28,7 +27,6 @@ export default function ProductDetail() {
 
   // --- UI STATE ---
   const [activeImage, setActiveImage] = useState("");
-  // CHANGED: We now track the INDEX of the selected color to prevent duplicate name bugs
   const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
   const [quantity, setQuantity] = useState(1);
   const [openSection, setOpenSection] = useState<string | null>("description");
@@ -67,10 +65,13 @@ export default function ProductDetail() {
            setProduct(currentProduct);
            setActiveImage(currentProduct.main_image);
            
-           // Reviews
            setProductReviews(currentProduct.manual_reviews || []);
 
-           // Related Products
+           // Check Wishlist Status
+           const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+           const exists = wishlist.some((w: any) => w.id === currentProduct.id);
+           setIsLiked(exists);
+
            const { data: related } = await supabase
               .from('products')
               .select('*')
@@ -80,12 +81,10 @@ export default function ProductDetail() {
            
            if (related) setRelatedProducts(related);
 
-           // View Count
            const baseCount = 800;
            const idNum = parseInt(currentProduct.id) || 1;
            setViewCount(baseCount + (idNum * 123) % 500);
 
-           // --- SEO: DYNAMIC TITLE UPDATE ---
            document.title = `${currentProduct.name} | AURA-X Luxury Watches`;
        }
        setLoading(false);
@@ -93,28 +92,60 @@ export default function ProductDetail() {
     fetchData();
   }, [id]);
 
+  // --- OPTIMIZED CALCULATIONS ---
+  const { basePrice, extras, totalPrice, specs, selectedColor, allImages } = useMemo(() => {
+      if (!product) return { basePrice: 0, extras: 0, totalPrice: 0, specs: {}, selectedColor: null, allImages: [] };
+
+      const bPrice = product.price * quantity;
+      const ex = (isGift ? GIFT_COST : 0) + (addBox ? BOX_COST : 0);
+      
+      const imgs = [
+        product?.main_image,
+        ...(product?.specs?.gallery || []),
+        ...(product?.colors?.map((c: any) => c.image).filter(Boolean) || [])
+      ].filter((img, index, self) => img && self.indexOf(img) === index);
+
+      return {
+          basePrice: bPrice,
+          extras: ex,
+          totalPrice: bPrice + ex,
+          specs: product.specs || {},
+          selectedColor: product.colors?.[selectedColorIndex],
+          allImages: imgs
+      };
+  }, [product, quantity, isGift, addBox, selectedColorIndex]);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7] text-aura-brown font-serif text-xl animate-pulse">Loading Masterpiece...</div>;
   if (!product) return <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">Product Not Found</div>;
 
-  // --- CALCULATIONS ---
-  const basePrice = product.price * quantity;
-  const extras = (isGift ? GIFT_COST : 0) + (addBox ? BOX_COST : 0);
-  const totalPrice = basePrice + extras;
-  const specs = product.specs || {};
-  
-  // Get Current Selected Color Object
-  const selectedColor = product.colors?.[selectedColorIndex];
+  // --- HANDLERS ---
+  const handleWishlistToggle = () => {
+      const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+      
+      if (isLiked) {
+          // Remove
+          const newWishlist = wishlist.filter((item: any) => item.id !== product.id);
+          localStorage.setItem('wishlist', JSON.stringify(newWishlist));
+          setIsLiked(false);
+          toast.success("Removed from Wishlist");
+      } else {
+          // Add
+          const newItem = {
+              id: product.id,
+              name: product.name,
+              price: product.price,
+              main_image: product.main_image,
+              category: product.category,
+              original_price: product.original_price,
+              discount: product.discount
+          };
+          localStorage.setItem('wishlist', JSON.stringify([...wishlist, newItem]));
+          setIsLiked(true);
+          toast.success("Added to Wishlist");
+      }
+  };
 
-  // Clean Image List
-  const allImages = [
-    product?.main_image,
-    ...(product?.specs?.gallery || []),
-    ...(product?.colors?.map((c: any) => c.image).filter(Boolean) || [])
-  ].filter((img, index, self) => img && self.indexOf(img) === index);
-
- // --- NEW HANDLER ---
   const handleAddToCart = () => {
-    // 1. Add to Global State
     addToCart({
       id: product.id,
       name: product.name,
@@ -126,13 +157,11 @@ export default function ProductDetail() {
       addBox: addBox
     });
 
-    // 2. Sleek Notification (Replaces the boring Alert)
     toast.success(`${product.name} added to bag!`, {
         style: { border: '1px solid #D4AF37', padding: '16px', color: '#4A3B32' },
         iconTheme: { primary: '#D4AF37', secondary: '#FFFAEE' },
     });
 
-    // 3. Auto Redirect to Cart after 0.8 seconds
     setTimeout(() => {
         router.push("/cart");
     }, 800);
@@ -143,22 +172,57 @@ export default function ProductDetail() {
     if (file) setReviewImage(URL.createObjectURL(file));
   };
 
-  const handleSubmitReview = () => {
-    if (reviewRating === 0) return alert("Please select a star rating!");
-    if (!reviewText.trim()) return alert("Please write a comment!");
-    const newReview = {
-      id: Date.now(),
-      user: "You (Guest)",
-      rating: reviewRating,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      comment: reviewText,
-      image: reviewImage
-    };
-    setProductReviews([newReview, ...productReviews]);
-    setReviewRating(0); setReviewText(""); setReviewImage(null); setShowReviewForm(false);
+  const uploadReviewImage = async (file: File) => {
+    const fileName = `review-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const { error } = await supabase.storage.from('product-images').upload(fileName, file);
+    if (error) return null;
+    const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
+    return publicUrl;
   };
 
-  // --- HELPER COMPONENTS ---
+  const handleSubmitReview = async () => {
+    if (reviewRating === 0) return toast.error("Please select a star rating!");
+    if (!reviewText.trim()) return toast.error("Please write a comment!");
+
+    const loadingToast = toast.loading("Posting review...");
+
+    try {
+        let finalImageUrl = null;
+        if (fileInputRef.current?.files?.[0]) {
+            finalImageUrl = await uploadReviewImage(fileInputRef.current.files[0]);
+            if (!finalImageUrl) throw new Error("Image upload failed");
+        }
+
+        const newReview = {
+            id: Date.now(),
+            user: "Verified Customer",
+            rating: reviewRating,
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            comment: reviewText,
+            image: finalImageUrl
+        };
+
+        const { data: freshProduct } = await supabase.from('products').select('manual_reviews').eq('id', product.id).single();
+        const currentReviews = freshProduct?.manual_reviews || [];
+        const updatedReviews = [newReview, ...currentReviews];
+
+        const { error } = await supabase.from('products').update({ manual_reviews: updatedReviews }).eq('id', product.id);
+        if (error) throw error;
+
+        setProductReviews(updatedReviews);
+        toast.dismiss(loadingToast);
+        toast.success("Review Posted!");
+        setReviewRating(0); 
+        setReviewText(""); 
+        setReviewImage(null); 
+        setShowReviewForm(false);
+
+    } catch (error) {
+        toast.dismiss(loadingToast);
+        toast.error("Failed to post review. Try again.");
+    }
+  };
+
   const AccordionItem = ({ title, id, children }: { title: string, id: string, children: React.ReactNode }) => (
     <div className="border-b border-aura-gold/20">
       <button 
@@ -175,57 +239,45 @@ export default function ProductDetail() {
   );
 
   const formatSpecValue = (val: any) => {
-      // Fixes "true" showing as text
       if (val === true || val === "true") return "Yes";
       if (val === false || val === "false") return "No";
       return val;
   };
 
-  // --- SEO: PRODUCT SCHEMA (Rich Snippet) ---
   const jsonLd = {
     "@context": "https://schema.org/",
     "@type": "Product",
     "name": product.name,
     "image": product.main_image,
     "description": product.description,
-    "brand": {
-      "@type": "Brand",
-      "name": "AURA-X"
-    },
+    "brand": { "@type": "Brand", "name": "AURA-X" },
     "offers": {
       "@type": "Offer",
       "priceCurrency": "PKR",
       "price": product.price,
       "availability": specs.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      "itemCondition": "https://schema.org/NewCondition",
       "url": typeof window !== 'undefined' ? window.location.href : ''
     }
   };
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32 md:pb-24">
-      
-      {/* SEO: Inject JSON-LD Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <Navbar />
 
       {lightboxImage && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-300">
            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"><X size={30}/></button>
            <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
-              <Image src={lightboxImage} alt="Zoom" fill className="object-contain" />
+              <Image src={lightboxImage} alt="Zoom" fill className="object-contain" quality={90} />
            </div>
         </div>
       )}
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-24 md:pt-36">
         
-        {/* BREADCRUMBS */}
-        <div className="flex items-center gap-2 text-xs md:text-sm text-gray-400 mb-4 md:mb-6 font-medium">
+        {/* BREADCRUMBS (Fixed Mobile Cut-off) */}
+        <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-400 mb-4 md:mb-6 font-medium">
             <Link href="/" className="hover:text-aura-gold flex items-center gap-1"><Home size={14}/> Home</Link>
             <span>/</span>
             <Link href={`/${product.category}`} className="hover:text-aura-gold capitalize underline-offset-4 hover:underline">{product.category}</Link>
@@ -239,18 +291,32 @@ export default function ProductDetail() {
           <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start">
             <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10 group">
               <div className="absolute top-4 right-4 z-20 flex flex-col gap-3">
-                 <button onClick={() => setIsLiked(!isLiked)} className={`bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg transition-all ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-500'}`}><Heart size={18} fill={isLiked ? "currentColor" : "none"} /></button>
+                 {/* WISHLIST BUTTON (Working Logic) */}
+                 <button onClick={handleWishlistToggle} className={`bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg transition-all ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-500'}`}><Heart size={18} fill={isLiked ? "currentColor" : "none"} /></button>
                  <button onClick={() => {navigator.clipboard.writeText(window.location.href); alert("Link Copied!")}} className="bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-400 hover:text-blue-500"><Share2 size={18} /></button>
               </div>
               <button onClick={() => setLightboxImage(activeImage)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
-              {activeImage && <Image src={activeImage} alt={product.name} fill className="object-contain p-6 md:p-8 mix-blend-multiply transition-transform duration-700 cursor-zoom-in" onClick={() => setLightboxImage(activeImage)}/>}
+              
+              {/* IMAGE FIX: Removed Padding (p-6) & Changed to Object-Cover */}
+              {activeImage && (
+                <Image 
+                    src={activeImage} 
+                    alt={product.name} 
+                    fill 
+                    priority
+                    quality={90}
+                    sizes="(max-width: 768px) 100vw, 60vw"
+                    className="object-cover transition-transform duration-700 cursor-zoom-in" 
+                    onClick={() => setLightboxImage(activeImage)}
+                />
+              )}
             </div>
             
             <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide">
-               {allImages.map((img, i) => (
+               {allImages.map((img: string, i: number) => (
                  img && (
                    <button key={i} onClick={() => setActiveImage(img)} className={`relative w-16 h-16 md:w-24 md:h-24 flex-shrink-0 bg-white rounded-xl border-2 overflow-hidden transition-all ${activeImage === img ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent'}`}>
-                     <Image src={img} alt="Thumb" fill className="object-cover p-1.5 mix-blend-multiply" />
+                     <Image src={img} alt="Thumb" fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
                    </button>
                  )
                ))}
@@ -289,7 +355,7 @@ export default function ProductDetail() {
                     </div>
                 </div>
 
-                {/* COLORS (Using INDEX to prevent bugs) */}
+                {/* COLORS */}
                 {product.colors && product.colors.length > 0 && (
                     <div className="mb-6">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select Finish</p>
@@ -300,7 +366,7 @@ export default function ProductDetail() {
                                 onClick={() => { setSelectedColorIndex(index); if(color.image) setActiveImage(color.image); }} 
                                 title={color.name}
                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 relative ${
-                                    selectedColorIndex === index // Use Index logic here
+                                    selectedColorIndex === index 
                                     ? 'ring-2 ring-offset-2 ring-aura-brown scale-110 shadow-lg' 
                                     : 'hover:scale-105 opacity-80 hover:opacity-100'
                                 }`}
@@ -312,7 +378,6 @@ export default function ProductDetail() {
                              </button>
                           ))}
                         </div>
-                        {/* Show name of selected color */}
                         <p className="text-xs mt-2 text-aura-brown font-medium opacity-80">
                             {product.colors[selectedColorIndex]?.name || "Standard"}
                         </p>
@@ -346,7 +411,7 @@ export default function ProductDetail() {
                     {specs.stock > 0 && <button className="w-full h-12 border border-aura-gold/50 text-aura-brown rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold hover:text-white transition-all">BUY NOW</button>}
                 </div>
 
-                {/* SPECS (Filtered) */}
+                {/* SPECS */}
                 <div className="border-t border-aura-gold/20">
                     <AccordionItem title="Description" id="description"><p>{product.description}</p></AccordionItem>
                     
