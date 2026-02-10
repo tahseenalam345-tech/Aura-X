@@ -51,7 +51,8 @@ const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
         {/* SPEED FIX: quality={80} creates smaller files, loading faster */}
         <Image 
           src={cat.image} 
-          alt={cat.title} 
+          // SEO FIX: Added "Collection" to alt text
+          alt={`${cat.title} Luxury Watch Collection`} 
           fill 
           className="object-cover transition-transform duration-1000 group-hover:scale-110" 
           sizes="(max-width: 768px) 100vw, 50vw" 
@@ -71,7 +72,6 @@ export default function Home() {
   const [isEidLive, setIsEidLive] = useState(false);
 
   // --- 1. REAL TIME CHECK (OPTIMIZED) ---
-  // SPEED FIX: Checks only ONCE on load, not every second. 
   useEffect(() => {
     const now = new Date().getTime();
     const target = new Date(TARGET_DATE).getTime();
@@ -82,7 +82,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % watchImages.length);
-    }, 4000); // Slowed down slightly for smoother feel
+    }, 4000); 
     return () => clearInterval(timer);
   }, []);
 
@@ -116,7 +116,6 @@ export default function Home() {
 
       {/* --- HERO SECTION --- */}
       <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden">
-        {/* SPEED FIX: Using a static CSS gradient instead of a blur div for better mobile performance */}
         <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-gradient-radial from-aura-gold/20 to-transparent opacity-50 -z-10" />
         
         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -149,10 +148,10 @@ export default function Home() {
                    <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
                       <Image 
                         src={src} 
-                        alt="Watch" 
+                        // SEO FIX: Descriptive Alt Text instead of just "Watch"
+                        alt="AURA-X Premium Luxury Watch Model" 
                         fill 
                         className="object-contain drop-shadow-2xl"
-                        // SPEED FIX: Priority ONLY on the first/current image
                         priority={index === currentIndex}
                         quality={85}
                       />
@@ -207,7 +206,6 @@ export default function Home() {
              <h2 className="text-3xl md:text-4xl font-serif">Curated Pieces</h2>
              <Link href="/men" className="text-aura-gold text-xs font-bold uppercase tracking-widest border-b border-aura-gold pb-1">View All</Link>
           </div>
-          {/* SPEED FIX: Adjusted Grid to match Category Page (2 cols on mobile) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
             {products.length > 0 ? products.map((product) => (
               <ProductCard key={product.id} product={product} />
