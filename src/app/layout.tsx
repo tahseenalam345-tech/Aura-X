@@ -62,17 +62,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        {/* --- PERFORMANCE: PRECONNECT TO EXTERNAL ASSETS --- */}
         <link rel="preconnect" href="https://kdwpnvkgghdksnajalmj.supabase.co" />
         <link rel="preconnect" href="https://www.transparenttextures.com" />
       </head>
       <body className={`${playfair.variable} ${lato.variable} font-sans antialiased bg-[#FDFBF7]`}>
         
+        {/* --- PERFORMANCE: CHANGED BOTH TO lazyOnload TO ELIMINATE UNUSED JS --- */}
         <Script
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           src="https://www.googletagmanager.com/gtag/js?id=G-M99HK4HLVG"
         />
-        <Script id="google-analytics" strategy="afterInteractive">
+        <Script id="google-analytics" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
