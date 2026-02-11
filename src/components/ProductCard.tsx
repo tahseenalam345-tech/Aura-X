@@ -22,14 +22,11 @@ interface Product {
 export function ProductCard({ product }: { product: Product }) {
   const imageUrl = product.main_image || product.image || "/placeholder.jpg";
 
-  // --- PRICE LOGIC (FIXED) ---
-  // 1. Only use original_price if it actually exists in the database.
-  //    (Removed the "* 1.2" logic that was creating fake 17% discounts)
+  // --- PRICE LOGIC ---
   const originalPrice = product.original_price && product.original_price > product.price
       ? product.original_price 
       : 0; 
 
-  // 2. Calculate discount only if legitimate data exists
   let discount = product.discount || 0;
   if (discount === 0 && originalPrice > product.price) {
       discount = Math.round(((originalPrice - product.price) / originalPrice) * 100);
@@ -37,8 +34,6 @@ export function ProductCard({ product }: { product: Product }) {
 
   // --- REVIEW LOGIC ---
   const realReviews = product.manual_reviews || [];
-  
-  // Use manual count if set, otherwise count real reviews
   const reviewCount = product.reviews_count && product.reviews_count > 0 ? product.reviews_count : realReviews.length;
 
   const avgRating = realReviews.length > 0
@@ -52,7 +47,7 @@ export function ProductCard({ product }: { product: Product }) {
         {/* --- IMAGE AREA --- */}
         <div className="relative aspect-square w-full overflow-hidden">
             
-            {/* SALE BADGE - Only shows if discount > 0 */}
+            {/* SALE BADGE */}
             {discount > 0 && (
                 <div className="absolute top-3 right-3 z-30 pointer-events-none">
                     <span className="bg-[#750000] text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm tracking-widest font-sans">
@@ -61,7 +56,7 @@ export function ProductCard({ product }: { product: Product }) {
                 </div>
             )}
 
-            {/* TAGS (Fixed for Mobile) */}
+            {/* TAGS */}
             {product.tags && product.tags.length > 0 && (
                  <div className="absolute top-3 left-3 z-20 flex flex-col gap-1 pointer-events-none max-w-[50%]">
                     {product.tags.slice(0, 1).map(tag => (
@@ -76,12 +71,13 @@ export function ProductCard({ product }: { product: Product }) {
             <div className="relative w-full h-full">
                 <Image
                     src={imageUrl}
-                    alt={product.name}
+                    alt={`Luxury watch: ${product.name}`}
                     fill
-                    quality={90} 
+                    quality={85} 
                     className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                     sizes="(max-width: 768px) 50vw, 25vw"
                     loading="lazy"
+                    decoding="async"
                 />
             </div>
         </div>
@@ -116,7 +112,6 @@ export function ProductCard({ product }: { product: Product }) {
 
                 <div className="flex items-end justify-between border-t border-black/5 pt-3">
                     <div className="flex flex-col">
-                        {/* Only show strikethrough if Original Price exists AND is greater than current price */}
                         {originalPrice > product.price && (
                             <span className="text-[11px] text-gray-500 line-through mb-0.5 font-sans font-medium">
                                 Rs {originalPrice.toLocaleString()}
@@ -127,7 +122,10 @@ export function ProductCard({ product }: { product: Product }) {
                         </span>
                     </div>
                     
-                    <button className="w-8 h-8 md:w-9 md:h-9 bg-[#1A1A1A] text-white rounded-full flex items-center justify-center shadow-md group-hover:bg-[#C5A67C] group-hover:scale-110 transition-all duration-300">
+                    <button 
+                      className="w-8 h-8 md:w-9 md:h-9 bg-[#1A1A1A] text-white rounded-full flex items-center justify-center shadow-md group-hover:bg-[#C5A67C] group-hover:scale-110 transition-all duration-300"
+                      aria-label={`Add ${product.name} to cart`}
+                    >
                         <ShoppingBag size={14} className="md:w-4 md:h-4" />
                     </button>
                 </div>

@@ -18,11 +18,8 @@ export default function CategoryPage() {
   const categorySlug = params.category as string; 
   const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection'];
 
-  // --- STATE (Moved to Top to fix Hook Error) ---
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // ⚡ PERFORMANCE: Only show this many items initially
   const [visibleCount, setVisibleCount] = useState(8);
 
   const [priceRange, setPriceRange] = useState(500000); 
@@ -34,10 +31,8 @@ export default function CategoryPage() {
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
-  // --- FETCH DATA ---
   useEffect(() => {
     const fetchProducts = async () => {
-      // Prevent fetching for reserved routes
       if (reservedRoutes.includes(categorySlug)) return;
 
       setLoading(true);
@@ -56,15 +51,12 @@ export default function CategoryPage() {
     }
   }, [categorySlug]);
 
-  // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(8);
   }, [priceRange, selectedMovements, selectedStraps, sortBy]);
 
-  // --- SAFETY CHECK (Moved After Hooks) ---
   if (reservedRoutes.includes(categorySlug)) return null; 
 
-  // --- FILTERING LOGIC ---
   const filteredProducts = products.filter((product) => {
     if (product.price > priceRange) return false;
     
@@ -86,7 +78,6 @@ export default function CategoryPage() {
     return 0; 
   });
 
-  // ⚡ PAGINATION LOGIC: Slice the data to show only what is needed
   const visibleProducts = filteredProducts.slice(0, visibleCount);
 
   const loadMore = () => {
@@ -107,6 +98,7 @@ export default function CategoryPage() {
           value={priceRange}
           onChange={(e) => setPriceRange(Number(e.target.value))}
           className="w-full h-1 bg-aura-gold/30 rounded-lg appearance-none cursor-pointer accent-aura-brown"
+          aria-label="Filter by price range"
         />
         <div className="flex justify-between text-sm mt-3 font-medium text-aura-brown">
           <span>Rs. 0</span>
@@ -116,9 +108,9 @@ export default function CategoryPage() {
 
       <div>
         <h3 className="text-xs font-bold tracking-widest uppercase mb-4 text-aura-brown/70">Movement</h3>
-        <div className="space-y-3">
+        <div className="space-y-3" role="group" aria-label="Filter by watch movement">
           {movements.map((move) => (
-            <div key={move} onClick={() => toggleFilter(move, selectedMovements, setSelectedMovements)} className="flex items-center gap-3 cursor-pointer group">
+            <div key={move} onClick={() => toggleFilter(move, selectedMovements, setSelectedMovements)} className="flex items-center gap-3 cursor-pointer group" role="checkbox" aria-checked={selectedMovements.includes(move)}>
               <div className={`w-5 h-5 border border-aura-brown rounded flex items-center justify-center transition-all ${selectedMovements.includes(move) ? 'bg-aura-brown' : 'bg-transparent'}`}>
                 {selectedMovements.includes(move) && <div className="w-2 h-2 bg-white rounded-full"></div>}
               </div>
@@ -130,9 +122,9 @@ export default function CategoryPage() {
 
       <div>
         <h3 className="text-xs font-bold tracking-widest uppercase mb-4 text-aura-brown/70">Strap Material</h3>
-        <div className="space-y-3">
+        <div className="space-y-3" role="group" aria-label="Filter by strap material">
           {straps.map((strap) => (
-            <div key={strap} onClick={() => toggleFilter(strap, selectedStraps, setSelectedStraps)} className="flex items-center gap-3 cursor-pointer group">
+            <div key={strap} onClick={() => toggleFilter(strap, selectedStraps, setSelectedStraps)} className="flex items-center gap-3 cursor-pointer group" role="checkbox" aria-checked={selectedStraps.includes(strap)}>
               <div className={`w-5 h-5 border border-aura-brown rounded flex items-center justify-center transition-all ${selectedStraps.includes(strap) ? 'bg-aura-brown' : 'bg-transparent'}`}>
                 {selectedStraps.includes(strap) && <div className="w-2 h-2 bg-white rounded-full"></div>}
               </div>
@@ -148,7 +140,6 @@ export default function CategoryPage() {
     <main className="min-h-screen bg-[#F2F0E9] text-aura-brown">
       <Navbar />
 
-      {/* --- MOBILE FILTER DRAWER --- */}
       <AnimatePresence>
         {mobileFilterOpen && (
           <>
@@ -156,15 +147,18 @@ export default function CategoryPage() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setMobileFilterOpen(false)}
               className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm lg:hidden"
+              aria-hidden="true"
             />
             <motion.div 
               initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 left-0 w-[80%] max-w-xs bg-[#F2F0E9] z-[101] p-8 shadow-2xl lg:hidden overflow-y-auto"
+              role="dialog"
+              aria-label="Filter menu"
             >
               <div className="flex justify-between items-center mb-10 pb-4 border-b border-aura-brown/10">
                 <span className="text-2xl font-serif font-bold">Filters</span>
-                <button onClick={() => setMobileFilterOpen(false)}><X size={24} /></button>
+                <button onClick={() => setMobileFilterOpen(false)} aria-label="Close filters"><X size={24} /></button>
               </div>
               <FilterContent />
             </motion.div>
@@ -183,7 +177,6 @@ export default function CategoryPage() {
 
       <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex flex-col lg:flex-row gap-8 lg:gap-16 pb-20">
         
-        {/* --- DESKTOP SIDEBAR --- */}
         <aside className="hidden lg:block w-64 flex-shrink-0 lg:sticky lg:top-32 h-fit">
             <div className="flex items-center gap-2 pb-4 border-b border-aura-brown/10 mb-8">
                 <Filter size={20} className="text-aura-gold" />
@@ -192,20 +185,20 @@ export default function CategoryPage() {
             <FilterContent />
         </aside>
 
-        {/* --- MAIN GRID --- */}
         <div className="flex-1">
             <div className="flex justify-between items-center mb-8 pb-4 border-b border-aura-brown/10">
                 <button 
                   onClick={() => setMobileFilterOpen(true)}
                   className="lg:hidden flex items-center gap-2 text-xs font-bold uppercase tracking-widest bg-aura-brown text-white px-4 py-2 rounded-full"
+                  aria-label="Open filter menu"
                 >
                   <Filter size={14} /> Filter
                 </button>
 
-                <p className="hidden md:block text-sm text-gray-500 italic">Showing {filteredProducts.length} masterpieces</p>
+                <p className="hidden md:block text-sm text-gray-500 italic" aria-live="polite">Showing {filteredProducts.length} masterpieces</p>
                 
                 <div className="relative group z-20">
-                    <button className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider text-aura-brown hover:text-aura-gold transition">
+                    <button className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider text-aura-brown hover:text-aura-gold transition" aria-label="Sort collection">
                         Sort By <ChevronDown size={16} />
                     </button>
                     <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block">
@@ -221,10 +214,11 @@ export default function CategoryPage() {
             </div>
 
             {loading ? (
-                <div className="h-64 flex items-center justify-center text-aura-brown animate-pulse">Loading Collection...</div>
+                <div className="h-64 flex items-center justify-center text-aura-brown animate-pulse">
+                    <Loader2 className="animate-spin mr-2" /> Loading Collection...
+                </div>
             ) : (
                 <div className="flex flex-col gap-12">
-                    {/* GRID CONFIGURATION */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                         <AnimatePresence mode="popLayout">
                             {visibleProducts.map((product) => (
@@ -242,12 +236,12 @@ export default function CategoryPage() {
                         </AnimatePresence>
                     </div>
 
-                    {/* LOAD MORE BUTTON */}
                     {visibleCount < filteredProducts.length && (
                         <div className="flex justify-center pt-8">
                             <button 
                                 onClick={loadMore}
                                 className="group flex items-center gap-3 px-8 py-4 bg-white border border-aura-gold/30 rounded-full shadow-sm hover:shadow-lg hover:border-aura-gold transition-all duration-500"
+                                aria-label="Load more timepieces"
                             >
                                 <span className="text-xs font-bold tracking-[0.2em] uppercase text-aura-brown group-hover:text-aura-gold">Load More</span>
                                 <div className="w-8 h-8 rounded-full bg-aura-gold/10 flex items-center justify-center group-hover:bg-aura-gold group-hover:text-white transition-colors">
@@ -262,7 +256,7 @@ export default function CategoryPage() {
             {!loading && filteredProducts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-6">No pieces match these criteria.</p>
-                    <button onClick={() => {setPriceRange(150000); setSelectedMovements([]); setSelectedStraps([]);}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold transition-colors">
+                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]);}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold transition-colors">
                       CLEAR ALL FILTERS
                     </button>
                 </div>

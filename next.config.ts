@@ -7,6 +7,8 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    // Enable advanced image optimization formats
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -14,7 +16,6 @@ const nextConfig = {
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
-      // ADD THIS SECTION FOR UNSPLASH
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',

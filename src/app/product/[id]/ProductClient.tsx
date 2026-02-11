@@ -103,7 +103,7 @@ export default function ProductClient() {
   }, [productReviews]);
 
   // --- OPTIMIZED CALCULATIONS ---
-  const { basePrice, extras, totalPrice, specs, selectedColor, allImages } = useMemo(() => {
+  const { totalPrice, specs, selectedColor, allImages } = useMemo(() => {
       if (!product) return { basePrice: 0, extras: 0, totalPrice: 0, specs: {}, selectedColor: null, allImages: [] };
 
       const bPrice = product.price * quantity;
@@ -155,7 +155,6 @@ export default function ProductClient() {
   };
 
   const handleAddToCart = () => {
-    // SECURITY CHECK: Don't allow if out of stock
     if (specs.stock <= 0) {
         return toast.error("Sorry, this item is currently out of stock.");
     }
@@ -200,7 +199,8 @@ export default function ProductClient() {
     const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
     return publicUrl;
   };
-const handleSubmitReview = async () => {
+
+  const handleSubmitReview = async () => {
     if (reviewRating === 0) return toast.error("Please select a star rating!");
     if (!reviewName.trim()) return toast.error("Please enter your name!"); 
     if (!reviewText.trim()) return toast.error("Please write a comment!");
@@ -234,7 +234,6 @@ const handleSubmitReview = async () => {
         toast.dismiss(loadingToast);
         toast.success("Review Posted!");
         
-        // Reset Form
         setReviewRating(0); 
         setReviewName(""); 
         setReviewText(""); 
@@ -252,11 +251,13 @@ const handleSubmitReview = async () => {
       <button 
         onClick={() => setOpenSection(openSection === id ? null : id)}
         className="w-full flex justify-between items-center py-4 text-left font-serif text-lg text-aura-brown hover:text-aura-gold transition-colors group"
+        aria-expanded={openSection === id}
+        aria-controls={`accordion-section-${id}`}
       >
         <span className="group-hover:translate-x-1 transition-transform">{title}</span>
         <ChevronDown className={`transition-transform duration-300 text-aura-gold ${openSection === id ? "rotate-180" : ""}`} />
       </button>
-      <div className={`overflow-hidden transition-all duration-500 ease-in-out ${openSection === id ? "max-h-[500px] opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
+      <div id={`accordion-section-${id}`} className={`overflow-hidden transition-all duration-500 ease-in-out ${openSection === id ? "max-h-[500px] opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
         <div className="text-sm text-gray-600 leading-relaxed pl-2 border-l-2 border-aura-gold/20">{children}</div>
       </div>
     </div>
@@ -291,21 +292,18 @@ const handleSubmitReview = async () => {
 
       {lightboxImage && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-300">
-           <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"><X size={30}/></button>
+           <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50" aria-label="Close image zoom"><X size={30}/></button>
            <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
-             {/* VIDEO LIGHTBOX SUPPORT */}
              {isVideoFile(lightboxImage) ? (
                  <video src={lightboxImage} controls autoPlay className="w-full h-full object-contain" />
              ) : (
-                 <Image src={lightboxImage} alt="Zoom" fill className="object-contain" quality={90} />
+                 <Image src={lightboxImage} alt="Detailed product view zoom" fill className="object-contain" quality={90} decoding="async" />
              )}
            </div>
         </div>
       )}
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-24 md:pt-36">
-        
-        {/* BREADCRUMBS */}
         <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-400 mb-4 md:mb-6 font-medium">
             <Link href="/" className="hover:text-aura-gold flex items-center gap-1"><Home size={14}/> Home</Link>
             <span>/</span>
@@ -315,17 +313,14 @@ const handleSubmitReview = async () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12 md:mb-24">
-          
-          {/* GALLERY */}
           <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start">
             <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10 group">
               <div className="absolute top-4 right-4 z-20 flex flex-col gap-3">
-                 <button onClick={handleWishlistToggle} className={`bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg transition-all ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-500'}`}><Heart size={18} fill={isLiked ? "currentColor" : "none"} /></button>
-                 <button onClick={() => {navigator.clipboard.writeText(window.location.href); alert("Link Copied!")}} className="bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-400 hover:text-blue-500"><Share2 size={18} /></button>
+                 <button onClick={handleWishlistToggle} className={`bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg transition-all ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-500'}`} aria-label={isLiked ? "Remove from wishlist" : "Add to wishlist"}><Heart size={18} fill={isLiked ? "currentColor" : "none"} /></button>
+                 <button onClick={() => {navigator.clipboard.writeText(window.location.href); toast.success("Link Copied!")}} className="bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-400 hover:text-blue-500" aria-label="Share product"><Share2 size={18} /></button>
               </div>
-              <button onClick={() => setLightboxImage(activeImage)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
+              <button onClick={() => setLightboxImage(activeImage)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold" aria-label="Zoom image"><Maximize2 size={18} /></button>
               
-              {/* --- VIDEO PLAYER OR IMAGE --- */}
               {activeImage && (
                 isVideoFile(activeImage) ? (
                     <video 
@@ -337,13 +332,15 @@ const handleSubmitReview = async () => {
                 ) : (
                     <Image 
                         src={activeImage} 
-                        alt={product.name} 
+                        alt={`${product.name} luxury watch main view`} 
                         fill 
-                        priority
+                        priority={true}
+                        fetchPriority="high"
                         quality={90}
                         sizes="(max-width: 768px) 100vw, 60vw"
                         className="object-cover transition-transform duration-700 cursor-zoom-in" 
                         onClick={() => setLightboxImage(activeImage)}
+                        decoding="async"
                     />
                 )
               )}
@@ -352,14 +349,14 @@ const handleSubmitReview = async () => {
             <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide">
                {allImages.map((img: string, i: number) => (
                  img && (
-                   <button key={i} onClick={() => setActiveImage(img)} className={`relative w-16 h-16 md:w-24 md:h-24 flex-shrink-0 bg-white rounded-xl border-2 overflow-hidden transition-all ${activeImage === img ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent'}`}>
+                   <button key={i} onClick={() => setActiveImage(img)} className={`relative w-16 h-16 md:w-24 md:h-24 flex-shrink-0 bg-white rounded-xl border-2 overflow-hidden transition-all ${activeImage === img ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent'}`} aria-label={`View product image ${i + 1}`}>
                      {isVideoFile(img) ? (
                          <div className="w-full h-full flex items-center justify-center bg-gray-100">
                              <video src={img} className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
                              <Play size={20} className="relative z-10 text-aura-brown" fill="currentColor"/>
                          </div>
                      ) : (
-                         <Image src={img} alt="Thumb" fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
+                         <Image src={img} alt={`Product thumbnail ${i + 1}`} fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
                      )}
                    </button>
                  )
@@ -367,7 +364,6 @@ const handleSubmitReview = async () => {
             </div>
           </div>
 
-          {/* DETAILS */}
           <div className="lg:col-span-5 flex flex-col">
              <div className="mb-6 md:mb-8">
                 <div className="flex items-center gap-3 mb-2">
@@ -408,16 +404,17 @@ const handleSubmitReview = async () => {
                     </div>
                 </div>
 
-                {/* COLORS */}
                 {product.colors && product.colors.length > 0 && (
                     <div className="mb-6">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select Finish</p>
-                        <div className="flex gap-4 flex-wrap">
+                        <div className="flex gap-4 flex-wrap" role="radiogroup" aria-label="Select watch finish">
                           {product.colors.map((color: any, index: number) => (
                              <button 
                                 key={index} 
                                 onClick={() => { setSelectedColorIndex(index); if(color.image) setActiveImage(color.image); }} 
                                 title={color.name}
+                                aria-label={`Select ${color.name} finish`}
+                                aria-checked={selectedColorIndex === index}
                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 relative ${
                                     selectedColorIndex === index 
                                     ? 'ring-2 ring-offset-2 ring-aura-brown scale-110 shadow-lg' 
@@ -437,13 +434,12 @@ const handleSubmitReview = async () => {
                     </div>
                 )}
 
-                {/* ADD-ONS */}
                 <div className="mb-8">
                     <div className="space-y-3">
-                        <div onClick={() => setIsGift(!isGift)} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${isGift ? 'bg-[#FAF8F1] border-aura-gold shadow-sm' : 'bg-white border-gray-100'}`}>
+                        <div onClick={() => setIsGift(!isGift)} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${isGift ? 'bg-[#FAF8F1] border-aura-gold shadow-sm' : 'bg-white border-gray-100'}`} role="checkbox" aria-checked={isGift} aria-label="Add gift wrap">
                            <div className="flex items-center gap-3"><div className={`w-8 h-8 rounded-full flex items-center justify-center ${isGift ? 'bg-aura-gold text-white' : 'bg-gray-100 text-gray-400'}`}><Gift size={16} /></div><div><p className="font-bold text-sm text-aura-brown">Gift Wrap</p></div></div><span className="text-xs font-bold text-aura-gold">+ Rs {GIFT_COST}</span>
                         </div>
-                        <div onClick={() => setAddBox(!addBox)} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${addBox ? 'bg-[#FAF8F1] border-aura-gold shadow-sm' : 'bg-white border-gray-100'}`}>
+                        <div onClick={() => setAddBox(!addBox)} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${addBox ? 'bg-[#FAF8F1] border-aura-gold shadow-sm' : 'bg-white border-gray-100'}`} role="checkbox" aria-checked={addBox} aria-label="Add luxury box">
                            <div className="flex items-center gap-3">
                               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${addBox ? 'bg-aura-gold text-white shadow-sm' : 'bg-gray-100 text-gray-400'}`}>
                                  <Package size={16} />
@@ -455,17 +451,16 @@ const handleSubmitReview = async () => {
                     </div>
                 </div>
 
-                {/* --- ACTIONS --- */}
                 <div className="flex flex-col gap-3 mb-8">
                     {specs.stock > 0 ? (
                         <>
                             <div className="flex gap-3 h-12">
                                 <div className="flex items-center bg-white border border-gray-200 rounded-full px-3 shadow-sm">
-                                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-2 hover:text-aura-gold"><Minus size={14}/></button>
-                                    <span className="w-6 text-center font-bold text-sm text-aura-brown">{quantity}</span>
-                                    <button onClick={() => setQuantity(quantity + 1)} className="p-2 hover:text-aura-gold"><Plus size={14}/></button>
+                                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-2 hover:text-aura-gold" aria-label="Decrease quantity"><Minus size={14}/></button>
+                                    <span className="w-6 text-center font-bold text-sm text-aura-brown" aria-live="polite">{quantity}</span>
+                                    <button onClick={() => setQuantity(quantity + 1)} className="p-2 hover:text-aura-gold" aria-label="Increase quantity"><Plus size={14}/></button>
                                 </div>
-                                <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-aura-brown to-[#4A3B32] text-white rounded-full font-bold text-xs tracking-widest flex items-center justify-center gap-2 shadow-md hover:shadow-xl transition-all hover:scale-[1.02]">
+                                <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-aura-brown to-[#4A3B32] text-white rounded-full font-bold text-xs tracking-widest flex items-center justify-center gap-2 shadow-md hover:shadow-xl transition-all hover:scale-[1.02]" aria-label="Add timepiece to bag">
                                     <ShoppingBag size={16} /> ADD TO CART
                                 </button>
                             </div>
@@ -481,7 +476,6 @@ const handleSubmitReview = async () => {
                     )}
                 </div>
 
-                {/* SPECS */}
                 <div className="border-t border-aura-gold/20">
                     <AccordionItem title="Description" id="description"><p>{product.description}</p></AccordionItem>
                     
@@ -512,7 +506,6 @@ const handleSubmitReview = async () => {
           </div>
         </div>
 
-       {/* REVIEWS */}
         <div className="mb-12 md:mb-24 border-t border-gray-200 pt-10">
             <div className="max-w-4xl mx-auto">
                 <div className="flex justify-between items-center mb-6 md:mb-8">
@@ -524,7 +517,7 @@ const handleSubmitReview = async () => {
                    <div className="bg-[#FAF9F6] p-6 rounded-2xl shadow-inner mb-8">
                       <div className="space-y-4">
                           <div className="flex gap-2 text-gray-300">
-                             {[1,2,3,4,5].map(star => <Star key={star} size={24} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className="cursor-pointer text-aura-gold"/>)}
+                             {[1,2,3,4,5].map(star => <Star key={star} size={24} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className="cursor-pointer text-aura-gold" aria-label={`Rate ${star} stars`}/>)}
                           </div>
                           
                           <input 
@@ -533,17 +526,18 @@ const handleSubmitReview = async () => {
                             onChange={(e) => setReviewName(e.target.value)} 
                             placeholder="Your Name" 
                             className="w-full border border-gray-200 p-3 rounded-xl bg-white text-sm focus:outline-none focus:border-aura-gold"
+                            aria-label="Your full name"
                           />
 
-                          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Write your review..." className="w-full border border-gray-200 p-3 rounded-xl bg-white h-24 text-sm focus:outline-none focus:border-aura-gold"></textarea>
+                          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Write your review..." className="w-full border border-gray-200 p-3 rounded-xl bg-white h-24 text-sm focus:outline-none focus:border-aura-gold" aria-label="Review comments"></textarea>
                           
                           <div className="flex justify-between items-center">
-                              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+                              <input type="file" id="review-image-upload" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
                               <div className="flex items-center gap-3">
-                                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-xs font-bold text-gray-500"><Camera size={16} /> {reviewImage ? "Change" : "Add Photo"}</button>
-                                 {reviewImage && <div className="relative w-8 h-8 rounded border border-aura-gold"><Image src={reviewImage} alt="Preview" fill className="object-cover" /><button onClick={() => setReviewImage(null)} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white"><X size={12}/></button></div>}
+                                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-xs font-bold text-gray-500" aria-label="Upload photo for review"><Camera size={16} /> {reviewImage ? "Change" : "Add Photo"}</button>
+                                 {reviewImage && <div className="relative w-8 h-8 rounded border border-aura-gold"><Image src={reviewImage} alt="Review upload preview" fill className="object-cover" /><button onClick={() => setReviewImage(null)} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white" aria-label="Remove photo"><X size={12}/></button></div>}
                               </div>
-                              <button onClick={handleSubmitReview} className="bg-aura-brown text-white px-6 py-2 rounded-full text-xs font-bold shadow-md">Post</button>
+                              <button onClick={handleSubmitReview} className="bg-aura-brown text-white px-6 py-2 rounded-full text-xs font-bold shadow-md" aria-label="Submit review">Post</button>
                           </div>
                       </div>
                    </div>
@@ -560,13 +554,13 @@ const handleSubmitReview = async () => {
                              <span className="text-[10px] text-gray-400">{review.date}</span>
                           </div>
                           <p className="text-gray-600 text-xs mb-3 italic">"{review.comment}"</p>
-                          {review.image && <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 cursor-zoom-in" onClick={() => setLightboxImage(review.image)}><Image src={review.image} alt="Review" fill className="object-cover hover:scale-110 transition-transform" /></div>}
+                          {review.image && <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 cursor-zoom-in" onClick={() => setLightboxImage(review.image)}><Image src={review.image} alt={`Review photo from ${review.user}`} fill className="object-cover hover:scale-110 transition-transform" /></div>}
                       </div>
                    )) : <p className="text-gray-400 italic text-sm text-center col-span-2">No reviews yet. Be the first!</p>}
                 </div>
             </div>
         </div>
-        {/* RELATED PRODUCTS */}
+
         <div className="border-t border-gray-200 pt-10 mb-12">
              <div className="flex justify-between items-center mb-6">
                  <h2 className="text-xl md:text-3xl font-serif text-aura-brown">Similar Watches</h2>
@@ -586,18 +580,17 @@ const handleSubmitReview = async () => {
         </div>
       </div>
       
-      {/* MOBILE STICKY TOTAL */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 z-50 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.05)] safe-area-bottom">
          <div className="flex flex-col">
             <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Total</span>
             <div className="flex items-baseline gap-1"><span className="font-serif font-bold text-aura-brown text-xl">Rs {totalPrice.toLocaleString()}</span></div>
          </div>
          {specs.stock > 0 ? (
-             <button onClick={handleAddToCart} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest shadow-lg active:scale-95 transition-transform">
+             <button onClick={handleAddToCart} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest shadow-lg active:scale-95 transition-transform" aria-label="Add product to cart">
                  ADD TO CART
              </button>
          ) : (
-             <button onClick={handleNotifyMe} className="bg-white border border-aura-brown text-aura-brown px-6 py-3 rounded-full font-bold text-xs tracking-widest shadow-sm">
+             <button onClick={handleNotifyMe} className="bg-white border border-aura-brown text-aura-brown px-6 py-3 rounded-full font-bold text-xs tracking-widest shadow-sm" aria-label="Notify me when available">
                  NOTIFY ME
              </button>
          )}

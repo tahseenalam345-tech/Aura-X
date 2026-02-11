@@ -91,19 +91,19 @@ export function Navbar() {
         {/* --- ANNOUNCEMENT BAR (SLOW MOVING LINE) --- */}
         <div className="bg-[#1E1B18] text-aura-gold h-9 overflow-hidden flex items-center relative z-20">
            <div className="absolute inset-0 flex items-center w-full">
-              {/* Infinite Loop Animation */}
-              <motion.div 
+             {/* Infinite Loop Animation */}
+             <motion.div 
                 className="flex whitespace-nowrap gap-16 md:gap-32 px-4"
                 animate={{ x: ["0%", "-100%"] }}
                 transition={{ repeat: Infinity, ease: "linear", duration: 80 }} // 30s = Slow & Smooth
-              >
+             >
                   {/* Repeated 3 times to ensure smooth infinite loop on wide screens */}
                   {[...announcements, ...announcements, ...announcements].map((text, i) => (
                     <span key={i} className="text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase flex items-center gap-2">
                        {text}
                     </span>
                   ))}
-              </motion.div>
+             </motion.div>
            </div>
         </div>
 
@@ -115,7 +115,11 @@ export function Navbar() {
           {/* DESKTOP NAV (Visible on Desktop) */}
           <div className="hidden md:flex items-center gap-6">
              {/* ADDED: Menu Button for Desktop */}
-             <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 hover:bg-aura-gold/10 rounded-full transition active:scale-95">
+             <button 
+                onClick={() => setIsSidebarOpen(true)} 
+                className="p-2 -ml-2 hover:bg-aura-gold/10 rounded-full transition active:scale-95"
+                aria-label="Open navigation menu"
+             >
                 <Menu className="w-6 h-6 text-aura-brown" />
              </button>
 
@@ -140,12 +144,14 @@ export function Navbar() {
              <button 
                 onClick={() => setIsSidebarOpen(true)} 
                 className="p-2 hover:bg-aura-gold/10 rounded-full transition active:scale-95"
+                aria-label="Open navigation menu"
              >
                 <Menu className="w-6 h-6 text-aura-brown" />
              </button>
              <button 
                 onClick={() => setIsSearchOpen(true)} 
                 className="p-2 hover:bg-aura-gold/10 rounded-full transition active:scale-95"
+                aria-label="Search products"
              >
                 <Search className="w-6 h-6 text-aura-brown" />
              </button>
@@ -154,7 +160,7 @@ export function Navbar() {
           {/* --- 2. CENTER SECTION (LOGO) --- */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-auto">
             <Link href="/" className="block relative w-32 h-16 md:w-56 md:h-28 hover:scale-105 transition-transform duration-500">
-              <Image src="/logo.png" alt="AURA-X" fill className="object-contain invert" priority unoptimized />
+              <Image src="/logo.png" alt="AURA-X Luxury Timepieces Logo" fill className="object-contain invert" priority unoptimized />
             </Link>
           </div>
 
@@ -166,12 +172,17 @@ export function Navbar() {
                  href="/wishlist" 
                  className="p-2 rounded-full hover:bg-aura-gold/10 transition-all active:scale-90 text-aura-brown group"
                  title="My Wishlist"
+                 aria-label="View your wishlist"
               >
                  <Heart className="w-6 h-6 group-hover:fill-aura-brown transition-colors duration-300" />
               </Link>
 
               {/* CART ICON (Always Visible, Right Aligned) */}
-              <Link href="/cart" className="relative p-2 rounded-full hover:bg-aura-gold/10 transition-colors active:scale-90">
+              <Link 
+                href="/cart" 
+                className="relative p-2 rounded-full hover:bg-aura-gold/10 transition-colors active:scale-90"
+                aria-label={`View shopping cart with ${totalItems} items`}
+              >
                 <ShoppingBag className="w-6 h-6 text-aura-brown" />
                 {totalItems > 0 && (
                    <span className="absolute top-0 right-0 bg-red-600 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow-md animate-in zoom-in">
@@ -184,6 +195,7 @@ export function Navbar() {
               <button 
                 onClick={() => setIsSearchOpen(true)} 
                 className="hidden md:block p-2 rounded-full hover:bg-aura-gold/10 transition-colors"
+                aria-label="Search collection"
               >
                 <Search className="w-6 h-6 text-aura-brown" />
               </button>
@@ -191,11 +203,21 @@ export function Navbar() {
               {/* DESKTOP USER / LOGIN (Hidden on Mobile) */}
               <div className="hidden md:flex items-center gap-4">
                   {user ? (
-                     <button onClick={logout} className="p-2 rounded-full hover:bg-aura-gold/10 transition-colors text-aura-brown" title="Logout">
+                     <button 
+                        onClick={logout} 
+                        className="p-2 rounded-full hover:bg-aura-gold/10 transition-colors text-aura-brown" 
+                        title="Logout"
+                        aria-label="Sign out of your account"
+                     >
                         <LogOut className="w-6 h-6" />
                      </button>
                   ) : (
-                     <Link href="/login" className="p-2 rounded-full hover:bg-aura-gold/10 transition-colors text-aura-brown" title="Login">
+                     <Link 
+                        href="/login" 
+                        className="p-2 rounded-full hover:bg-aura-gold/10 transition-colors text-aura-brown" 
+                        title="Login"
+                        aria-label="Sign in to your account"
+                     >
                         <User className="w-6 h-6" />
                      </Link>
                   )}
@@ -227,8 +249,13 @@ export function Navbar() {
                     autoFocus
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    aria-label="Search through watch collection"
                   />
-                  <button onClick={() => setIsSearchOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                  <button 
+                    onClick={() => setIsSearchOpen(false)} 
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                    aria-label="Close search"
+                  >
                     <X className="w-6 h-6 text-gray-500" />
                   </button>
                </div>
@@ -248,7 +275,7 @@ export function Navbar() {
                   {!isSearching && searchResults.length > 0 && (
                       <div>
                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                           Found {searchResults.length} Results
+                            Found {searchResults.length} Results
                          </h3>
                          <div className="space-y-4">
                             {searchResults.map((product) => (
@@ -261,7 +288,10 @@ export function Navbar() {
                                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{product.brand || "Aura-X"}</p>
                                      <p className="text-sm font-bold text-aura-brown mt-1">Rs {product.price.toLocaleString()}</p>
                                   </div>
-                                  <button className="p-2 bg-gray-50 rounded-full group-hover:bg-aura-brown group-hover:text-white transition-colors">
+                                  <button 
+                                    className="p-2 bg-gray-50 rounded-full group-hover:bg-aura-brown group-hover:text-white transition-colors"
+                                    aria-label={`View details for ${product.name}`}
+                                  >
                                      <ArrowRight size={16} />
                                   </button>
                                </Link>
@@ -281,6 +311,7 @@ export function Navbar() {
                                   key={tag} 
                                   onClick={() => handleTagClick(tag)}
                                   className="px-4 py-2 rounded-full border border-aura-gold/30 text-aura-brown text-sm font-medium hover:bg-aura-gold hover:text-white transition-colors"
+                                  aria-label={`Search for ${tag}`}
                                >
                                   {tag}
                                </button>
@@ -313,20 +344,28 @@ export function Navbar() {
               
               <div className="p-8 flex justify-between items-center border-b border-aura-gold/10 pt-16 md:pt-8">
                 <span className="text-xl font-serif font-bold text-aura-brown tracking-widest">MENU</span>
-                <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-aura-gold/10 rounded-full transition"><X className="w-6 h-6 text-aura-brown" /></button>
+                <button 
+                    onClick={() => setIsSidebarOpen(false)} 
+                    className="p-2 hover:bg-aura-gold/10 rounded-full transition"
+                    aria-label="Close navigation menu"
+                >
+                    <X className="w-6 h-6 text-aura-brown" />
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 py-4">
                 
                 {/* Mobile Search Input (Optional shortcut to main search) */}
                 <div className="mb-8 relative md:hidden">
-                   <div 
-                     onClick={() => { setIsSidebarOpen(false); setIsSearchOpen(true); }}
-                     className="w-full pl-12 pr-4 py-3 bg-white border border-aura-gold/20 rounded-xl flex items-center text-gray-400 cursor-text"
-                   >
-                      <Search className="absolute left-4 w-5 h-5" />
-                      <span>Search watches...</span>
-                   </div>
+                    <div 
+                      onClick={() => { setIsSidebarOpen(false); setIsSearchOpen(true); }}
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-aura-gold/20 rounded-xl flex items-center text-gray-400 cursor-text"
+                      role="button"
+                      aria-label="Open search drawer"
+                    >
+                       <Search className="absolute left-4 w-5 h-5" />
+                       <span>Search watches...</span>
+                    </div>
                 </div>
 
                 <div className="space-y-6 mb-12">
@@ -379,7 +418,11 @@ export function Navbar() {
                   )}
 
                   {user && (
-                    <button onClick={() => { logout(); setIsSidebarOpen(false); }} className="flex items-center gap-4 text-lg font-medium text-red-400 hover:text-red-500 hover:pl-2 transition-all mt-4">
+                    <button 
+                        onClick={() => { logout(); setIsSidebarOpen(false); }} 
+                        className="flex items-center gap-4 text-lg font-medium text-red-400 hover:text-red-500 hover:pl-2 transition-all mt-4"
+                        aria-label="Sign out"
+                    >
                         <LogOut size={18} /> Logout
                     </button>
                   )}

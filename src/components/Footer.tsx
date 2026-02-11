@@ -45,7 +45,7 @@ export function Footer() {
                     <Link href="/" className="block relative w-48 h-24 opacity-90 hover:opacity-100 transition-opacity">
                          <Image 
                             src="/logo.png" 
-                            alt="AURA-X" 
+                            alt="AURA-X Luxury Timepieces Brand Logo" 
                             fill 
                             className="object-contain object-left" 
                         /> 
@@ -56,8 +56,18 @@ export function Footer() {
                     
                     {/* Social Icons */}
                     <div className="flex gap-4">
-                        {[Facebook, Instagram, Twitter, Youtube].map((Icon, i) => (
-                            <Link key={i} href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:bg-aura-gold hover:text-aura-brown transition-all duration-300 transform hover:-translate-y-1">
+                        {[
+                          { Icon: Facebook, label: "Follow us on Facebook" },
+                          { Icon: Instagram, label: "Follow us on Instagram" },
+                          { Icon: Twitter, label: "Follow us on Twitter" },
+                          { Icon: Youtube, label: "Subscribe to our Youtube channel" }
+                        ].map(({ Icon, label }, i) => (
+                            <Link 
+                                key={i} 
+                                href="#" 
+                                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:bg-aura-gold hover:text-aura-brown transition-all duration-300 transform hover:-translate-y-1"
+                                aria-label={label}
+                            >
                                 <Icon size={18} />
                             </Link>
                         ))}
@@ -86,7 +96,6 @@ export function Footer() {
                     <div>
                         <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Concierge</h4>
                         <ul className="space-y-4 text-sm text-white/60 font-light">
-                            {/* ADDED SUPPORT CENTER LINK BACK */}
                             <li><Link href="/support" className="hover:text-white transition-colors duration-300">Support Center</Link></li>
                             <li><Link href="/track-order" className="hover:text-white transition-colors duration-300">Track Order</Link></li>
                             <li><Link href="/support/shipping" className="hover:text-white transition-colors duration-300">Shipping Policy</Link></li>
@@ -109,11 +118,13 @@ export function Footer() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-4 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-aura-gold transition-colors"
+                            aria-label="Email address for newsletter"
                         />
                         <button 
                             onClick={handleSubscribe} 
                             disabled={loading}
                             className="absolute right-2 top-2 w-10 h-10 bg-aura-gold rounded-full flex items-center justify-center text-aura-brown hover:scale-110 transition-transform disabled:opacity-50"
+                            aria-label="Subscribe to newsletter"
                         >
                             {loading ? <Loader2 size={18} className="animate-spin"/> : <ArrowRight size={18} />}
                         </button>
@@ -136,7 +147,7 @@ export function Footer() {
                             className="flex items-center gap-3 hover:text-aura-gold transition-colors"
                         >
                             <Mail size={14} className="text-aura-gold"/> 
-                            <span>tahseenalam345@gmail.com</span>
+                            <span className="font-mono tracking-wide">tahseenalam345@gmail.com</span>
                         </a>
                     </div>
                 </div>
@@ -166,7 +177,7 @@ export function Footer() {
                         <p className="text-xs font-bold text-aura-gold group-hover:text-white transition-colors">AURA DEPT OFFICIAL</p>
                     </div>
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-white/90 shadow-lg">
-                        <Image src="/auradept.png" alt="Aura Dept" fill className="object-contain p-1" />
+                        <Image src="/auradept.png" alt="Aura Dept Logo" fill className="object-contain p-1" />
                     </div>
                 </Link>
 

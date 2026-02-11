@@ -74,11 +74,7 @@ export default function Home() {
   }, [activeTag]);
 
   const fetchProducts = async (pageNumber: number, reset: boolean = false) => {
-      if (reset) {
-          setLoadingMore(true); 
-      } else {
-          setLoadingMore(true); 
-      }
+      setLoadingMore(true); 
 
       const from = (pageNumber - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
@@ -163,16 +159,19 @@ export default function Home() {
                    transition={{ duration: 0.8 }}
                    className="absolute"
                  >
-                   <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
+                    <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
+                      {/* --- LCP OPTIMIZATION: PRIORITY & FETCHPRIORITY ADDED --- */}
                       <Image 
                         src={src} 
                         alt="AURA-X Premium Luxury Watch Model" 
                         fill 
                         className="object-contain drop-shadow-2xl"
-                        priority={index === currentIndex}
+                        priority={true}
+                        fetchPriority={index === currentIndex ? "high" : "auto"}
+                        sizes="(max-width: 768px) 200px, 320px"
                         quality={75} 
                       />
-                   </div>
+                    </div>
                  </motion.div>
                );
              })}
@@ -202,7 +201,7 @@ export default function Home() {
         </div>
       </Link>
 
-      {/* --- CATEGORIES --- */}
+      {/* --- Masterpiece Series Section --- */}
       <section className="py-20 px-4 bg-white rounded-t-[3rem] shadow-inner relative z-10 -mt-2">
         <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl md:text-5xl font-serif text-center mb-12">Masterpiece Series</h2>

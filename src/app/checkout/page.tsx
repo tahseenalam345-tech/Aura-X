@@ -25,15 +25,13 @@ export default function CheckoutPage() {
   const shippingCost = isFreeShipping ? 0 : STANDARD_SHIPPING_COST;
   const finalTotal = cartTotal + shippingCost;
 
-  // --- THE FIXED ORDER FUNCTION ---
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-        // 1. Prepare items (MUST include ID for stock update)
         const orderItems = cart.map(item => ({
-            id: item.id, // <--- CRITICAL: Needed to find and reduce stock
+            id: item.id,
             name: item.name,
             price: item.price,
             quantity: item.quantity,
@@ -43,14 +41,13 @@ export default function CheckoutPage() {
             addBox: item.addBox
         }));
 
-        // 2. Send to API (Server-side)
         const response = await fetch('/api/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                customer: formData, // Form data
+                customer: formData,
                 items: orderItems,
-                total: finalTotal,  // Use finalTotal (includes shipping)
+                total: finalTotal,
                 city: formData.city
             })
         });
@@ -61,11 +58,8 @@ export default function CheckoutPage() {
             throw new Error(result.error || "Order failed");
         }
 
-        // 3. Success!
         toast.success("Order Placed Successfully!");
-        clearCart(); // Clear the cart context
-        
-        // Redirect to Thank You page
+        clearCart();
         router.push(`/thank-you?orderId=${result.orderId}`);
 
     } catch (error: any) {
@@ -99,7 +93,7 @@ export default function CheckoutPage() {
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-32 md:pt-40">
         <div className="flex items-center gap-2 mb-8 text-sm text-gray-500">
-           <Link href="/cart" className="flex items-center gap-1 hover:text-aura-brown transition-colors"><ArrowLeft size={14}/> Back to Cart</Link>
+           <Link href="/cart" className="flex items-center gap-1 hover:text-aura-brown transition-colors" aria-label="Go back to shopping cart"><ArrowLeft size={14}/> Back to Cart</Link>
            <span className="text-gray-300">|</span>
            <span className="font-bold text-aura-gold">Secure Checkout</span>
         </div>
@@ -110,21 +104,21 @@ export default function CheckoutPage() {
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-8 h-8 bg-aura-gold/10 text-aura-gold rounded-full flex items-center justify-center text-sm">1</span> Contact Information</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">First Name</label><div className="relative"><User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input required name="firstName" onChange={handleInputChange} type="text" placeholder="e.g. Ali" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div></div>
-                      <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">Last Name</label><input required name="lastName" onChange={handleInputChange} type="text" placeholder="e.g. Khan" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
-                      <div className="space-y-2 md:col-span-2"><label className="text-xs font-bold text-gray-400 uppercase">Email Address</label><div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input required name="email" onChange={handleInputChange} type="email" placeholder="e.g. ali@example.com" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div></div>
-                      <div className="space-y-2 md:col-span-2"><label className="text-xs font-bold text-gray-400 uppercase">Phone Number</label><div className="relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input required name="phone" onChange={handleInputChange} type="tel" placeholder="e.g. 0300 1234567" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div></div>
+                      <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="firstName">First Name</label><div className="relative"><User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input required id="firstName" name="firstName" onChange={handleInputChange} type="text" placeholder="e.g. Ali" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div></div>
+                      <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="lastName">Last Name</label><input required id="lastName" name="lastName" onChange={handleInputChange} type="text" placeholder="e.g. Khan" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
+                      <div className="space-y-2 md:col-span-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="email">Email Address</label><div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input required id="email" name="email" onChange={handleInputChange} type="email" placeholder="e.g. ali@example.com" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div></div>
+                      <div className="space-y-2 md:col-span-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="phone">Phone Number</label><div className="relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input required id="phone" name="phone" onChange={handleInputChange} type="tel" placeholder="e.g. 0300 1234567" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div></div>
                    </div>
                 </div>
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-8 h-8 bg-aura-gold/10 text-aura-gold rounded-full flex items-center justify-center text-sm">2</span> Shipping Details</h2>
                    <div className="space-y-4">
-                      <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">Full Address</label><div className="relative"><MapPin className="absolute left-4 top-3 text-gray-300" size={18}/><textarea required name="address" onChange={handleInputChange} placeholder="House #, Street, Area" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold h-24 resize-none" /></div></div>
+                      <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="address">Full Address</label><div className="relative"><MapPin className="absolute left-4 top-3 text-gray-300" size={18}/><textarea required id="address" name="address" onChange={handleInputChange} placeholder="House #, Street, Area" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold h-24 resize-none" /></div></div>
                       <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">City</label><input required name="city" onChange={handleInputChange} type="text" placeholder="e.g. Lahore" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
+                          <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="city">City</label><input required id="city" name="city" onChange={handleInputChange} type="text" placeholder="e.g. Lahore" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
                           <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-400 uppercase">Postal Code (Optional)</label>
-                            <input name="postalCode" onChange={handleInputChange} type="text" placeholder="e.g. 54000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" />
+                            <label className="text-xs font-bold text-gray-400 uppercase" htmlFor="postalCode">Postal Code (Optional)</label>
+                            <input id="postalCode" name="postalCode" onChange={handleInputChange} type="text" placeholder="e.g. 54000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" />
                           </div>
                       </div>
                    </div>
@@ -147,7 +141,7 @@ export default function CheckoutPage() {
                    <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4 mb-6 custom-scrollbar">
                       {cart.map((item) => (
                          <div key={`${item.id}-${item.color}`} className="flex gap-4 items-center">
-                            <div className="relative w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0"><Image src={item.image} alt={item.name} fill className="object-contain p-1 mix-blend-multiply" /><span className="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-bl-lg">x{item.quantity}</span></div>
+                            <div className="relative w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0"><Image src={item.image} alt={item.name} fill className="object-contain p-1 mix-blend-multiply" decoding="async" /><span className="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-bl-lg">x{item.quantity}</span></div>
                             <div className="flex-1 min-w-0"><p className="font-bold text-sm text-aura-brown truncate">{item.name}</p><p className="text-xs text-gray-400">{item.color || "Standard"}</p>{item.isGift && <span className="text-[9px] text-purple-600 block">+ Gift Wrap</span>}{item.addBox && <span className="text-[9px] text-orange-600 block">+ Box</span>}</div>
                             <span className="text-sm font-bold text-aura-brown">Rs {((item.price + (item.isGift?150:0) + (item.addBox?100:0)) * item.quantity).toLocaleString()}</span>
                          </div>
