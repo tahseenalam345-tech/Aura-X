@@ -9,17 +9,18 @@ export default function EidPopup() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // FIX: Check if the user has already seen the popup in this session
+    // Check if the user has already seen the popup in this session
     const hasSeen = sessionStorage.getItem("seen_eid_popup"); 
 
     if (!hasSeen) {
-      const timer = setTimeout(() => setIsVisible(true), 1500);
+      // PERFORMANCE: Delayed to 4s so the main Hero Image counts as the LCP element
+      const timer = setTimeout(() => setIsVisible(true), 4000);
       return () => clearTimeout(timer);
     }
   }, []);
 
   const handleClose = () => {
-    // FIX: Save to sessionStorage when closed so it doesn't show again
+    // Save to sessionStorage when closed so it doesn't show again
     sessionStorage.setItem("seen_eid_popup", "true");
     setIsVisible(false);
   };
@@ -34,6 +35,7 @@ export default function EidPopup() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/90 backdrop-blur-md"
             onClick={handleClose}
+            aria-hidden="true"
           />
 
           {/* POPUP CARD */}
@@ -42,11 +44,19 @@ export default function EidPopup() {
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 50 }}
             className="relative w-full max-w-lg bg-[#0F0F0F] border border-aura-gold/40 rounded-3xl overflow-hidden shadow-2xl text-center"
+            role="dialog"
+            aria-labelledby="eid-popup-title"
           >
-            {/* Background Texture */}
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+            {/* Background Texture - Using CSS for faster rendering */}
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
             
-            <button onClick={handleClose} className="absolute top-4 right-4 text-white/50 hover:text-white z-20"><X size={24} /></button>
+            <button 
+                onClick={handleClose} 
+                className="absolute top-4 right-4 text-white/50 hover:text-white z-20"
+                aria-label="Close announcement"
+            >
+                <X size={24} />
+            </button>
 
             <div className="p-10 relative z-10">
               
@@ -56,7 +66,7 @@ export default function EidPopup() {
               </span>
 
               {/* SLOGAN */}
-              <h2 className="text-4xl md:text-5xl font-serif text-white mb-4 leading-tight">
+              <h2 id="eid-popup-title" className="text-4xl md:text-5xl font-serif text-white mb-4 leading-tight">
                 <span className="text-aura-gold block text-sm md:text-base mb-3 font-sans tracking-[0.3em] uppercase">
                   Unveiling Soon
                 </span>
@@ -64,7 +74,7 @@ export default function EidPopup() {
               </h2>
               
               {/* Divider */}
-              <div className="flex justify-center items-center gap-4 my-6 opacity-80">
+              <div className="flex justify-center items-center gap-4 my-6 opacity-80" aria-hidden="true">
                  <div className="h-[1px] w-12 bg-white/30"></div>
                  <span className="text-2xl">✨</span>
                  <div className="h-[1px] w-12 bg-white/30"></div>
@@ -80,7 +90,11 @@ export default function EidPopup() {
                 <Link href="/eid-collection" onClick={handleClose} className="w-full bg-gradient-to-r from-aura-gold to-[#B8860B] text-white font-bold py-4 rounded-xl shadow-lg hover:scale-[1.02] transition-transform flex items-center justify-center gap-2">
                   <Lock size={18} /> SNEAK PEEK (LOCKED)
                 </Link>
-                <button onClick={handleClose} className="text-xs text-gray-600 hover:text-gray-400 underline decoration-gray-800 underline-offset-4">
+                <button 
+                    onClick={handleClose} 
+                    className="text-xs text-gray-600 hover:text-gray-400 underline decoration-gray-800 underline-offset-4"
+                    aria-label="Dismiss and continue to site"
+                >
                   Close
                 </button>
               </div>

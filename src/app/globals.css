@@ -8,11 +8,26 @@
   --background-rgb: 249, 248, 244; /* Cream */
 }
 
+/* PERFORMANCE: Optimize rendering speed */
+html {
+  scroll-behavior: smooth;
+  /* Prevent layout shift during font loading */
+  font-display: swap; 
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
-  /* Ensure no purple gradient can ever appear */
   background-color: #F9F8F4; 
+  /* BEST PRACTICE: Standardizing line height to prevent layout shifts */
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* PERFORMANCE: Reduce Forced Reflow for heavy sections */
+footer, .related-products-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 500px;
 }
 
 /* Custom Scrollbar for Luxury Feel */
@@ -28,4 +43,10 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #5D4037; 
+}
+
+/* ACCESSIBILITY: Improved focus states for a 100 score */
+:focus-visible {
+  outline: 2px solid #C6A87C;
+  outline-offset: 2px;
 }
