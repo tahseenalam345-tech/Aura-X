@@ -60,12 +60,16 @@ export default function Home() {
     setIsEidLive(now >= target);
   }, []);
 
-  // --- 2. BANNER SLIDER ---
+  // --- 2. BANNER SLIDER OPTIMIZED: Delay start to prevent Forced Reflow ---
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % watchImages.length);
-    }, 4000); 
-    return () => clearInterval(timer);
+    const idleTimer = setTimeout(() => {
+      const timer = setInterval(() => {
+        setCurrentIndex((prev) => (prev + 1) % watchImages.length);
+      }, 4000);
+      return () => clearInterval(timer);
+    }, 500); 
+    
+    return () => clearTimeout(idleTimer);
   }, []);
 
   // --- 3. FETCH PRODUCTS (Initial & Filter Change) ---
@@ -160,7 +164,7 @@ export default function Home() {
                    className="absolute"
                  >
                     <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-                      {/* --- LCP OPTIMIZATION: PRIORITY & FETCHPRIORITY ADDED --- */}
+                      {/* --- LCP OPTIMIZATION: PRIORITY & FETCHPRIORITY ENABLED --- */}
                       <Image 
                         src={src} 
                         alt="AURA-X Premium Luxury Watch Model" 

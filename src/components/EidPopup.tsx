@@ -7,23 +7,38 @@ import Link from "next/link";
 
 export default function EidPopup() {
   const [isVisible, setIsVisible] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
     // Check if the user has already seen the popup in this session
     const hasSeen = sessionStorage.getItem("seen_eid_popup"); 
 
     if (!hasSeen) {
-      // PERFORMANCE: Delayed to 4s so the main Hero Image counts as the LCP element
-      const timer = setTimeout(() => setIsVisible(true), 4000);
-      return () => clearTimeout(timer);
+      // PERFORMANCE: Do not render the component at all for 5 seconds.
+      // This ensures the Hero Image is captured as the LCP element.
+      const renderTimer = setTimeout(() => {
+        setShouldRender(true);
+      }, 5000);
+      
+      return () => clearTimeout(renderTimer);
     }
   }, []);
 
+  // Trigger the entrance animation only after rendering is enabled
+  useEffect(() => {
+    if (shouldRender) {
+      const visibilityTimer = setTimeout(() => setIsVisible(true), 100);
+      return () => clearTimeout(visibilityTimer);
+    }
+  }, [shouldRender]);
+
   const handleClose = () => {
-    // Save to sessionStorage when closed so it doesn't show again
     sessionStorage.setItem("seen_eid_popup", "true");
     setIsVisible(false);
   };
+
+  // If we shouldn't render yet, return null so nothing is added to the DOM
+  if (!shouldRender) return null;
 
   return (
     <AnimatePresence>
@@ -32,7 +47,9 @@ export default function EidPopup() {
           
           {/* BACKDROP */}
           <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/90 backdrop-blur-md"
             onClick={handleClose}
             aria-hidden="true"
@@ -45,6 +62,7 @@ export default function EidPopup() {
             exit={{ scale: 0.9, opacity: 0, y: 50 }}
             className="relative w-full max-w-lg bg-[#0F0F0F] border border-aura-gold/40 rounded-3xl overflow-hidden shadow-2xl text-center"
             role="dialog"
+            aria-modal="true"
             aria-labelledby="eid-popup-title"
           >
             {/* Background Texture - Using CSS for faster rendering */}
