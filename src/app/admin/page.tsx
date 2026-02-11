@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase"; 
 import Image from "next/image";
 import Link from "next/link"; 
@@ -10,14 +10,13 @@ import {
   Clock, Truck, Check, Phone, Mail, MapPin, 
   Menu, MessageCircle, Tag, Settings, Package, 
   DollarSign, TrendingUp, TrendingDown, Home,
-  RotateCcw, MessageSquare, Bell, Users, Video, Star, User // <--- ADDED Video, Star, User
+  RotateCcw, MessageSquare, Bell, Users, Video, Star, User, 
+  FileText, Calendar, RefreshCcw, Calculator, 
+  Bold, Italic, Underline, Type, Table as TableIcon, Download, List
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext"; 
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-
-// --- CONFIGURATION ---
-const PACKING_AND_SHIPPING_COST = 250; 
 
 // --- CONSTANTS ---
 const POPULAR_COLORS = [
@@ -27,7 +26,10 @@ const POPULAR_COLORS = [
   "Mother of Pearl", "Navy", "Yellow", "Orange", "Purple"
 ];
 
-// --- HELPER: Image Compression ---
+// --- HELPER: Is Video? ---
+const isVideoFile = (url: string) => url?.toLowerCase().includes('.mp4') || url?.toLowerCase().includes('.webm');
+
+// --- HELPER: Image Compression (HD) ---
 const compressImage = (file: File): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -37,13 +39,26 @@ const compressImage = (file: File): Promise<Blob> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 800; 
-        const scaleSize = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scaleSize;
+        const MAX_WIDTH = 1600; 
+        
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+            height = height * (MAX_WIDTH / width);
+            width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        
         const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error("Compression failed")); }, "image/jpeg", 0.7);
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => { 
+            if (blob) resolve(blob); 
+            else reject(new Error("Compression failed")); 
+        }, "image/jpeg", 0.95); 
       };
     };
     reader.onerror = (error) => reject(error);
@@ -51,11 +66,10 @@ const compressImage = (file: File): Promise<Blob> => {
 };
 
 const uploadFileToSupabase = async (file: File | Blob, fileNameRaw: string, isVideo = false) => {
-  const folder = isVideo ? 'product-videos' : 'product-images'; // Ensure you create a 'product-videos' bucket or use 'product-images'
   const ext = isVideo ? 'mp4' : 'jpg';
   const fileName = `${Date.now()}-${fileNameRaw.replace(/\s/g, '-').slice(0, 10)}.${ext}`;
-  
-  const { error } = await supabase.storage.from('product-images').upload(fileName, file); // Using product-images bucket for all for simplicity
+   
+  const { error } = await supabase.storage.from('product-images').upload(fileName, file); 
   if (error) { console.error("Upload Error", error); return null; }
   const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
   return publicUrl;
@@ -64,11 +78,12 @@ const uploadFileToSupabase = async (file: File | Blob, fileNameRaw: string, isVi
 export default function AdminDashboard() {
   const { isAdmin, isLoading, logout } = useAuth();
   const router = useRouter();
+  const editorRef = useRef<HTMLDivElement>(null);
 
   // --- STATE ---
-  const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'finance' | 'returns' | 'messages' | 'marketing'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'finance' | 'returns' | 'messages' | 'marketing' | 'notes'>('inventory');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+   
   // DATA STATE
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -80,8 +95,20 @@ export default function AdminDashboard() {
   const [contactMessages, setContactMessages] = useState<any[]>([]);
   const [marketingData, setMarketingData] = useState<{launch: any[], newsletter: any[]}>({ launch: [], newsletter: [] });
 
-  // FINANCE STATE
-  const [financeStats, setFinanceStats] = useState({ revenue: 0, cost: 0, expenses: 0, profit: 0, cancelledLoss: 0 });
+  // FINANCE & SETTINGS STATE (DATABASE BACKED)
+  const [dateFilter, setDateFilter] = useState("30"); 
+  const [deliveryRates, setDeliveryRates] = useState({
+    lahore: 230, islamabad: 230,
+    multan: 250, faisalabad: 250, sialkot: 250,
+    karachi: 400, other: 280
+  });
+  const [customExpenses, setCustomExpenses] = useState(0); 
+  const [financeStats, setFinanceStats] = useState({ 
+    revenue: 0, cost: 0, expenses: 0, tax: 0, deliveryCost: 0, profit: 0 
+  });
+
+  // NOTES STATE (DATABASE BACKED)
+  const [managerNotes, setManagerNotes] = useState(""); 
 
   // FORM STATE
   const [showForm, setShowForm] = useState(false);
@@ -95,7 +122,7 @@ export default function AdminDashboard() {
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", stock: 10, category: "men", 
     price: 0, originalPrice: 0, discount: 0, costPrice: 0,
-    tags: [] as string[], priority: 50, viewCount: 840,
+    tags: [] as string[], priority: 50, viewCount: 0, 
     isEidExclusive: false, 
     movement: "Quartz", waterResistance: "3ATM", glass: "Mineral", 
     caseMaterial: "Stainless Steel", caseColor: "Silver", caseShape: "Round", caseDiameter: "40mm", caseThickness: "10mm",
@@ -103,39 +130,14 @@ export default function AdminDashboard() {
     dialColor: "White", luminous: false, dateDisplay: false, weight: "150g",
     description: "", warranty: "1 Year Official Warranty", shippingText: "2-4 Working Days", returnPolicy: "7 Days Return Policy", boxIncluded: true,
     mainImage: "", gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
-    video: "", // <--- ADDED VIDEO
-    manualReviews: [] as any[] // <--- ADDED MANUAL REVIEWS
+    video: "", 
+    manualReviews: [] as any[] 
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // --- AUTH CHECK ---
-  useEffect(() => {
-    if (!isLoading && !isAdmin) router.push("/login");
-  }, [isAdmin, isLoading, router]);
-
-  // --- INITIAL FETCH ---
-  useEffect(() => {
-    fetchProducts();
-    fetchOrders();
-    fetchSupportData();
-
-    const channel = supabase
-      .channel('realtime-orders')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
-          setOrders((prev) => [payload.new, ...prev]);
-          toast.success("New Order Received!", { duration: 5000, icon: '🎉' });
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  useEffect(() => {
-    if(orders.length > 0) calculateFinance(orders, products);
-  }, [orders, products]);
-
+  // --- DATA FETCHING FUNCTIONS ---
   const fetchProducts = async () => {
-      const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false }); // Sort by newest
+      const { data } = await supabase.from('products').select('*').order('priority', { ascending: false }).order('created_at', { ascending: false });
       if (data) setProducts(data);
   };
 
@@ -154,32 +156,70 @@ export default function AdminDashboard() {
       setMarketingData({ launch: launch || [], newsletter: news || [] });
   };
 
-  const calculateFinance = (currentOrders: any[], currentProducts: any[]) => {
+  const fetchSettings = async () => {
+      const { data } = await supabase.from('admin_settings').select('*').eq('id', 1).single();
+      if (data) {
+          if (data.delivery_rates) setDeliveryRates(data.delivery_rates);
+          if (data.manager_notes) {
+              setManagerNotes(data.manager_notes);
+              if(editorRef.current) editorRef.current.innerHTML = data.manager_notes;
+          }
+          if (data.custom_expenses) setCustomExpenses(data.custom_expenses);
+      }
+  };
+
+  const calculateFinance = () => {
+      const now = new Date();
+      const cutoff = new Date();
+      cutoff.setDate(now.getDate() - Number(dateFilter));
+
       let revenue = 0;
       let costOfGoods = 0;
-      let expenses = 0; 
-      let cancelledLoss = 0;
+      let totalTax = 0;
+      let totalDelivery = 0;
 
-      currentOrders.forEach(order => {
-          if (order.status === 'Cancelled') {
-              cancelledLoss += 0; 
-              return; 
-          }
-          revenue += Number(order.total);
-          expenses += PACKING_AND_SHIPPING_COST;
+      const filteredOrders = orders.filter(o => {
+          const orderDate = new Date(o.created_at);
+          return orderDate >= cutoff && o.status !== 'Cancelled';
+      });
+
+      filteredOrders.forEach(order => {
+          const total = Number(order.total);
+          revenue += total;
+          totalTax += (total * 0.04); 
+
+          const city = order.city?.toLowerCase().trim() || "";
+          let dc = deliveryRates.other;
+          if(city.includes('lahore') || city.includes('islamabad')) dc = deliveryRates.lahore;
+          else if(city.includes('multan') || city.includes('faisalabad') || city.includes('sialkot')) dc = deliveryRates.multan;
+          else if(city.includes('karachi')) dc = deliveryRates.karachi;
+          
+          totalDelivery += dc;
+
           if (order.items) {
               order.items.forEach((item: any) => {
-                  const product = currentProducts.find(p => p.name === item.name);
-                  const cost = product?.specs?.cost_price || 0;
+                  const product = products.find(p => p.name === item.name);
+                  const cost = product?.specs?.cost_price || 0; 
                   costOfGoods += (Number(cost) * Number(item.quantity));
               });
           }
       });
 
-      setFinanceStats({
-          revenue, cost: costOfGoods, expenses, cancelledLoss,
-          profit: revenue - costOfGoods - expenses - cancelledLoss
+      const totalExpenses = costOfGoods + totalDelivery + totalTax + customExpenses;
+      const netProfit = revenue - totalExpenses;
+
+      setFinanceStats({ revenue, cost: costOfGoods, expenses: customExpenses, tax: totalTax, deliveryCost: totalDelivery, profit: netProfit });
+  };
+
+  const saveSettingsToDB = async () => {
+      const { error } = await supabase.from('admin_settings').upsert({
+          id: 1,
+          delivery_rates: deliveryRates,
+          manager_notes: managerNotes,
+          custom_expenses: customExpenses
       });
+      if (error) toast.error("Failed to save to DB");
+      else toast.success("Saved to Database Successfully!");
   };
 
   // --- HANDLERS ---
@@ -188,6 +228,14 @@ export default function AdminDashboard() {
       if (selectedOrder?.id === orderId) setSelectedOrder({ ...selectedOrder, status: newStatus });
       await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
       toast.success(`Marked as ${newStatus}`);
+  };
+
+  const deleteOrder = async (orderId: string) => {
+      if(!confirm("Are you sure? This will delete the order permanently.")) return;
+      await supabase.from('orders').delete().eq('id', orderId);
+      setOrders(orders.filter(o => o.id !== orderId));
+      if(selectedOrder?.id === orderId) setSelectedOrder(null);
+      toast.success("Order Deleted");
   };
 
   const saveAdminNote = async () => {
@@ -211,6 +259,26 @@ export default function AdminDashboard() {
       window.open(url, '_blank');
   };
 
+  // --- EDITOR HANDLERS ---
+  const execCmd = (command: string, value: string | undefined = undefined) => {
+      document.execCommand(command, false, value);
+      if(editorRef.current) setManagerNotes(editorRef.current.innerHTML);
+  };
+
+  const saveFile = () => {
+      const element = document.createElement("a");
+      const file = new Blob([managerNotes], {type: 'text/html'});
+      element.href = URL.createObjectURL(file);
+      element.download = "AuraX_Notes.html";
+      document.body.appendChild(element);
+      element.click();
+  };
+
+  const insertTable = () => {
+      const html = '<table border="1" style="width:100%; border-collapse: collapse; margin: 10px 0;"><tr><td style="padding: 5px;">Head 1</td><td style="padding: 5px;">Head 2</td></tr><tr><td style="padding: 5px;">Data 1</td><td style="padding: 5px;">Data 2</td></tr></table><br/>';
+      execCmd('insertHTML', html);
+  };
+
   // --- FORM HANDLERS ---
   const handlePriceChange = (field: string, value: number) => {
     let newForm = { ...formData, [field]: value };
@@ -224,13 +292,10 @@ export default function AdminDashboard() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'gallery' | 'color' | 'video' | 'review', index?: number) => {
     if (!e.target.files?.[0]) return;
     const file = e.target.files[0];
-    const isVideo = type === 'video';
-    
-    // Skip compression for videos
+    const isVideo = type === 'video' || file.type.startsWith('video/');
+     
     let fileToUpload: File | Blob = file;
-    if (!isVideo) {
-        fileToUpload = await compressImage(file);
-    }
+    if (!isVideo) fileToUpload = await compressImage(file);
 
     const url = await uploadFileToSupabase(fileToUpload, file.name, isVideo);
     if (!url) return;
@@ -259,9 +324,7 @@ export default function AdminDashboard() {
     else setFormData({ ...formData, tags: [...formData.tags, tag] });
   };
 
-  // --- REVIEW HANDLERS ---
   const addReview = () => {
-    if(!newReview.user || !newReview.comment) return toast.error("Name and Comment required");
     setFormData({...formData, manualReviews: [newReview, ...formData.manualReviews]});
     setNewReview({ user: "", date: "", rating: 5, comment: "", image: "" });
   };
@@ -272,16 +335,12 @@ export default function AdminDashboard() {
 
   // --- EDIT / NEW HANDLERS ---
   const handleAddNewClick = () => {
-    // Generate Random SKU
     const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
-    // Generate Random Views
-    const randomViews = Math.floor(500 + Math.random() * 1500);
-    
     setFormData({
         ...initialFormState,
         sku: randomSku,
-        viewCount: randomViews,
-        luminous: false, dateDisplay: false, boxIncluded: false // Ensure these are unchecked
+        viewCount: 0, 
+        luminous: false, dateDisplay: false, boxIncluded: false
     });
     setIsEditing(false);
     setShowForm(true);
@@ -291,18 +350,15 @@ export default function AdminDashboard() {
     setFormData({
         ...initialFormState,
         ...item,
-        // Explicitly map Supabase columns to State keys
         mainImage: item.main_image || "",
         originalPrice: item.original_price || 0,
         isEidExclusive: item.is_eid_exclusive || false,
-        // Map Specs
         ...item.specs,
+        costPrice: item.specs?.cost_price || 0, 
         gallery: item.specs?.gallery || [],
         video: item.specs?.video || "",
-        // Map Colors & Tags
         colors: item.colors || [],
         tags: item.tags || [],
-        // Map Reviews
         manualReviews: item.manual_reviews || []
     });
     setEditId(item.id);
@@ -317,10 +373,10 @@ export default function AdminDashboard() {
           price: formData.price, original_price: formData.originalPrice, discount: formData.discount, 
           description: formData.description, main_image: formData.mainImage, tags: formData.tags, 
           rating: formData.priority, is_sale: formData.discount > 0, 
-          priority: formData.priority, // <--- ADD THIS LINE HERE
+          priority: formData.priority, 
           is_eid_exclusive: formData.isEidExclusive, 
           colors: formData.colors,
-          manual_reviews: formData.manualReviews, // Save reviews
+          manual_reviews: formData.manualReviews, 
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
@@ -350,18 +406,38 @@ export default function AdminDashboard() {
       refresh();
   };
 
+  // --- TRIGGER EFFECTS (MOVED TO BOTTOM TO FIX HOISTING) ---
+  useEffect(() => {
+    if (!isLoading && !isAdmin) router.push("/login");
+  }, [isAdmin, isLoading, router]);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchOrders();
+    fetchSupportData();
+    fetchSettings();
+
+    const channel = supabase
+      .channel('realtime-orders')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+          setOrders((prev) => [payload.new, ...prev]);
+          toast.success("New Order Received!", { duration: 5000, icon: '🎉' });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
+    if(orders.length > 0) calculateFinance();
+  }, [orders, products, dateFilter, deliveryRates, customExpenses]);
+
   if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (!isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-gray-800 overflow-hidden">
         
-        {/* MOBILE HEADER */}
-        <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#1E1B18] text-white flex items-center justify-between px-4 z-40 shadow-md">
-            <span className="font-serif font-bold text-aura-gold">AURA-X ADMIN</span>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)}><Menu /></button>
-        </div>
-
         {/* SIDEBAR */}
         <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#1E1B18] text-white transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}>
             <div className="p-8 border-b border-white/10 hidden md:block">
@@ -379,8 +455,10 @@ export default function AdminDashboard() {
                 <button onClick={() => { setActiveTab('finance'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <DollarSign size={20} /> Finance
                 </button>
+                <button onClick={() => { setActiveTab('notes'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'notes' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                    <FileText size={20} /> Notebook & Data
+                </button>
                 <div className="h-[1px] bg-white/10 my-4"></div>
-                <p className="px-4 text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">Support & CRM</p>
                 <button onClick={() => { setActiveTab('returns'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'returns' ? 'bg-aura-gold text-aura-brown font-bold' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                     <RotateCcw size={20} /> Returns
                     {returnRequests.length > 0 && <span className="ml-auto bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">{returnRequests.length}</span>}
@@ -402,11 +480,204 @@ export default function AdminDashboard() {
                 </button>
             </div>
         </aside>
+        
+        {/* MOBILE TOGGLE */}
         {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)}></div>}
+        <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#1E1B18] text-white flex items-center justify-between px-4 z-40 shadow-md">
+            <span className="font-serif font-bold text-aura-gold">AURA-X ADMIN</span>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)}><Menu /></button>
+        </div>
 
         {/* MAIN CONTENT */}
         <div className="flex-1 p-4 md:p-8 overflow-y-auto h-screen pt-20 md:pt-8">
             
+            {/* === NOTES TAB (RICH EDITOR) === */}
+            {activeTab === 'notes' && (
+                <div className="space-y-6 animate-in fade-in h-full flex flex-col pb-20">
+                    <div className="flex justify-between items-center">
+                        <h1 className="text-3xl font-bold text-[#1E1B18]">Manager's Notebook</h1>
+                        <div className="flex gap-2">
+                            <button onClick={saveFile} className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 flex items-center gap-2"><Download size={16}/> Save as File</button>
+                            <button onClick={saveSettingsToDB} className="bg-aura-brown text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-aura-gold transition-colors flex items-center gap-2"><Save size={16}/> Save to Database</button>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
+                        {/* Toolbar */}
+                        <div className="border-b p-3 flex gap-2 bg-gray-50 overflow-x-auto">
+                            <button onClick={() => execCmd('bold')} className="p-2 hover:bg-gray-200 rounded" title="Bold"><Bold size={18}/></button>
+                            <button onClick={() => execCmd('italic')} className="p-2 hover:bg-gray-200 rounded" title="Italic"><Italic size={18}/></button>
+                            <button onClick={() => execCmd('underline')} className="p-2 hover:bg-gray-200 rounded" title="Underline"><Underline size={18}/></button>
+                            <div className="w-[1px] bg-gray-300 h-6 my-auto mx-2"></div>
+                            <button onClick={() => execCmd('formatBlock', 'H2')} className="p-2 hover:bg-gray-200 rounded font-bold" title="Heading">H1</button>
+                            <button onClick={() => execCmd('formatBlock', 'H3')} className="p-2 hover:bg-gray-200 rounded font-bold text-sm" title="Subheading">H2</button>
+                            <div className="w-[1px] bg-gray-300 h-6 my-auto mx-2"></div>
+                            <button onClick={insertTable} className="p-2 hover:bg-gray-200 rounded" title="Insert Table"><TableIcon size={18}/></button>
+                            <button onClick={() => execCmd('fontSize', '3')} className="p-2 hover:bg-gray-200 rounded" title="Normal Text"><Type size={18}/></button>
+                            <button onClick={() => execCmd('insertUnorderedList')} className="p-2 hover:bg-gray-200 rounded" title="List"><List size={18}/></button>
+                        </div>
+                        {/* Editor Area */}
+                        <div 
+                            ref={editorRef}
+                            contentEditable 
+                            className="flex-1 p-8 outline-none overflow-y-auto prose max-w-none bg-white"
+                            onInput={(e) => setManagerNotes(e.currentTarget.innerHTML)}
+                            style={{ minHeight: '500px' }}
+                        ></div>
+                    </div>
+                </div>
+            )}
+
+            {/* === FINANCE TAB === */}
+            {activeTab === 'finance' && (
+                <div className="space-y-6 animate-in fade-in zoom-in duration-300 pb-20">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <h1 className="text-3xl font-bold text-[#1E1B18]">Financial Overview</h1>
+                        <div className="flex items-center gap-2 bg-white p-1 rounded-lg border">
+                            {[7, 30, 90, 365].map(d => (
+                                <button key={d} onClick={() => setDateFilter(d.toString())} className={`px-3 py-1 text-xs font-bold rounded ${dateFilter === d.toString() ? 'bg-aura-brown text-white' : 'text-gray-500 hover:bg-gray-100'}`}>Last {d} Days</button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                            <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Total Sales</p><div className="bg-green-50 p-2 rounded-full text-green-600"><TrendingUp size={16}/></div></div>
+                            <p className="text-2xl font-bold text-aura-brown mt-2">Rs {financeStats.revenue.toLocaleString()}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">Gross Revenue</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                            <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Cost of Goods</p><div className="bg-red-50 p-2 rounded-full text-red-500"><TrendingDown size={16}/></div></div>
+                            <p className="text-2xl font-bold text-red-400 mt-2">- Rs {financeStats.cost.toLocaleString()}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">Stock Cost</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                            <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Deductions</p><div className="bg-orange-50 p-2 rounded-full text-orange-500"><Truck size={16}/></div></div>
+                            <div className="mt-2 space-y-1">
+                                <p className="text-xs flex justify-between"><span>Delivery:</span> <span className="font-bold">- Rs {financeStats.deliveryCost.toLocaleString()}</span></p>
+                                <p className="text-xs flex justify-between"><span>Tax (4%):</span> <span className="font-bold">- Rs {financeStats.tax.toLocaleString()}</span></p>
+                                <p className="text-xs flex justify-between"><span>Extra:</span> <span className="font-bold">- Rs {financeStats.expenses.toLocaleString()}</span></p>
+                            </div>
+                        </div>
+                        <div className="bg-[#1E1B18] p-6 rounded-2xl border border-gray-100 shadow-lg text-white relative overflow-hidden">
+                            <div className="relative z-10">
+                                <p className="text-xs font-bold text-aura-gold uppercase">Net Profit</p>
+                                <p className="text-3xl font-bold mt-2">Rs {financeStats.profit.toLocaleString()}</p>
+                                <p className="text-[10px] text-white/50 mt-1">Clean Profit</p>
+                            </div>
+                            <DollarSign className="absolute -bottom-4 -right-4 text-white/5 w-32 h-32" />
+                        </div>
+                    </div>
+
+                    {/* SETTINGS AREA */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Delivery Settings */}
+                        <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-aura-brown flex items-center gap-2"><Settings size={16}/> Delivery Charges (PKR)</h3>
+                                <button onClick={saveSettingsToDB} className="text-xs bg-aura-gold/20 text-aura-brown px-3 py-1 rounded-full font-bold hover:bg-aura-gold/40">Save to DB</button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div><label className="block text-xs text-gray-400 mb-1">Lahore/Isb</label><input type="number" className="w-full p-2 border rounded" value={deliveryRates.lahore || 0} onChange={e => setDeliveryRates({...deliveryRates, lahore: Number(e.target.value)})}/></div>
+                                <div><label className="block text-xs text-gray-400 mb-1">Mul/Fsd/Skt</label><input type="number" className="w-full p-2 border rounded" value={deliveryRates.multan || 0} onChange={e => setDeliveryRates({...deliveryRates, multan: Number(e.target.value)})}/></div>
+                                <div><label className="block text-xs text-gray-400 mb-1">Karachi</label><input type="number" className="w-full p-2 border rounded" value={deliveryRates.karachi || 0} onChange={e => setDeliveryRates({...deliveryRates, karachi: Number(e.target.value)})}/></div>
+                                <div><label className="block text-xs text-gray-400 mb-1">Other Cities</label><input type="number" className="w-full p-2 border rounded" value={deliveryRates.other || 0} onChange={e => setDeliveryRates({...deliveryRates, other: Number(e.target.value)})}/></div>
+                            </div>
+                        </div>
+
+                        {/* Extra Expenses */}
+                        <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-aura-brown flex items-center gap-2"><Calculator size={16}/> Manual Adjustments</h3>
+                                <button onClick={() => setCustomExpenses(0)} className="text-xs bg-red-50 text-red-500 px-3 py-1 rounded-full font-bold hover:bg-red-100 flex items-center gap-1"><RefreshCcw size={10}/> Reset</button>
+                            </div>
+                            <label className="block text-xs text-gray-400 mb-1">Add Extra Expenses (Marketing, loss, etc)</label>
+                            <input type="number" className="w-full p-3 border rounded-xl text-lg font-bold text-red-500" value={customExpenses || 0} onChange={e => setCustomExpenses(Number(e.target.value))} placeholder="0"/>
+                            <p className="text-xs text-gray-400 mt-2">This amount will be deducted from Net Profit immediately. Click "Save to DB" to store.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* === INVENTORY TAB === */}
+            {activeTab === 'inventory' && (
+                <>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
+                        <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base"><Plus size={18} /> Add New</button>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto pb-20">
+                        <table className="w-full text-left min-w-[600px]">
+                            <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Actions</th></tr></thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {products.map((item) => (
+                                    <tr key={item.id} className="hover:bg-gray-50/50">
+                                        <td className="p-4 flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-gray-100 rounded-lg relative overflow-hidden flex-shrink-0">
+                                                {item.main_image && (
+                                                    isVideoFile(item.main_image) 
+                                                    ? <video src={item.main_image} className="w-full h-full object-cover" muted /> 
+                                                    : <Image src={item.main_image} alt="" fill className="object-cover" unoptimized />
+                                                )}
+                                            </div>
+                                            <div className="truncate max-w-[150px]">
+                                                <p className="font-bold text-aura-brown text-sm">{item.name}</p>
+                                                {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID EXCLUSIVE</span>}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-sm">{item.specs?.stock}</td>
+                                        <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleEditClick(item)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={14}/></button>
+                                                <button onClick={() => deleteItem('products', item.id, fetchProducts)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={14}/></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
+
+            {/* === ORDERS TAB === */}
+            {activeTab === 'orders' && (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Orders</h1>
+                    </div>
+                    <div className="flex gap-2 mb-6 border-b border-gray-200 pb-1 overflow-x-auto scrollbar-hide">
+                        {["Processing", "Shipped", "Delivered", "Cancelled"].map(status => (
+                            <button key={status} onClick={() => setOrderStatusFilter(status)} className={`px-4 md:px-6 py-3 whitespace-nowrap rounded-t-xl font-bold text-sm transition-all relative ${orderStatusFilter === status ? 'bg-white text-aura-brown border-t border-x border-gray-200 -mb-[1px] z-10' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>
+                                {status}
+                                {status === 'Processing' && orders.filter(o => o.status === 'Processing').length > 0 && <span className="ml-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{orders.filter(o => o.status === 'Processing').length}</span>}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="space-y-4 pb-20">
+                        {orders.filter(o => o.status === orderStatusFilter).map((order) => (
+                            <div key={order.id} onClick={() => openOrderDetails(order)} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer hover:border-aura-gold transition-colors">
+                                <div className="flex items-center gap-4 w-full">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${order.status === 'Processing' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600'}`}>
+                                        {order.status === 'Processing' ? <Clock size={18}/> : <Check size={18}/>}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-aura-brown text-sm md:text-base">#{order.id.slice(0, 8).toUpperCase()}</p>
+                                        <p className="text-xs text-gray-500">{order.customer_name} • {new Date(order.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between w-full md:w-auto items-center gap-4">
+                                    <p className="text-lg font-bold text-aura-brown">Rs {Number(order.total).toLocaleString()}</p>
+                                    <span className="md:hidden px-2 py-1 bg-gray-100 rounded text-xs">{order.status}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+
             {/* === RETURNS TAB === */}
             {activeTab === 'returns' && (
                 <div className="space-y-6 pb-20 animate-in fade-in">
@@ -499,106 +770,6 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {/* === FINANCE TAB === */}
-            {activeTab === 'finance' && (
-                <div className="space-y-6 animate-in fade-in zoom-in duration-300 pb-20">
-                    <h1 className="text-3xl font-bold text-[#1E1B18]">Financial Overview</h1>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                            <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Total Revenue</p><div className="bg-green-50 p-2 rounded-full text-green-600"><TrendingUp size={16}/></div></div>
-                            <p className="text-2xl font-bold text-aura-brown mt-2">Rs {financeStats.revenue.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                            <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Cost of Goods</p><div className="bg-red-50 p-2 rounded-full text-red-500"><TrendingDown size={16}/></div></div>
-                            <p className="text-2xl font-bold text-red-400 mt-2">- Rs {financeStats.cost.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                            <div className="flex justify-between items-start"><p className="text-xs font-bold text-gray-400 uppercase">Expenses</p><div className="bg-orange-50 p-2 rounded-full text-orange-500"><Truck size={16}/></div></div>
-                            <p className="text-2xl font-bold text-orange-400 mt-2">- Rs {financeStats.expenses.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-[#1E1B18] p-6 rounded-2xl border border-gray-100 shadow-lg text-white relative overflow-hidden">
-                            <div className="relative z-10">
-                                <p className="text-xs font-bold text-aura-gold uppercase">Net Profit</p>
-                                <p className="text-3xl font-bold mt-2">Rs {financeStats.profit.toLocaleString()}</p>
-                            </div>
-                            <DollarSign className="absolute -bottom-4 -right-4 text-white/5 w-32 h-32" />
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* === INVENTORY TAB === */}
-            {activeTab === 'inventory' && (
-                <>
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                        <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
-                        <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base"><Plus size={18} /> Add New</button>
-                    </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto pb-20">
-                        <table className="w-full text-left min-w-[600px]">
-                            <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Actions</th></tr></thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {products.map((item) => (
-                                    <tr key={item.id} className="hover:bg-gray-50/50">
-                                        <td className="p-4 flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-gray-100 rounded-lg relative overflow-hidden flex-shrink-0">{item.main_image && <Image src={item.main_image} alt="" fill className="object-cover" unoptimized />}</div>
-                                            <div className="truncate max-w-[150px]">
-                                                <p className="font-bold text-aura-brown text-sm">{item.name}</p>
-                                                {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID EXCLUSIVE</span>}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-sm">{item.specs?.stock}</td>
-                                        <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleEditClick(item)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={14}/></button>
-                                                <button onClick={() => { if(confirm("Delete?")) { supabase.from('products').delete().eq('id', item.id).then(fetchProducts); } }} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={14}/></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </>
-            )}
-
-            {/* === ORDERS TAB === */}
-            {activeTab === 'orders' && (
-                <>
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Orders</h1>
-                    </div>
-                    <div className="flex gap-2 mb-6 border-b border-gray-200 pb-1 overflow-x-auto scrollbar-hide">
-                        {["Processing", "Shipped", "Delivered", "Cancelled"].map(status => (
-                            <button key={status} onClick={() => setOrderStatusFilter(status)} className={`px-4 md:px-6 py-3 whitespace-nowrap rounded-t-xl font-bold text-sm transition-all relative ${orderStatusFilter === status ? 'bg-white text-aura-brown border-t border-x border-gray-200 -mb-[1px] z-10' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>
-                                {status}
-                                {status === 'Processing' && orders.filter(o => o.status === 'Processing').length > 0 && <span className="ml-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{orders.filter(o => o.status === 'Processing').length}</span>}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="space-y-4 pb-20">
-                        {orders.filter(o => o.status === orderStatusFilter).map((order) => (
-                            <div key={order.id} onClick={() => openOrderDetails(order)} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer hover:border-aura-gold transition-colors">
-                                <div className="flex items-center gap-4 w-full">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${order.status === 'Processing' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600'}`}>
-                                        {order.status === 'Processing' ? <Clock size={18}/> : <Check size={18}/>}
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-aura-brown text-sm md:text-base">#{order.id.slice(0, 8).toUpperCase()}</p>
-                                        <p className="text-xs text-gray-500">{order.customer_name} • {new Date(order.created_at).toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-                                <div className="flex justify-between w-full md:w-auto items-center gap-4">
-                                    <p className="text-lg font-bold text-aura-brown">Rs {Number(order.total).toLocaleString()}</p>
-                                    <span className="md:hidden px-2 py-1 bg-gray-100 rounded text-xs">{order.status}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
-
             {/* === ORDER DETAIL MODAL === */}
             {selectedOrder && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -607,7 +778,10 @@ export default function AdminDashboard() {
                         <div className="flex-1 p-6 md:p-8 bg-gray-50 overflow-y-auto">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-serif text-2xl font-bold text-aura-brown">Order #{selectedOrder.id.slice(0,8).toUpperCase()}</h3>
-                                <button onClick={() => setSelectedOrder(null)} className="hidden md:block p-2 hover:bg-gray-200 rounded-full"><X size={24}/></button>
+                                <div className="flex gap-2">
+                                    <button onClick={() => deleteOrder(selectedOrder.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="Delete Order"><Trash2 size={20}/></button>
+                                    <button onClick={() => setSelectedOrder(null)} className="hidden md:block p-2 hover:bg-gray-200 rounded-full"><X size={24}/></button>
+                                </div>
                             </div>
                             <div className="bg-white p-4 rounded-xl border border-gray-200 mb-6 shadow-sm">
                                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
@@ -622,15 +796,15 @@ export default function AdminDashboard() {
                                     <button onClick={sendWhatsApp} className="flex items-center gap-1 text-green-600 font-bold text-xs bg-green-50 px-3 py-1.5 rounded-full hover:bg-green-100"><MessageCircle size={14}/> WhatsApp</button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                    <div className="flex gap-3"><Check size={16} className="text-gray-400"/> <span>{selectedOrder.customer_name}</span></div>
-                                    <div className="flex gap-3"><Phone size={16} className="text-gray-400"/> <span>{selectedOrder.phone}</span></div>
-                                    <div className="flex gap-3"><Mail size={16} className="text-gray-400"/> <span>{selectedOrder.email}</span></div>
-                                    <div className="flex gap-3"><MapPin size={16} className="text-gray-400"/> <span>{selectedOrder.address}, {selectedOrder.city}</span></div>
+                                    <div className="flex gap-3"><Check size={16} className="text-gray-400"/> <span>{selectedOrder.customer_name || ""}</span></div>
+                                    <div className="flex gap-3"><Phone size={16} className="text-gray-400"/> <span>{selectedOrder.phone || ""}</span></div>
+                                    <div className="flex gap-3"><Mail size={16} className="text-gray-400"/> <span>{selectedOrder.email || ""}</span></div>
+                                    <div className="flex gap-3"><MapPin size={16} className="text-gray-400"/> <span>{(selectedOrder.address || "")}, {(selectedOrder.city || "")}</span></div>
                                 </div>
                             </div>
                             <div>
                                 <h4 className="font-bold text-aura-brown mb-2 text-sm">Admin Notes</h4>
-                                <textarea className="w-full p-3 text-sm border border-gray-300 rounded-xl bg-white h-20" placeholder="Internal notes (visible only to you)..." value={adminNote} onChange={(e) => setAdminNote(e.target.value)} />
+                                <textarea className="w-full p-3 text-sm border border-gray-300 rounded-xl bg-white h-20" placeholder="Internal notes (visible only to you)..." value={adminNote || ""} onChange={(e) => setAdminNote(e.target.value)} />
                                 <button onClick={saveAdminNote} className="mt-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-xs font-bold w-full md:w-auto">Save Note</button>
                             </div>
                         </div>
@@ -641,28 +815,28 @@ export default function AdminDashboard() {
                                     <div key={i} className="flex gap-4 border-b border-gray-50 pb-4 last:border-0">
                                         <div className="w-14 h-14 bg-gray-50 rounded-lg relative overflow-hidden flex-shrink-0 border border-gray-100">{item.image && <Image src={item.image} alt="" fill className="object-contain p-1"/>}</div>
                                         <div className="flex-1">
-                                            <p className="font-bold text-sm text-aura-brown line-clamp-1">{item.name}</p>
-                                            <p className="text-xs text-gray-500">{item.color} • x{item.quantity}</p>
+                                            <p className="font-bold text-sm text-aura-brown line-clamp-1">{item.name || ""}</p>
+                                            <p className="text-xs text-gray-500">{(item.color || "Standard")} • x{item.quantity || 1}</p>
                                             <div className="flex gap-2 flex-wrap mt-1">
                                                 {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 rounded">Gift Wrap</span>}
                                                 {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 rounded">Box</span>}
                                             </div>
                                         </div>
-                                        <p className="font-bold text-xs mt-1">Rs {item.price.toLocaleString()}</p>
+                                        <p className="font-bold text-xs mt-1">Rs {(item.price || 0).toLocaleString()}</p>
                                     </div>
                                 ))}
                             </div>
                             <div className="pt-4 border-t border-gray-100 space-y-2">
-                                <div className="flex justify-between text-sm text-gray-500"><span>Subtotal</span> <span>Rs {selectedOrder.total.toLocaleString()}</span></div>
+                                <div className="flex justify-between text-sm text-gray-500"><span>Subtotal</span> <span>Rs {(selectedOrder.total || 0).toLocaleString()}</span></div>
                                 <div className="flex justify-between text-sm text-gray-500"><span>Shipping</span> <span>Paid</span></div>
-                                <div className="flex justify-between text-xl font-bold text-aura-brown mt-2 pt-2 border-t border-gray-100"><span>Total</span> <span>Rs {Number(selectedOrder.total).toLocaleString()}</span></div>
+                                <div className="flex justify-between text-xl font-bold text-aura-brown mt-2 pt-2 border-t border-gray-100"><span>Total</span> <span>Rs {(Number(selectedOrder.total) || 0).toLocaleString()}</span></div>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* === ADD/EDIT PRODUCT FORM (Mobile Full Screen Fix) === */}
+            {/* === ADD/EDIT PRODUCT FORM === */}
             {showForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4">
                     <div className="bg-white rounded-none md:rounded-[2rem] w-full max-w-6xl h-full md:h-[90vh] overflow-y-auto shadow-2xl relative">
@@ -676,18 +850,18 @@ export default function AdminDashboard() {
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Tag size={16}/> Identity</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Product Name</label><input required className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Royal Oak Rose Gold" /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Brand</label><input className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">SKU (Auto)</label><input className="w-full p-4 bg-gray-100 border rounded-xl" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Category</label><select className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}><option value="men">Men's</option><option value="women">Women's</option><option value="couple">Couple</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Stock Qty</label><input type="number" className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.stock} onChange={e => setFormData({...formData, stock: Number(e.target.value)})} /></div>
+                                    <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Product Name</label><input required className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.name || ""} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Royal Oak Rose Gold" /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Brand</label><input className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.brand || ""} onChange={e => setFormData({...formData, brand: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">SKU (Auto)</label><input className="w-full p-4 bg-gray-100 border rounded-xl" value={formData.sku || ""} onChange={e => setFormData({...formData, sku: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Category</label><select className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.category || "men"} onChange={e => setFormData({...formData, category: e.target.value})}><option value="men">Men's</option><option value="women">Women's</option><option value="couple">Couple</option></select></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Stock Qty</label><input type="number" className="w-full p-4 bg-gray-50 border rounded-xl" value={formData.stock || 0} onChange={e => setFormData({...formData, stock: Number(e.target.value)})} /></div>
                                 </div>
                             </section>
 
                             {/* 2. DESCRIPTION */}
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Description</h3>
-                                <textarea className="w-full p-4 bg-gray-50 border rounded-xl h-32 resize-none" placeholder="Write a catchy description..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                                <textarea className="w-full p-4 bg-gray-50 border rounded-xl h-32 resize-none" placeholder="Write a catchy description..." value={formData.description || ""} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                             </section>
 
                             {/* 3. MARKETING */}
@@ -703,8 +877,8 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div><label className="text-xs font-bold text-gray-500">Priority (1-100)</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.priority} onChange={e => setFormData({...formData, priority: Number(e.target.value)})} /></div>
-                                        <div><label className="text-xs font-bold text-gray-500">Fake Views (Manual)</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.viewCount} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
+                                        <div><label className="text-xs font-bold text-gray-500">Priority (1-100)</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.priority || 0} onChange={e => setFormData({...formData, priority: Number(e.target.value)})} /></div>
+                                        <div><label className="text-xs font-bold text-gray-500">Fake Views (Manual)</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.viewCount || 0} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
                                     </div>
                                     <div className="col-span-2">
                                         <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-gray-50 border-gray-200'}`}>
@@ -725,10 +899,10 @@ export default function AdminDashboard() {
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Tag size={16}/> Pricing</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-gray-50 p-6 rounded-2xl border border-gray-200">
-                                    <div><label className="text-xs font-bold text-gray-500">Original Price</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.originalPrice} onChange={e => handlePriceChange('originalPrice', Number(e.target.value))} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Discount %</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.discount} onChange={e => handlePriceChange('discount', Number(e.target.value))} /></div>
-                                    <div><label className="text-xs font-bold text-aura-brown">Sale Price</label><div className="w-full p-3 bg-aura-gold/20 rounded-xl font-bold text-aura-brown">Rs {formData.price.toLocaleString()}</div></div>
-                                    <div><label className="text-xs font-bold text-gray-400">Cost Price (For Finance Tab)</label><input type="number" className="w-full p-3 border rounded-xl bg-white" value={formData.costPrice} onChange={e => setFormData({...formData, costPrice: Number(e.target.value)})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Original Price</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.originalPrice || 0} onChange={e => handlePriceChange('originalPrice', Number(e.target.value))} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Discount %</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.discount || 0} onChange={e => handlePriceChange('discount', Number(e.target.value))} /></div>
+                                    <div><label className="text-xs font-bold text-aura-brown">Sale Price</label><div className="w-full p-3 bg-aura-gold/20 rounded-xl font-bold text-aura-brown">Rs {(formData.price || 0).toLocaleString()}</div></div>
+                                    <div><label className="text-xs font-bold text-gray-400">Cost Price (For Finance Tab)</label><input type="number" className="w-full p-3 border rounded-xl bg-white" value={formData.costPrice || 0} onChange={e => setFormData({...formData, costPrice: Number(e.target.value)})} /></div>
                                 </div>
                             </section>
 
@@ -741,7 +915,7 @@ export default function AdminDashboard() {
                                         <label className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}>
                                             {formData.mainImage ? (
                                                 <>
-                                                    <Image src={formData.mainImage} alt="" fill className="object-cover" />
+                                                    {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" /> : <Image src={formData.mainImage} alt="" fill className="object-cover" />}
                                                     <button type="button" onClick={(e) => {e.preventDefault(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
                                                 </>
                                             ) : (
@@ -755,20 +929,19 @@ export default function AdminDashboard() {
                                         <div className="flex flex-wrap gap-4">
                                             {formData.gallery.map((img, i) => (
                                                 <div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200 group">
-                                                    <Image src={img} alt="" fill className="object-cover"/>
+                                                    {isVideoFile(img) ? <video src={img} className="object-cover w-full h-full" /> : <Image src={img} alt="" fill className="object-cover"/>}
                                                     <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button>
                                                 </div>
                                             ))}
                                             <label className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold flex-shrink-0"><Plus size={20} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'gallery')}/></label>
                                         </div>
                                     </div>
-                                    {/* VIDEO UPLOAD */}
                                     <div className="w-full md:w-40">
                                         <label className="block text-xs font-bold text-gray-500 mb-2">Short Video</label>
                                         <label className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold ${formData.video ? 'border-aura-gold' : 'border-gray-300'}`}>
                                             {formData.video ? (
                                                 <>
-                                                    <video src={formData.video} className="w-full h-full object-cover" autoPlay muted loop />
+                                                    <video src={formData.video} className="object-cover w-full h-full" autoPlay muted loop />
                                                     <button type="button" onClick={(e) => {e.preventDefault(); removeImage('video');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
                                                 </>
                                             ) : (
@@ -783,8 +956,8 @@ export default function AdminDashboard() {
                                     <div className="space-y-4">
                                         {formData.colors.map((color, index) => (
                                             <div key={index} className="flex flex-col md:flex-row gap-4 items-center bg-white p-3 rounded-xl border border-gray-100">
-                                                <input type="color" className="w-10 h-10 rounded border-none cursor-pointer" value={color.hex} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} />
-                                                <select className="flex-1 p-2 border rounded-lg text-sm bg-white" value={color.name} onChange={(e) => { const c = [...formData.colors]; c[index].name = e.target.value; setFormData({...formData, colors: c}); }}>
+                                                <input type="color" className="w-10 h-10 rounded border-none cursor-pointer" value={color.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} />
+                                                <select className="flex-1 p-2 border rounded-lg text-sm bg-white" value={color.name || ""} onChange={(e) => { const c = [...formData.colors]; c[index].name = e.target.value; setFormData({...formData, colors: c}); }}>
                                                     <option value="">Select Popular Color</option>
                                                     {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
                                                 </select>
@@ -804,24 +977,24 @@ export default function AdminDashboard() {
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Specifications</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Case & Dial</h4></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Case Material</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseMaterial} onChange={e => setFormData({...formData, caseMaterial: e.target.value})}><option>Stainless Steel</option><option>Alloy</option><option>Titanium</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Case Diameter</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseDiameter} onChange={e => setFormData({...formData, caseDiameter: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Case Thickness</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseThickness} onChange={e => setFormData({...formData, caseThickness: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Glass Type</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.glass} onChange={e => setFormData({...formData, glass: e.target.value})}><option>Mineral</option><option>Sapphire</option><option>Hardlex</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Dial Color</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.dialColor} onChange={e => setFormData({...formData, dialColor: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Case Material</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseMaterial || "Stainless Steel"} onChange={e => setFormData({...formData, caseMaterial: e.target.value})}><option>Stainless Steel</option><option>Alloy</option><option>Titanium</option></select></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Case Diameter</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseDiameter || ""} onChange={e => setFormData({...formData, caseDiameter: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Case Thickness</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.caseThickness || ""} onChange={e => setFormData({...formData, caseThickness: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Glass Type</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.glass || "Mineral"} onChange={e => setFormData({...formData, glass: e.target.value})}><option>Mineral</option><option>Sapphire</option><option>Hardlex</option></select></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Dial Color</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.dialColor || ""} onChange={e => setFormData({...formData, dialColor: e.target.value})} /></div>
 
                                     <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Strap & Movement</h4></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Strap Material</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.strapMaterial} onChange={e => setFormData({...formData, strapMaterial: e.target.value})}><option>Leather</option><option>Metal</option><option>Chain</option><option>Silicon</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Strap Color</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.strapColor} onChange={e => setFormData({...formData, strapColor: e.target.value})}>{POPULAR_COLORS.map(c=><option key={c}>{c}</option>)}</select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Movement</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.movement} onChange={e => setFormData({...formData, movement: e.target.value})}><option>Quartz (Battery)</option><option>Automatic (Mechanical)</option><option>Digital</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Water Resistance</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.waterResistance} onChange={e => setFormData({...formData, waterResistance: e.target.value})}><option>3ATM (Splash)</option><option>5ATM (Swim)</option><option>10ATM (Dive)</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Weight</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.weight} onChange={e => setFormData({...formData, weight: e.target.value})} /></div>
-                                    
+                                    <div><label className="text-xs font-bold text-gray-500">Strap Material</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.strapMaterial || "Leather"} onChange={e => setFormData({...formData, strapMaterial: e.target.value})}><option>Leather</option><option>Metal</option><option>Chain</option><option>Silicon</option></select></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Strap Color</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.strapColor || ""} onChange={e => setFormData({...formData, strapColor: e.target.value})}>{POPULAR_COLORS.map(c=><option key={c}>{c}</option>)}</select></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Movement</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.movement || "Quartz (Battery)"} onChange={e => setFormData({...formData, movement: e.target.value})}><option>Quartz (Battery)</option><option>Automatic (Mechanical)</option><option>Digital</option></select></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Water Resistance</label><select className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.waterResistance || "3ATM (Splash)"} onChange={e => setFormData({...formData, waterResistance: e.target.value})}><option>3ATM (Splash)</option><option>5ATM (Swim)</option><option>10ATM (Dive)</option></select></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Weight</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.weight || ""} onChange={e => setFormData({...formData, weight: e.target.value})} /></div>
+                                     
                                     <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Features</h4></div>
                                     <div className="flex gap-4 col-span-2 md:col-span-4">
-                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.luminous} onChange={e => setFormData({...formData, luminous: e.target.checked})} /> Luminous Hands</label>
-                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.dateDisplay} onChange={e => setFormData({...formData, dateDisplay: e.target.checked})} /> Date Display</label>
-                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.boxIncluded} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> Box Included</label>
+                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.luminous || false} onChange={e => setFormData({...formData, luminous: e.target.checked})} /> Luminous Hands</label>
+                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.dateDisplay || false} onChange={e => setFormData({...formData, dateDisplay: e.target.checked})} /> Date Display</label>
+                                        <label className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded-lg cursor-pointer"><input type="checkbox" checked={formData.boxIncluded || false} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> Box Included</label>
                                     </div>
                                 </div>
                             </section>
@@ -831,9 +1004,9 @@ export default function AdminDashboard() {
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Star size={16}/> Manual Reviews</h3>
                                 <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
                                     <div className="flex flex-col md:flex-row gap-4 mb-4">
-                                        <input placeholder="Reviewer Name" className="p-3 border rounded-xl text-sm" value={newReview.user} onChange={e => setNewReview({...newReview, user: e.target.value})} />
-                                        <input type="date" className="p-3 border rounded-xl text-sm" value={newReview.date} onChange={e => setNewReview({...newReview, date: e.target.value})} />
-                                        <select className="p-3 border rounded-xl text-sm" value={newReview.rating} onChange={e => setNewReview({...newReview, rating: Number(e.target.value)})}>
+                                        <input placeholder="Reviewer Name" className="p-3 border rounded-xl text-sm" value={newReview.user || ""} onChange={e => setNewReview({...newReview, user: e.target.value})} />
+                                        <input type="date" className="p-3 border rounded-xl text-sm" value={newReview.date || ""} onChange={e => setNewReview({...newReview, date: e.target.value})} />
+                                        <select className="p-3 border rounded-xl text-sm" value={newReview.rating || 5} onChange={e => setNewReview({...newReview, rating: Number(e.target.value)})}>
                                             <option value="5">⭐⭐⭐⭐⭐ (5)</option>
                                             <option value="4">⭐⭐⭐⭐ (4)</option>
                                             <option value="3">⭐⭐⭐ (3)</option>
@@ -842,17 +1015,17 @@ export default function AdminDashboard() {
                                             {newReview.image ? "Pic Added" : "Add Pic"} <input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'review')}/>
                                         </label>
                                     </div>
-                                    <textarea placeholder="Review message..." className="w-full p-3 border rounded-xl text-sm mb-3" value={newReview.comment} onChange={e => setNewReview({...newReview, comment: e.target.value})}></textarea>
+                                    <textarea placeholder="Review message..." className="w-full p-3 border rounded-xl text-sm mb-3" value={newReview.comment || ""} onChange={e => setNewReview({...newReview, comment: e.target.value})}></textarea>
                                     <button type="button" onClick={addReview} className="bg-aura-brown text-white px-4 py-2 rounded-lg text-sm font-bold">Add Fake Review</button>
 
                                     <div className="mt-6 space-y-2">
-                                        {formData.manualReviews.map((rev, i) => (
+                                        {(formData.manualReviews || []).map((rev, i) => (
                                             <div key={i} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center">
                                                 <div className="flex items-center gap-3">
                                                     {rev.image && <Image src={rev.image} width={30} height={30} alt="" className="rounded-full" />}
                                                     <div>
-                                                        <p className="text-xs font-bold">{rev.user} <span className="text-aura-gold">{'★'.repeat(rev.rating)}</span></p>
-                                                        <p className="text-[10px] text-gray-500">{rev.comment}</p>
+                                                        <p className="text-xs font-bold">{rev.user || ""} <span className="text-aura-gold">{'★'.repeat(rev.rating || 5)}</span></p>
+                                                        <p className="text-[10px] text-gray-500">{rev.comment || ""}</p>
                                                     </div>
                                                 </div>
                                                 <button type="button" onClick={() => deleteReview(i)} className="text-red-400"><Trash2 size={14}/></button>
@@ -866,9 +1039,9 @@ export default function AdminDashboard() {
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Package size={16}/> Shipping & Warranty</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div><label className="text-xs font-bold text-gray-500">Warranty Text</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.warranty} onChange={e => setFormData({...formData, warranty: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Shipping Info</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.shippingText} onChange={e => setFormData({...formData, shippingText: e.target.value})} /></div>
-                                    <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Return Policy</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.returnPolicy} onChange={e => setFormData({...formData, returnPolicy: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Warranty Text</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.warranty || ""} onChange={e => setFormData({...formData, warranty: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Shipping Info</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.shippingText || ""} onChange={e => setFormData({...formData, shippingText: e.target.value})} /></div>
+                                    <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Return Policy</label><input className="w-full p-3 bg-gray-50 border rounded-xl" value={formData.returnPolicy || ""} onChange={e => setFormData({...formData, returnPolicy: e.target.value})} /></div>
                                 </div>
                             </section>
 

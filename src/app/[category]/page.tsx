@@ -16,12 +16,9 @@ const fadeInUp: Variants = {
 export default function CategoryPage() {
   const params = useParams();
   const categorySlug = params.category as string; 
-  
-  // --- SAFETY CHECK ---
   const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection'];
-  if (reservedRoutes.includes(categorySlug)) return null; 
 
-  // --- STATE ---
+  // --- STATE (Moved to Top to fix Hook Error) ---
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -40,6 +37,9 @@ export default function CategoryPage() {
   // --- FETCH DATA ---
   useEffect(() => {
     const fetchProducts = async () => {
+      // Prevent fetching for reserved routes
+      if (reservedRoutes.includes(categorySlug)) return;
+
       setLoading(true);
       const { data } = await supabase
         .from('products')
@@ -51,10 +51,18 @@ export default function CategoryPage() {
       setLoading(false);
     };
 
-    if (categorySlug && !reservedRoutes.includes(categorySlug)) {
+    if (categorySlug) {
         fetchProducts();
     }
   }, [categorySlug]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(8);
+  }, [priceRange, selectedMovements, selectedStraps, sortBy]);
+
+  // --- SAFETY CHECK (Moved After Hooks) ---
+  if (reservedRoutes.includes(categorySlug)) return null; 
 
   // --- FILTERING LOGIC ---
   const filteredProducts = products.filter((product) => {
@@ -80,11 +88,6 @@ export default function CategoryPage() {
 
   // ⚡ PAGINATION LOGIC: Slice the data to show only what is needed
   const visibleProducts = filteredProducts.slice(0, visibleCount);
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setVisibleCount(8);
-  }, [priceRange, selectedMovements, selectedStraps, sortBy]);
 
   const loadMore = () => {
     setVisibleCount((prev) => prev + 8);
@@ -221,11 +224,7 @@ export default function CategoryPage() {
                 <div className="h-64 flex items-center justify-center text-aura-brown animate-pulse">Loading Collection...</div>
             ) : (
                 <div className="flex flex-col gap-12">
-                    {/* GRID CONFIGURATION:
-                       - grid-cols-2: Forces 2 columns on Mobile (Exact match to reference)
-                       - md:grid-cols-4: 4 columns on Desktop
-                       - gap-3: Tighter gap for sleek look
-                    */}
+                    {/* GRID CONFIGURATION */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                         <AnimatePresence mode="popLayout">
                             {visibleProducts.map((product) => (

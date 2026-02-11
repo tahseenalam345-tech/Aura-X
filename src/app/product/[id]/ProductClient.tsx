@@ -6,14 +6,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Navbar } from "@/components/Navbar";
-import { ProductCard } from "@/components/ProductCard";
+import { ProductCard } from "@/components/ProductCard"; // Fixed Import
 import { useCart } from "@/context/CartContext";
 import { 
   Star, Truck, ShieldCheck, 
   Minus, Plus, ShoppingBag, Heart, Share2, 
-  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check
+  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package
 } from "lucide-react";
 import toast from "react-hot-toast"; 
+
+// --- HELPER: Detect Video Files ---
+const isVideoFile = (url: string) => url?.toLowerCase().includes('.mp4') || url?.toLowerCase().includes('.webm');
 
 export default function ProductClient() {
   const { id } = useParams();
@@ -38,8 +41,9 @@ export default function ProductClient() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // REVIEWS & VIEWS
-  const [viewCount, setViewCount] = useState(1000);
+  const [viewCount, setViewCount] = useState(0); 
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewName, setReviewName] = useState("");
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewImage, setReviewImage] = useState<string | null>(null);
@@ -65,6 +69,7 @@ export default function ProductClient() {
            setProduct(currentProduct);
            setActiveImage(currentProduct.main_image);
            
+           // Load Reviews
            setProductReviews(currentProduct.manual_reviews || []);
 
            // Check Wishlist Status
@@ -73,25 +78,29 @@ export default function ProductClient() {
            setIsLiked(exists);
 
            const { data: related } = await supabase
-              .from('products')
-              .select('*')
-              .eq('category', currentProduct.category)
-              .neq('id', id)
-              .limit(4);
+             .from('products')
+             .select('*')
+             .eq('category', currentProduct.category)
+             .neq('id', id)
+             .limit(4);
            
            if (related) setRelatedProducts(related);
 
-           const baseCount = 800;
-           const idNum = parseInt(currentProduct.id) || 1;
-           setViewCount(baseCount + (idNum * 123) % 500);
-
-           // Document title is handled by Metadata now, but keeping this fallback is fine
-           // document.title = `${currentProduct.name} | AURA-X Luxury Watches`;
+           // View Count
+           const dbViews = currentProduct.specs?.view_count || 0;
+           setViewCount(dbViews);
        }
        setLoading(false);
     };
     fetchData();
   }, [id]);
+
+  // --- CALCULATE AVERAGE RATING ---
+  const averageRating = useMemo(() => {
+      if (productReviews.length === 0) return 5; // Default to 5 if no reviews
+      const totalStars = productReviews.reduce((acc, review) => acc + (Number(review.rating) || 5), 0);
+      return totalStars / productReviews.length;
+  }, [productReviews]);
 
   // --- OPTIMIZED CALCULATIONS ---
   const { basePrice, extras, totalPrice, specs, selectedColor, allImages } = useMemo(() => {
@@ -102,6 +111,7 @@ export default function ProductClient() {
       
       const imgs = [
         product?.main_image,
+        product?.specs?.video, 
         ...(product?.specs?.gallery || []),
         ...(product?.colors?.map((c: any) => c.image).filter(Boolean) || [])
       ].filter((img, index, self) => img && self.indexOf(img) === index);
@@ -124,13 +134,11 @@ export default function ProductClient() {
       const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
       
       if (isLiked) {
-          // Remove
           const newWishlist = wishlist.filter((item: any) => item.id !== product.id);
           localStorage.setItem('wishlist', JSON.stringify(newWishlist));
           setIsLiked(false);
           toast.success("Removed from Wishlist");
       } else {
-          // Add
           const newItem = {
               id: product.id,
               name: product.name,
@@ -147,6 +155,11 @@ export default function ProductClient() {
   };
 
   const handleAddToCart = () => {
+    // SECURITY CHECK: Don't allow if out of stock
+    if (specs.stock <= 0) {
+        return toast.error("Sorry, this item is currently out of stock.");
+    }
+
     addToCart({
       id: product.id,
       name: product.name,
@@ -168,6 +181,13 @@ export default function ProductClient() {
     }, 800);
   };
 
+  const handleNotifyMe = () => {
+      toast.success("We'll notify you when it's back!", {
+          icon: '🔔',
+          style: { background: '#1E1B18', color: '#fff' }
+      });
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) setReviewImage(URL.createObjectURL(file));
@@ -180,9 +200,9 @@ export default function ProductClient() {
     const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
     return publicUrl;
   };
-
-  const handleSubmitReview = async () => {
+const handleSubmitReview = async () => {
     if (reviewRating === 0) return toast.error("Please select a star rating!");
+    if (!reviewName.trim()) return toast.error("Please enter your name!"); 
     if (!reviewText.trim()) return toast.error("Please write a comment!");
 
     const loadingToast = toast.loading("Posting review...");
@@ -196,7 +216,7 @@ export default function ProductClient() {
 
         const newReview = {
             id: Date.now(),
-            user: "Verified Customer",
+            user: reviewName, 
             rating: reviewRating,
             date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             comment: reviewText,
@@ -213,7 +233,10 @@ export default function ProductClient() {
         setProductReviews(updatedReviews);
         toast.dismiss(loadingToast);
         toast.success("Review Posted!");
+        
+        // Reset Form
         setReviewRating(0); 
+        setReviewName(""); 
         setReviewText(""); 
         setReviewImage(null); 
         setShowReviewForm(false);
@@ -270,14 +293,19 @@ export default function ProductClient() {
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-300">
            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"><X size={30}/></button>
            <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
-              <Image src={lightboxImage} alt="Zoom" fill className="object-contain" quality={90} />
+             {/* VIDEO LIGHTBOX SUPPORT */}
+             {isVideoFile(lightboxImage) ? (
+                 <video src={lightboxImage} controls autoPlay className="w-full h-full object-contain" />
+             ) : (
+                 <Image src={lightboxImage} alt="Zoom" fill className="object-contain" quality={90} />
+             )}
            </div>
         </div>
       )}
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-24 md:pt-36">
         
-        {/* BREADCRUMBS (Fixed Mobile Cut-off) */}
+        {/* BREADCRUMBS */}
         <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-400 mb-4 md:mb-6 font-medium">
             <Link href="/" className="hover:text-aura-gold flex items-center gap-1"><Home size={14}/> Home</Link>
             <span>/</span>
@@ -292,23 +320,32 @@ export default function ProductClient() {
           <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start">
             <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10 group">
               <div className="absolute top-4 right-4 z-20 flex flex-col gap-3">
-                 {/* WISHLIST BUTTON */}
                  <button onClick={handleWishlistToggle} className={`bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg transition-all ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-500'}`}><Heart size={18} fill={isLiked ? "currentColor" : "none"} /></button>
                  <button onClick={() => {navigator.clipboard.writeText(window.location.href); alert("Link Copied!")}} className="bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-400 hover:text-blue-500"><Share2 size={18} /></button>
               </div>
               <button onClick={() => setLightboxImage(activeImage)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
               
+              {/* --- VIDEO PLAYER OR IMAGE --- */}
               {activeImage && (
-                <Image 
-                    src={activeImage} 
-                    alt={product.name} 
-                    fill 
-                    priority
-                    quality={90}
-                    sizes="(max-width: 768px) 100vw, 60vw"
-                    className="object-cover transition-transform duration-700 cursor-zoom-in" 
-                    onClick={() => setLightboxImage(activeImage)}
-                />
+                isVideoFile(activeImage) ? (
+                    <video 
+                        src={activeImage} 
+                        autoPlay muted loop playsInline 
+                        className="object-cover w-full h-full cursor-pointer"
+                        onClick={() => setLightboxImage(activeImage)}
+                    />
+                ) : (
+                    <Image 
+                        src={activeImage} 
+                        alt={product.name} 
+                        fill 
+                        priority
+                        quality={90}
+                        sizes="(max-width: 768px) 100vw, 60vw"
+                        className="object-cover transition-transform duration-700 cursor-zoom-in" 
+                        onClick={() => setLightboxImage(activeImage)}
+                    />
+                )
               )}
             </div>
             
@@ -316,7 +353,14 @@ export default function ProductClient() {
                {allImages.map((img: string, i: number) => (
                  img && (
                    <button key={i} onClick={() => setActiveImage(img)} className={`relative w-16 h-16 md:w-24 md:h-24 flex-shrink-0 bg-white rounded-xl border-2 overflow-hidden transition-all ${activeImage === img ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent'}`}>
-                     <Image src={img} alt="Thumb" fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
+                     {isVideoFile(img) ? (
+                         <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                             <video src={img} className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
+                             <Play size={20} className="relative z-10 text-aura-brown" fill="currentColor"/>
+                         </div>
+                     ) : (
+                         <Image src={img} alt="Thumb" fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
+                     )}
                    </button>
                  )
                ))}
@@ -338,14 +382,23 @@ export default function ProductClient() {
                 <div className="flex flex-col gap-2 border-b border-gray-100 pb-4 mb-4 md:mb-6">
                     <div className="flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-1">
-                           {[1,2,3,4,5].map(star => <Star key={star} size={14} fill={star <= (product.rating || 5) ? "#D4AF37" : "#E5E7EB"} className={star <= (product.rating || 5) ? "text-aura-gold" : "text-gray-200"} />)}
+                           {[1,2,3,4,5].map(star => (
+                               <Star 
+                                 key={star} 
+                                 size={14} 
+                                 fill={star <= Math.round(averageRating) ? "#D4AF37" : "#E5E7EB"} 
+                                 className={star <= Math.round(averageRating) ? "text-aura-gold" : "text-gray-200"} 
+                               />
+                           ))}
                         </div>
                         <span className="text-gray-400 text-xs">({productReviews.length} Reviews)</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-medium text-red-500 animate-pulse">
-                        <Eye size={14} />
-                        <span>{viewCount}+ People viewed this in the last 7 days</span>
-                    </div>
+                    {viewCount > 0 && (
+                        <div className="flex items-center gap-2 text-xs font-medium text-red-500 animate-pulse">
+                            <Eye size={14} />
+                            <span>{viewCount}+ People viewed this in the last 7 days</span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-col mb-6">
@@ -391,24 +444,41 @@ export default function ProductClient() {
                            <div className="flex items-center gap-3"><div className={`w-8 h-8 rounded-full flex items-center justify-center ${isGift ? 'bg-aura-gold text-white' : 'bg-gray-100 text-gray-400'}`}><Gift size={16} /></div><div><p className="font-bold text-sm text-aura-brown">Gift Wrap</p></div></div><span className="text-xs font-bold text-aura-gold">+ Rs {GIFT_COST}</span>
                         </div>
                         <div onClick={() => setAddBox(!addBox)} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${addBox ? 'bg-[#FAF8F1] border-aura-gold shadow-sm' : 'bg-white border-gray-100'}`}>
-                           <div className="flex items-center gap-3"><div className="relative w-8 h-8 rounded overflow-hidden border border-gray-200"><Image src="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=200&auto=format&fit=crop" alt="Box" fill className="object-cover" /></div><div><p className="font-bold text-sm text-aura-brown">Luxury Box</p></div></div><span className="text-xs font-bold text-aura-gold">+ Rs {BOX_COST}</span>
+                           <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${addBox ? 'bg-aura-gold text-white shadow-sm' : 'bg-gray-100 text-gray-400'}`}>
+                                 <Package size={16} />
+                              </div>
+                              <div><p className="font-bold text-sm text-aura-brown">Luxury Box</p></div>
+                           </div>
+                           <span className="text-xs font-bold text-aura-gold">+ Rs {BOX_COST}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* ACTIONS */}
+                {/* --- ACTIONS --- */}
                 <div className="flex flex-col gap-3 mb-8">
-                    <div className="flex gap-3 h-12">
-                        <div className="flex items-center bg-white border border-gray-200 rounded-full px-3 shadow-sm">
-                           <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-2 hover:text-aura-gold"><Minus size={14}/></button>
-                           <span className="w-6 text-center font-bold text-sm text-aura-brown">{quantity}</span>
-                           <button onClick={() => setQuantity(quantity + 1)} className="p-2 hover:text-aura-gold"><Plus size={14}/></button>
+                    {specs.stock > 0 ? (
+                        <>
+                            <div className="flex gap-3 h-12">
+                                <div className="flex items-center bg-white border border-gray-200 rounded-full px-3 shadow-sm">
+                                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-2 hover:text-aura-gold"><Minus size={14}/></button>
+                                    <span className="w-6 text-center font-bold text-sm text-aura-brown">{quantity}</span>
+                                    <button onClick={() => setQuantity(quantity + 1)} className="p-2 hover:text-aura-gold"><Plus size={14}/></button>
+                                </div>
+                                <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-aura-brown to-[#4A3B32] text-white rounded-full font-bold text-xs tracking-widest flex items-center justify-center gap-2 shadow-md hover:shadow-xl transition-all hover:scale-[1.02]">
+                                    <ShoppingBag size={16} /> ADD TO CART
+                                </button>
+                            </div>
+                            <button onClick={handleAddToCart} className="w-full h-12 border border-aura-gold/50 text-aura-brown rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold hover:text-white transition-all">BUY NOW</button>
+                        </>
+                    ) : (
+                        <div className="w-full bg-[#FAF9F6] border border-red-100 p-4 rounded-xl text-center">
+                            <p className="text-red-500 font-bold mb-2 text-sm flex items-center justify-center gap-2"><AlertCircle size={16}/> Currently Unavailable</p>
+                            <button onClick={handleNotifyMe} className="w-full h-12 bg-white border border-aura-brown text-aura-brown rounded-full font-bold text-xs tracking-widest hover:bg-aura-brown hover:text-white transition-colors flex items-center justify-center gap-2">
+                                <Bell size={16} /> NOTIFY WHEN AVAILABLE
+                            </button>
                         </div>
-                        <button onClick={handleAddToCart} disabled={specs.stock === 0} className="flex-1 bg-gradient-to-r from-aura-brown to-[#4A3B32] text-white rounded-full font-bold text-xs tracking-widest flex items-center justify-center gap-2 shadow-md hover:shadow-xl transition-all disabled:bg-gray-300 disabled:cursor-not-allowed hover:scale-[1.02]">
-                            <ShoppingBag size={16} /> {specs.stock === 0 ? "OUT OF STOCK" : "ADD TO CART"}
-                        </button>
-                    </div>
-                    {specs.stock > 0 && <button className="w-full h-12 border border-aura-gold/50 text-aura-brown rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold hover:text-white transition-all">BUY NOW</button>}
+                    )}
                 </div>
 
                 {/* SPECS */}
@@ -419,7 +489,7 @@ export default function ProductClient() {
                         <ul className="grid grid-cols-2 gap-y-2 gap-x-2 text-xs">
                            {specs && Object.entries(specs).filter(([key]) => 
                              !['gallery', 'stock', 'view_count', 'warranty', 'cost_price', 'shipping_text', 'return_policy', 
-                               'box_included', 'luminous', 'date_display', 'adjustable', 'type', 'style'].includes(key)
+                               'box_included', 'luminous', 'date_display', 'adjustable', 'type', 'style', 'video'].includes(key)
                            ).map(([key, value]) => (
                              <li key={key} className="flex flex-col pb-1 border-b border-dashed border-gray-100">
                                  <span className="font-bold text-aura-gold uppercase text-[10px]">{key.replace(/_/g, " ")}</span>
@@ -442,7 +512,7 @@ export default function ProductClient() {
           </div>
         </div>
 
-        {/* REVIEWS */}
+       {/* REVIEWS */}
         <div className="mb-12 md:mb-24 border-t border-gray-200 pt-10">
             <div className="max-w-4xl mx-auto">
                 <div className="flex justify-between items-center mb-6 md:mb-8">
@@ -452,11 +522,21 @@ export default function ProductClient() {
 
                 {showReviewForm && (
                    <div className="bg-[#FAF9F6] p-6 rounded-2xl shadow-inner mb-8">
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                           <div className="flex gap-2 text-gray-300">
                              {[1,2,3,4,5].map(star => <Star key={star} size={24} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className="cursor-pointer text-aura-gold"/>)}
                           </div>
-                          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Write your review..." className="w-full border border-gray-200 p-3 rounded-xl bg-white h-24 text-sm"></textarea>
+                          
+                          <input 
+                            type="text" 
+                            value={reviewName} 
+                            onChange={(e) => setReviewName(e.target.value)} 
+                            placeholder="Your Name" 
+                            className="w-full border border-gray-200 p-3 rounded-xl bg-white text-sm focus:outline-none focus:border-aura-gold"
+                          />
+
+                          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Write your review..." className="w-full border border-gray-200 p-3 rounded-xl bg-white h-24 text-sm focus:outline-none focus:border-aura-gold"></textarea>
+                          
                           <div className="flex justify-between items-center">
                               <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
                               <div className="flex items-center gap-3">
@@ -474,7 +554,7 @@ export default function ProductClient() {
                       <div key={review.id || index} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                           <div className="flex justify-between items-start mb-2">
                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-aura-brown font-bold text-xs">{(review.user || "G").charAt(0)}</div>
+                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-aura-brown font-bold text-xs uppercase">{(review.user || "A").charAt(0)}</div>
                                 <div><p className="font-bold text-sm text-gray-800">{review.user}</p><div className="flex text-aura-gold">{[...Array(5)].map((_, i) => (<Star key={i} size={10} fill={i < review.rating ? "currentColor" : "none"} />))}</div></div>
                              </div>
                              <span className="text-[10px] text-gray-400">{review.date}</span>
@@ -486,7 +566,6 @@ export default function ProductClient() {
                 </div>
             </div>
         </div>
-
         {/* RELATED PRODUCTS */}
         <div className="border-t border-gray-200 pt-10 mb-12">
              <div className="flex justify-between items-center mb-6">
@@ -513,9 +592,15 @@ export default function ProductClient() {
             <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Total</span>
             <div className="flex items-baseline gap-1"><span className="font-serif font-bold text-aura-brown text-xl">Rs {totalPrice.toLocaleString()}</span></div>
          </div>
-         <button onClick={handleAddToCart} disabled={specs.stock === 0} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest shadow-lg active:scale-95 transition-transform disabled:bg-gray-300">
-             {specs.stock === 0 ? "OUT OF STOCK" : "ADD TO CART"}
-         </button>
+         {specs.stock > 0 ? (
+             <button onClick={handleAddToCart} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest shadow-lg active:scale-95 transition-transform">
+                 ADD TO CART
+             </button>
+         ) : (
+             <button onClick={handleNotifyMe} className="bg-white border border-aura-brown text-aura-brown px-6 py-3 rounded-full font-bold text-xs tracking-widest shadow-sm">
+                 NOTIFY ME
+             </button>
+         )}
       </div>
 
     </main>

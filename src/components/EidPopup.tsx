@@ -9,9 +9,8 @@ export default function EidPopup() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // TESTING MODE: Always show for now. 
-    // Change 'false' to 'sessionStorage.getItem("seen_eid_popup")' when you are done testing.
-    const hasSeen = false; 
+    // FIX: Check if the user has already seen the popup in this session
+    const hasSeen = sessionStorage.getItem("seen_eid_popup"); 
 
     if (!hasSeen) {
       const timer = setTimeout(() => setIsVisible(true), 1500);
@@ -19,7 +18,11 @@ export default function EidPopup() {
     }
   }, []);
 
-  const handleClose = () => setIsVisible(false);
+  const handleClose = () => {
+    // FIX: Save to sessionStorage when closed so it doesn't show again
+    sessionStorage.setItem("seen_eid_popup", "true");
+    setIsVisible(false);
+  };
 
   return (
     <AnimatePresence>
@@ -52,7 +55,7 @@ export default function EidPopup() {
                 Ramzan 10th Reveal
               </span>
 
-              {/* NEW SLOGAN HERE */}
+              {/* SLOGAN */}
               <h2 className="text-4xl md:text-5xl font-serif text-white mb-4 leading-tight">
                 <span className="text-aura-gold block text-sm md:text-base mb-3 font-sans tracking-[0.3em] uppercase">
                   Unveiling Soon

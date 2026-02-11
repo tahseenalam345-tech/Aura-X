@@ -6,10 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
-import { supabase } from "@/lib/supabase"; 
 import { ArrowLeft, ArrowRight, Lock, MapPin, Phone, User, Mail, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
-import { sendOrderEmails } from "@/lib/emailService"; 
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -27,24 +25,15 @@ export default function CheckoutPage() {
   const shippingCost = isFreeShipping ? 0 : STANDARD_SHIPPING_COST;
   const finalTotal = cartTotal + shippingCost;
 
-  // --- GENERATE SHORT ID FUNCTION ---
-  const generateOrderCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return `ORD-${result}`;
-  };
-
+  // --- THE FIXED ORDER FUNCTION ---
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-        const shortId = generateOrderCode();
-
+        // 1. Prepare items (MUST include ID for stock update)
         const orderItems = cart.map(item => ({
+            id: item.id, // <--- CRITICAL: Needed to find and reduce stock
             name: item.name,
             price: item.price,
             quantity: item.quantity,
@@ -54,40 +43,34 @@ export default function CheckoutPage() {
             addBox: item.addBox
         }));
 
-        // 1. SAVE TO DATABASE
-        const { data, error } = await supabase
-            .from('orders')
-            .insert([
-                {
-                    order_code: shortId,
-                    customer_name: `${formData.firstName} ${formData.lastName}`,
-                    email: formData.email,
-                    phone: formData.phone,
-                    address: `${formData.address}, ${formData.postalCode}`,
-                    city: formData.city,
-                    total: finalTotal,
-                    status: 'Processing', 
-                    items: orderItems,
-                    admin_notes: ""
-                }
-            ])
-            .select()
-            .single();
+        // 2. Send to API (Server-side)
+        const response = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customer: formData, // Form data
+                items: orderItems,
+                total: finalTotal,  // Use finalTotal (includes shipping)
+                city: formData.city
+            })
+        });
 
-        if (error) throw error;
+        const result = await response.json();
 
-        // 2. SEND EMAILS (Background Process)
-        if (data) {
-            await sendOrderEmails(data); 
+        if (!response.ok) {
+            throw new Error(result.error || "Order failed");
         }
 
-        // 3. CLEANUP & REDIRECT
-        clearCart();
-        router.push(`/success?id=${shortId}&total=${finalTotal}&name=${formData.firstName}`);
+        // 3. Success!
+        toast.success("Order Placed Successfully!");
+        clearCart(); // Clear the cart context
+        
+        // Redirect to Thank You page
+        router.push(`/thank-you?orderId=${result.orderId}`);
 
-    } catch (error) {
-        console.error("Order Failed:", error);
-        toast.error("Something went wrong. Please try again.");
+    } catch (error: any) {
+        console.error("Checkout Error:", error);
+        toast.error(error.message || "Something went wrong. Please try again.");
     } finally {
         setLoading(false);
     }
@@ -139,17 +122,9 @@ export default function CheckoutPage() {
                       <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">Full Address</label><div className="relative"><MapPin className="absolute left-4 top-3 text-gray-300" size={18}/><textarea required name="address" onChange={handleInputChange} placeholder="House #, Street, Area" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold h-24 resize-none" /></div></div>
                       <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase">City</label><input required name="city" onChange={handleInputChange} type="text" placeholder="e.g. Lahore" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
-                          
-                          {/* UPDATED: Postal Code is now Optional */}
                           <div className="space-y-2">
                             <label className="text-xs font-bold text-gray-400 uppercase">Postal Code (Optional)</label>
-                            <input 
-                                name="postalCode" 
-                                onChange={handleInputChange} 
-                                type="text" 
-                                placeholder="e.g. 54000" 
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" 
-                            />
+                            <input name="postalCode" onChange={handleInputChange} type="text" placeholder="e.g. 54000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" />
                           </div>
                       </div>
                    </div>

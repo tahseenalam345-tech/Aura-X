@@ -7,10 +7,12 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight } from "lucide-react"; 
+import { ArrowRight, X, ChevronDown, Filter } from "lucide-react"; 
 
 // --- CONFIGURATION ---
 const TARGET_DATE = "2026-02-27T18:00:00"; 
+const FILTER_TAGS = ["All", "Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"];
+const ITEMS_PER_PAGE = 8;
 
 // --- ANIMATIONS ---
 const fadeInUp: Variants = {
@@ -22,42 +24,15 @@ const fadeInUp: Variants = {
 const watchImages = ["/pic1.png", "/pic2.png", "/pic3.png", "/pic4.png"]; 
 
 const categories = [
-  { 
-    id: "men", 
-    title: "Gents' Heritage", 
-    subtitle: "EXPLORE MEN'S", 
-    image: "/mens.jpg", 
-    link: "/men" 
-  },
-  { 
-    id: "women", 
-    title: "Ladies' Precision", 
-    subtitle: "EXPLORE WOMEN'S", 
-    image: "/ladies.png", 
-    link: "/women" 
-  },
-  { 
-    id: "couple", 
-    title: "Timeless Bond", 
-    subtitle: "FOR COUPLES", 
-    image: "/couples.png", 
-    link: "/couple" 
-  }
+  { id: "men", title: "Gents' Heritage", subtitle: "EXPLORE MEN'S", image: "/mens.jpg", link: "/men" },
+  { id: "women", title: "Ladies' Precision", subtitle: "EXPLORE WOMEN'S", image: "/ladies.png", link: "/women" },
+  { id: "couple", title: "Timeless Bond", subtitle: "FOR COUPLES", image: "/couples.png", link: "/couple" }
 ];
 
-// --- SUB-COMPONENTS (Defined OUTSIDE to prevent re-renders) ---
+// --- SUB-COMPONENTS ---
 const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
     <Link href={cat.link} className={`relative group overflow-hidden rounded-3xl shadow-lg h-[280px] md:h-[450px] w-full block ${className}`}>
-        {/* SPEED FIX: quality={80} creates smaller files, loading faster */}
-        <Image 
-          src={cat.image} 
-          // SEO FIX: Added "Collection" to alt text
-          alt={`${cat.title} Luxury Watch Collection`} 
-          fill 
-          className="object-cover transition-transform duration-1000 group-hover:scale-110" 
-          sizes="(max-width: 768px) 100vw, 50vw" 
-          quality={80}
-        />
+        <Image src={cat.image} alt={`${cat.title} Collection`} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" sizes="(max-width: 768px) 100vw, 50vw" quality={75} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         <div className="absolute bottom-6 left-6 text-white">
           <p className="text-[10px] font-bold tracking-widest uppercase mb-1 text-aura-gold">{cat.subtitle}</p>
@@ -70,8 +45,15 @@ export default function Home() {
   const [products, setProducts] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isEidLive, setIsEidLive] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  
+  // --- FILTER & PAGINATION STATE ---
+  const [activeTag, setActiveTag] = useState("All");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  // --- 1. REAL TIME CHECK (OPTIMIZED) ---
+  // --- 1. REAL TIME CHECK ---
   useEffect(() => {
     const now = new Date().getTime();
     const target = new Date(TARGET_DATE).getTime();
@@ -86,20 +68,56 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // --- 3. FETCH PRODUCTS ---
+  // --- 3. FETCH PRODUCTS (Initial & Filter Change) ---
   useEffect(() => {
-    const fetchProducts = async () => {
-        const { data } = await supabase
-            .from('products')
-            .select('*')
-            .eq('is_eid_exclusive', false) 
-            .limit(8)
-            .order('rating', { ascending: false });
-        
-        if(data) setProducts(data);
-    };
-    fetchProducts();
-  }, []);
+    fetchProducts(1, true); // Reset to page 1 on filter change
+  }, [activeTag]);
+
+  const fetchProducts = async (pageNumber: number, reset: boolean = false) => {
+      if (reset) {
+          setLoadingMore(true); 
+      } else {
+          setLoadingMore(true); 
+      }
+
+      const from = (pageNumber - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      let query = supabase
+          .from('products')
+          .select('*')
+          .eq('is_eid_exclusive', false)
+          .order('priority', { ascending: false }) // High Priority first
+          .range(from, to);
+
+      // --- APPLY FILTERS ---
+      if (activeTag === "Under2000") {
+          // PRICE FILTER: Show items less than 2000
+          query = query.lt('price', 2000);
+      } else if (activeTag !== "All") {
+          // TAG FILTER: Check if tags array contains the active tag
+          query = query.contains('tags', [activeTag]);
+      }
+
+      const { data } = await query;
+
+      if (data) {
+          if (reset) {
+              setProducts(data);
+              setPage(1);
+          } else {
+              setProducts(prev => [...prev, ...data]);
+          }
+          setHasMore(data.length === ITEMS_PER_PAGE);
+      }
+      setLoadingMore(false);
+  };
+
+  const loadMore = () => {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchProducts(nextPage, false);
+  };
 
   // Helper for Banner Animation
   const getPosition = (index: number) => {
@@ -148,12 +166,11 @@ export default function Home() {
                    <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
                       <Image 
                         src={src} 
-                        // SEO FIX: Descriptive Alt Text instead of just "Watch"
                         alt="AURA-X Premium Luxury Watch Model" 
                         fill 
                         className="object-contain drop-shadow-2xl"
                         priority={index === currentIndex}
-                        quality={85}
+                        quality={75} 
                       />
                    </div>
                  </motion.div>
@@ -202,19 +219,91 @@ export default function Home() {
       {/* --- PRODUCTS SECTION --- */}
       <section className="py-20 px-4 bg-[#F9F8F6]">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-end mb-10">
+          <div className="flex justify-between items-end mb-6">
              <h2 className="text-3xl md:text-4xl font-serif">Curated Pieces</h2>
-             <Link href="/men" className="text-aura-gold text-xs font-bold uppercase tracking-widest border-b border-aura-gold pb-1">View All</Link>
+             <button onClick={() => setShowCategoryModal(true)} className="text-aura-gold text-xs font-bold uppercase tracking-widest border-b border-aura-gold pb-1 hover:text-aura-brown transition-colors">View All</button>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
+
+          {/* TAG FILTERS */}
+          <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
+             {FILTER_TAGS.map(tag => (
+                 <button 
+                    key={tag}
+                    onClick={() => setActiveTag(tag)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${activeTag === tag ? 'bg-aura-brown text-white border-aura-brown shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
+                 >
+                    {tag === "Fire" ? "🔥 Trending" : tag}
+                 </button>
+             ))}
+          </div>
+
+          {/* UNDER 2000 FILTER BUTTON (Interactive) */}
+          <div className="flex justify-center mb-10">
+             <button 
+                onClick={() => setActiveTag("Under2000")}
+                className={`relative px-8 py-3 rounded-full shadow-sm flex items-center gap-3 transition-all transform hover:scale-105 ${
+                    activeTag === "Under2000" 
+                    ? "bg-aura-brown text-white border border-aura-brown shadow-md" 
+                    : "bg-white border border-aura-gold/30 text-aura-brown hover:border-aura-gold hover:shadow-md"
+                }`}
+             >
+                 <div className={`w-2 h-2 rounded-full animate-pulse ${activeTag === "Under2000" ? "bg-aura-gold" : "bg-green-500"}`}></div>
+                 <p className="text-sm font-bold tracking-wide">Picks Under <span className={`font-serif text-lg ${activeTag === "Under2000" ? "text-aura-gold" : "text-aura-gold"}`}>Rs 2,000</span></p>
+                 {activeTag === "Under2000" && <X size={14} className="ml-1 text-white/50 hover:text-white" onClick={(e) => { e.stopPropagation(); setActiveTag("All"); }} />}
+             </button>
+          </div>
+
+          {/* PRODUCT GRID */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8 mb-12">
             {products.length > 0 ? products.map((product) => (
               <ProductCard key={product.id} product={product} />
             )) : (
-              [1,2,3,4].map(i => <div key={i} className="h-64 bg-gray-200 rounded-2xl animate-pulse"></div>)
+              // SKELETON OR NO ITEMS
+              loadingMore ? [1,2,3,4].map(i => <div key={i} className="h-64 bg-gray-200 rounded-2xl animate-pulse"></div>) : <p className="col-span-full text-center text-gray-400 py-10 italic">No items found in this collection.</p>
             )}
           </div>
+
+          {/* LOAD MORE BUTTON */}
+          {hasMore && products.length > 0 && (
+              <div className="flex justify-center">
+                  <button 
+                    onClick={loadMore} 
+                    disabled={loadingMore}
+                    className="flex items-center gap-2 bg-white border border-gray-200 text-aura-brown px-8 py-3 rounded-full font-bold text-xs tracking-widest hover:border-aura-gold hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                      {loadingMore ? "Loading..." : "LOAD MORE"} <ChevronDown size={14}/>
+                  </button>
+              </div>
+          )}
         </div>
       </section>
+
+      {/* --- COLLECTION SELECTION MODAL --- */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] w-full max-w-5xl relative shadow-2xl">
+                <button onClick={() => setShowCategoryModal(false)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-500 hover:text-red-500 transition-colors z-50">
+                    <X size={20}/>
+                </button>
+                <div className="text-center mb-8">
+                    <p className="text-aura-gold text-xs font-bold tracking-widest uppercase mb-2">Discover Our World</p>
+                    <h2 className="text-3xl md:text-4xl font-serif text-aura-brown">Select Collection</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {categories.map((cat) => (
+                        <Link key={cat.id} href={cat.link} className="group relative h-64 md:h-80 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+                            <Image src={cat.image} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" quality={75} />
+                            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center text-white">
+                                <h3 className="text-2xl font-serif font-bold mb-2 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">{cat.title}</h3>
+                                <span className="text-xs tracking-widest uppercase border-b border-white pb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">Shop Now</span>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            </div>
+        </div>
+      )}
+
     </main>
   );
 }
