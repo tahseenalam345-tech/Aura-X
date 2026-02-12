@@ -8,12 +8,6 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 
-// --- CONFIGURATION: SET EXACT LAUNCH DATE HERE ---
-// 10th Ramzan 2026 is expected around Feb 27th.
-// Format: YYYY-MM-DDTHH:MM:SS (24-hour format)
-// This is set to: February 27, 2026 at 6:00 PM
-const TARGET_DATE = "2026-02-27T18:00:00"; 
-
 // --- CUSTOM LANTERN SVG ---
 const Lantern = ({ className, delay = "0s" }: { className?: string, delay?: string }) => (
   <svg viewBox="0 0 100 100" className={`${className} drop-shadow-xl`} style={{ animationDelay: delay }}>
@@ -26,6 +20,9 @@ const Lantern = ({ className, delay = "0s" }: { className?: string, delay?: stri
 );
 
 export default function EidCollectionPage() {
+  // NEW: State to hold the dynamic date from Admin Panel
+  const [targetDate, setTargetDate] = useState<string | null>(null);
+  
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [isLive, setIsLive] = useState(false); 
   const [eidProducts, setEidProducts] = useState<any[]>([]);
@@ -33,10 +30,28 @@ export default function EidCollectionPage() {
   const [isNotified, setIsNotified] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // --- 1. COUNTDOWN LOGIC (PERSISTENT) ---
+  // --- 1. FETCH TARGET DATE FROM DB ---
   useEffect(() => {
+    const fetchDate = async () => {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('eid_reveal_date')
+        .single();
+      
+      if (data?.eid_reveal_date) {
+        setTargetDate(data.eid_reveal_date);
+      }
+    };
+    fetchDate();
+  }, []);
+
+  // --- 2. COUNTDOWN LOGIC (DEPENDS ON DB DATE) ---
+  useEffect(() => {
+    // Wait until we have the date from the database
+    if (!targetDate) return;
+
     const calculateTime = () => {
-      const difference = +new Date(TARGET_DATE) - +new Date();
+      const difference = +new Date(targetDate) - +new Date();
 
       if (difference > 0) {
         setTimeLeft({
@@ -53,15 +68,15 @@ export default function EidCollectionPage() {
       }
     };
 
-    // Calculate immediately on load
+    // Calculate immediately
     calculateTime();
 
     // Update every second
     const timer = setInterval(calculateTime, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [targetDate]); // Run this effect whenever targetDate updates
 
-  // --- 2. FETCH DATA ---
+  // --- 3. FETCH PRODUCTS ---
   useEffect(() => {
     const fetchEidItems = async () => {
         const { data } = await supabase.from('products').select('*').eq('is_eid_exclusive', true);
@@ -72,7 +87,7 @@ export default function EidCollectionPage() {
     fetchEidItems();
   }, []);
 
-  // --- 3. NOTIFY BUTTON ---
+  // --- 4. NOTIFY BUTTON ---
   const handleNotify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.includes("@")) return toast.error("Please enter a valid email");

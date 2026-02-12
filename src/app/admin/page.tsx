@@ -106,6 +106,8 @@ export default function AdminDashboard() {
   const [financeStats, setFinanceStats] = useState({ 
     revenue: 0, cost: 0, expenses: 0, tax: 0, deliveryCost: 0, profit: 0 
   });
+  // NEW: Event Timer State
+  const [eidRevealDate, setEidRevealDate] = useState("");
 
   // NOTES STATE (DATABASE BACKED)
   const [managerNotes, setManagerNotes] = useState(""); 
@@ -165,6 +167,8 @@ export default function AdminDashboard() {
               if(editorRef.current) editorRef.current.innerHTML = data.manager_notes;
           }
           if (data.custom_expenses) setCustomExpenses(data.custom_expenses);
+          // NEW: Fetch the date from DB
+          if (data.eid_reveal_date) setEidRevealDate(data.eid_reveal_date);
       }
   };
 
@@ -216,7 +220,8 @@ export default function AdminDashboard() {
           id: 1,
           delivery_rates: deliveryRates,
           manager_notes: managerNotes,
-          custom_expenses: customExpenses
+          custom_expenses: customExpenses,
+          eid_reveal_date: eidRevealDate // NEW: Save the date
       });
       if (error) toast.error("Failed to save to DB");
       else toast.success("Saved to Database Successfully!");
@@ -293,7 +298,7 @@ export default function AdminDashboard() {
     if (!e.target.files?.[0]) return;
     const file = e.target.files[0];
     const isVideo = type === 'video' || file.type.startsWith('video/');
-     
+      
     let fileToUpload: File | Blob = file;
     if (!isVideo) fileToUpload = await compressImage(file);
 
@@ -400,10 +405,20 @@ export default function AdminDashboard() {
   };
 
   const deleteItem = async (table: string, id: number, refresh: () => void) => {
-      if(!confirm("Are you sure?")) return;
-      await supabase.from(table).delete().eq('id', id);
-      toast.success("Item deleted");
-      refresh();
+      if(!confirm("Are you sure? This cannot be undone.")) return;
+      
+      // 1. Send the Delete Request
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      
+      // 2. Check if the database said "NO"
+      if (error) {
+          console.error("Delete Error:", error);
+          toast.error(`Delete Failed: ${error.message}`);
+      } else {
+          // 3. Only show success if it actually worked
+          toast.success("Item successfully deleted from database");
+          refresh();
+      }
   };
 
   // --- TRIGGER EFFECTS (MOVED TO BOTTOM TO FIX HOISTING) ---
@@ -571,7 +586,7 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* SETTINGS AREA */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {/* Delivery Settings */}
                         <div className="bg-white p-6 rounded-2xl border border-gray-200">
                             <div className="flex justify-between items-center mb-4">
@@ -595,6 +610,21 @@ export default function AdminDashboard() {
                             <label className="block text-xs text-gray-400 mb-1">Add Extra Expenses (Marketing, loss, etc)</label>
                             <input type="number" className="w-full p-3 border rounded-xl text-lg font-bold text-red-500" value={customExpenses || 0} onChange={e => setCustomExpenses(Number(e.target.value))} placeholder="0"/>
                             <p className="text-xs text-gray-400 mt-2">This amount will be deducted from Net Profit immediately. Click "Save to DB" to store.</p>
+                        </div>
+
+                        {/* Event Settings (NEW ADDITION) */}
+                        <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-aura-brown flex items-center gap-2"><Calendar size={16}/> Ramzan Reveal Timer</h3>
+                            </div>
+                            <label className="block text-xs text-gray-400 mb-1">Unlock Date & Time</label>
+                            <input 
+                                type="datetime-local" 
+                                className="w-full p-3 border rounded-xl"
+                                value={eidRevealDate}
+                                onChange={e => setEidRevealDate(e.target.value)}
+                            />
+                            <p className="text-xs text-gray-400 mt-2">The Eid Collection will automatically unlock on this date. Click "Save to DB" to apply.</p>
                         </div>
                     </div>
                 </div>

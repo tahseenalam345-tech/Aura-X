@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowRight, X, ChevronDown, Filter } from "lucide-react"; 
 
 // --- CONFIGURATION ---
-const TARGET_DATE = "2026-02-27T18:00:00"; 
+// TARGET_DATE removed - now fetched dynamically from DB
 const FILTER_TAGS = ["All", "Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"];
 const ITEMS_PER_PAGE = 8;
 
@@ -53,11 +53,25 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // --- 1. REAL TIME CHECK ---
+  // --- 1. REAL TIME CHECK (Dynamic from Supabase) ---
   useEffect(() => {
-    const now = new Date().getTime();
-    const target = new Date(TARGET_DATE).getTime();
-    setIsEidLive(now >= target);
+    const checkTime = async () => {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('eid_reveal_date')
+        .single();
+
+      if (data?.eid_reveal_date) {
+        const targetTime = new Date(data.eid_reveal_date).getTime();
+        const now = new Date().getTime();
+        setIsEidLive(now >= targetTime);
+      }
+    };
+
+    checkTime();
+    // Check every minute so it unlocks automatically without refresh
+    const interval = setInterval(checkTime, 60000); 
+    return () => clearInterval(interval);
   }, []);
 
   // --- 2. BANNER SLIDER OPTIMIZED: Delay start to prevent Forced Reflow ---
