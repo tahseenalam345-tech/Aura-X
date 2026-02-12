@@ -159,6 +159,8 @@ export default function Home() {
                return (
                  <motion.div
                    key={index}
+                   // ⚡ THE FIX: This forces the server to render the image instantly
+                   initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity, filter: `blur(${pos.blur}px)` }}
                    animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity, filter: `blur(${pos.blur}px)` }}
                    transition={{ duration: 0.8 }}
                    className="absolute"
