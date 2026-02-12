@@ -2,41 +2,56 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // Import Router
+import { useRouter } from "next/navigation"; 
 import { useAuth } from "@/context/AuthContext";
-import { ArrowRight, Mail, Lock } from "lucide-react";
+import { ArrowRight, Mail, Lock, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase"; // <--- IMPORT SUPABASE
+import toast from "react-hot-toast";
 
 export default function LoginPage() {
-  const { login } = useAuth();
-  const router = useRouter(); // Use Router Here
+  const { login } = useAuth(); // We keep this to update local state if needed
+  const router = useRouter(); 
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ... imports
-
- // ... inside LoginPage component
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(async () => {
-      const role = await login(email, password);
+    try {
+      // 1. REAL SUPABASE LOGIN (This gets the Security Token)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // 2. SUCCESS! Supabase now knows you are the Admin.
+      // We also call your context login to keep the app UI in sync
+      if (login) await login(email, password); 
+
+      toast.success("Welcome back, Commander.");
       
-      // FIX: Use router.push for smooth transition (No Reload)
-      if (role === "admin") {
+      // 3. ROUTE BASED ON EMAIL
+      // (Replace this email with the one you create in Step 2)
+      if (email === "admin@aurax.com") {
           router.push("/admin"); 
       } else {
           router.push("/track-order");
       }
-      
-      // Keep loading true so button doesn't flash
-    }, 1000);
+
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Login Failed");
+      setLoading(false);
+    }
   };
 
-// ... rest of the file
   return (
     <main className="min-h-screen bg-[#1E1B18] text-white flex flex-col">
       <nav className="absolute top-0 w-full p-6 flex justify-between items-center z-10">
@@ -66,7 +81,7 @@ export default function LoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-12 pr-4 py-4 bg-[#1E1B18] border border-white/10 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-white placeholder:text-gray-600"
-                      placeholder="admin@aura.com"
+                      placeholder="admin@aurax.com"
                     />
                  </div>
               </div>
@@ -91,8 +106,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full bg-white/10 text-white font-bold py-4 rounded-xl hover:bg-aura-gold hover:text-aura-brown transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                 {loading ? "Authenticating..." : "Sign In"}
-                 {!loading && <ArrowRight size={18} />}
+                 {loading ? <><Loader2 className="animate-spin" size={18} /> Authenticating...</> : <>Sign In <ArrowRight size={18} /></>}
               </button>
            </form>
         </div>

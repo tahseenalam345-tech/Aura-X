@@ -407,18 +407,28 @@ export default function AdminDashboard() {
   const deleteItem = async (table: string, id: number, refresh: () => void) => {
       if(!confirm("Are you sure? This cannot be undone.")) return;
       
-      // 1. Send the Delete Request
-      const { error } = await supabase.from(table).delete().eq('id', id);
+      // 1. Send the Delete Request & Ask for a Count
+      const { error, count } = await supabase
+          .from(table)
+          .delete({ count: 'exact' }) // <--- This asks "How many did I delete?"
+          .eq('id', id);
       
-      // 2. Check if the database said "NO"
+      // 2. Check for Permission Errors
       if (error) {
           console.error("Delete Error:", error);
           toast.error(`Delete Failed: ${error.message}`);
-      } else {
-          // 3. Only show success if it actually worked
-          toast.success("Item successfully deleted from database");
-          refresh();
+          return;
       }
+
+      // 3. Check for "Silent Failure" (Permission Denied by RLS)
+      if (count === 0) {
+          toast.error("Delete Failed: Permission Denied or Item not found.");
+          return;
+      }
+
+      // 4. Success
+      toast.success("Item successfully deleted!");
+      refresh();
   };
 
   // --- TRIGGER EFFECTS (MOVED TO BOTTOM TO FIX HOISTING) ---
