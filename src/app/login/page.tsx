@@ -21,28 +21,26 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. REAL SUPABASE LOGIN (This gets the Security Token)
+      // 1. REAL SUPABASE LOGIN
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // 2. SUCCESS! Supabase now knows you are the Admin.
-      // We also call your context login to keep the app UI in sync
+      // 2. Sync Context (Optional but good)
       if (login) await login(email, password); 
 
-      toast.success("Welcome back, Commander.");
+      toast.success("Login Successful! Redirecting...");
       
-      // 3. ROUTE BASED ON EMAIL
-      // (Replace this email with the one you create in Step 2)
-      if (email === "admin@aurax.com") {
-          router.push("/admin"); 
+      // 3. THE FIX: Force a hard navigation.
+      // This ensures Supabase cookies are fully set before the Admin page loads.
+      // It prevents the Admin page from kicking you out accidentally.
+      if (email.toLowerCase() === "admin@aurax.com") {
+          window.location.href = "/admin"; 
       } else {
-          router.push("/track-order");
+          window.location.href = "/track-order";
       }
 
     } catch (err: any) {

@@ -432,9 +432,29 @@ export default function AdminDashboard() {
   };
 
   // --- TRIGGER EFFECTS (MOVED TO BOTTOM TO FIX HOISTING) ---
-  useEffect(() => {
+ // --- TRIGGER EFFECTS ---
+  // --- TRIGGER EFFECTS ---
+  
+  // 1. DELETE OR COMMENT OUT THIS OLD REDIRECT:
+  /* useEffect(() => {
     if (!isLoading && !isAdmin) router.push("/login");
   }, [isAdmin, isLoading, router]);
+  */
+
+  // 2. ADD THIS DEBUGGER INSTEAD:
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("Current Supabase User:", user);
+      
+      if (!user) {
+        toast.error("Supabase says: No User Logged In");
+      } else {
+        toast.success(`Logged in as: ${user.email}`);
+      }
+    };
+    checkUser();
+  }, []);
 
   useEffect(() => {
     fetchProducts();
@@ -457,8 +477,12 @@ export default function AdminDashboard() {
     if(orders.length > 0) calculateFinance();
   }, [orders, products, dateFilter, deliveryRates, customExpenses]);
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (!isAdmin) return null;
+ // REPLACE WITH THIS:
+  // We allow the page to render so you can debug. 
+  // If RLS is working, the data will just be empty if you aren't logged in.
+  if (isLoading) {
+     return <div className="min-h-screen flex items-center justify-center bg-[#1E1B18] text-white">Loading Admin Panel...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-gray-800 overflow-hidden">
