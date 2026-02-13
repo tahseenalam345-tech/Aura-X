@@ -44,11 +44,12 @@ export function Footer() {
                     {/* LOGO */}
                     <Link href="/" className="block relative w-48 h-24 opacity-90 hover:opacity-100 transition-opacity">
                          <Image 
-                            src="/logo.png" 
-                            alt="AURA-X Luxury Timepieces Brand Logo" 
-                            fill 
-                            className="object-contain object-left" 
-                        /> 
+    src="/logo.png" 
+    alt="AURA-X Luxury Timepieces Brand Logo" 
+    fill 
+    sizes="(max-width: 768px) 50vw, 200px" // <--- ADD THIS LINE
+    className="object-contain object-left" 
+/>
                     </Link>
                     <p className="text-white/60 text-sm leading-relaxed font-light font-serif max-w-xs">
                         Defining the essence of luxury timepieces. Precision, elegance, and timeless heritage crafted for the modern era.
@@ -187,8 +188,14 @@ export function Footer() {
                         <p className="text-xs font-bold text-aura-gold group-hover:text-white transition-colors">AURA DEPT OFFICIAL</p>
                     </div>
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-white/90 shadow-lg">
-                        <Image src="/auradept.png" alt="Aura Dept Logo" fill className="object-contain p-1" />
-                    </div>
+    <Image 
+        src="/auradept.png" 
+        alt="Aura Dept Logo" 
+        fill 
+        sizes="40px" // <--- ADD THIS LINE (Since it's always tiny)
+        className="object-contain p-1" 
+    />
+</div>
                 </Link>
 
             </div>

@@ -25,7 +25,11 @@ export default function CategoryPage() {
   const [priceRange, setPriceRange] = useState(500000); 
   const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
   const [selectedStraps, setSelectedStraps] = useState<string[]>([]);
+  
+  // --- SORTING STATE ---
   const [sortBy, setSortBy] = useState("featured");
+  const [sortOpen, setSortOpen] = useState(false); // New state for mobile sort menu
+
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const movements = ["Automatic", "Mechanical", "Quartz"];
@@ -73,8 +77,22 @@ export default function CategoryPage() {
 
     return true;
   }).sort((a, b) => {
-    if (sortBy === "low-high") return a.price - b.price;
-    if (sortBy === "high-low") return b.price - a.price;
+    // 1. Featured (Priority High -> Low)
+    if (sortBy === "featured") {
+        return (b.priority || 0) - (a.priority || 0);
+    }
+    // 2. Newest (Date New -> Old)
+    if (sortBy === "newest") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+    // 3. Price Low -> High
+    if (sortBy === "low-high") {
+        return a.price - b.price;
+    }
+    // 4. Price High -> Low
+    if (sortBy === "high-low") {
+        return b.price - a.price;
+    }
     return 0; 
   });
 
@@ -197,19 +215,53 @@ export default function CategoryPage() {
 
                 <p className="hidden md:block text-sm text-gray-500 italic" aria-live="polite">Showing {filteredProducts.length} masterpieces</p>
                 
-                <div className="relative group z-20">
-                    <button className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider text-aura-brown hover:text-aura-gold transition" aria-label="Sort collection">
-                        Sort By <ChevronDown size={16} />
+                {/* --- SORT BY DROPDOWN (UPDATED FOR MOBILE TAP) --- */}
+                <div className="relative z-20">
+                    <button 
+                        onClick={() => setSortOpen(!sortOpen)} 
+                        className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider text-aura-brown hover:text-aura-gold transition" 
+                        aria-label="Sort collection"
+                    >
+                        Sort By: {sortBy.replace('-', ' ').replace('featured', 'Featured').replace('newest', 'Newest')} 
+                        <ChevronDown size={16} className={`transition-transform duration-300 ${sortOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block">
-                        <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
-                            {["featured", "low-high", "high-low"].map((option) => (
-                              <button key={option} onClick={() => setSortBy(option)} className="block w-full text-left px-4 py-3 text-sm hover:bg-aura-gold/10 transition capitalize">
-                                {option.replace('-', ' ')}
-                              </button>
-                            ))}
-                        </div>
-                    </div>
+
+                    {/* BACKDROP: Closes menu when tapping outside */}
+                    {sortOpen && (
+                        <div 
+                            className="fixed inset-0 z-10 cursor-default" 
+                            onClick={() => setSortOpen(false)}
+                        />
+                    )}
+
+                    {/* DROPDOWN MENU */}
+                    <AnimatePresence>
+                        {sortOpen && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute right-0 top-full pt-2 w-48 z-20"
+                            >
+                                <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
+                                    {[
+                                        { val: "featured", label: "Featured" },
+                                        { val: "newest", label: "Newest" },
+                                        { val: "low-high", label: "Price: Low to High" },
+                                        { val: "high-low", label: "Price: High to Low" }
+                                    ].map((option) => (
+                                      <button 
+                                        key={option.val} 
+                                        onClick={() => { setSortBy(option.val); setSortOpen(false); }} 
+                                        className={`block w-full text-left px-4 py-3 text-sm transition ${sortBy === option.val ? 'bg-aura-gold/10 text-aura-gold font-bold' : 'hover:bg-gray-50 text-gray-700'}`}
+                                      >
+                                        {option.label}
+                                      </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
@@ -256,7 +308,7 @@ export default function CategoryPage() {
             {!loading && filteredProducts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-6">No pieces match these criteria.</p>
-                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]);}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold transition-colors">
+                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]); setSortBy("featured");}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold transition-colors">
                       CLEAR ALL FILTERS
                     </button>
                 </div>
