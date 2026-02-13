@@ -1,13 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // PERFORMANCE FIX: Re-enable build checks to ensure stability
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false, // Changed from true
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false, // Changed from true
   },
+  
   images: {
-    // Enable advanced image optimization formats
+    // Advanced image optimization (AVIF is 20% smaller than WebP)
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
@@ -24,6 +26,9 @@ const nextConfig = {
       },
     ],
   },
+  
+  // OPTIONAL: Add compiler optimization for faster production builds
+  swcMinify: true, 
 };
 
 export default nextConfig;

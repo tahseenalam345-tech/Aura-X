@@ -49,38 +49,32 @@ const processFileUpload = async (file: File) => {
 
     if (!isVideo) { 
         try { fileToUpload = await compressImage(file); } 
-        catch (e) { console.error(e); return null; } 
+        catch (e) { console.error("Compression failed:", e); return null; } 
     }
 
     const ext = isVideo ? 'mp4' : 'jpg';
 
-    // --- NEW SANITIZATION LOGIC ---
-    // 1. Remove the extension from the original name
-    const originalName = file.name.split('.').slice(0, -1).join('.');
-    
-    // 2. Remove brackets, dots, spaces, and special symbols
-    // This replaces anything that IS NOT a letter or number with a single dash
-    const cleanName = originalName
-        .replace(/[^a-zA-Z0-9]/g, '-') // Replace brackets/dots/spaces with -
-        .replace(/-+/g, '-')           // Turn multiple dashes (---) into one (-)
+    // --- NUCLEAR SANITIZATION ---
+    // This removes EVERY character except basic letters and numbers.
+    // No dots, no dashes, no brackets, no spaces.
+    const cleanName = file.name
+        .split('.')[0]               // Get name before the dot
+        .replace(/[^a-zA-Z0-9]/g, '') // Delete everything else
         .toLowerCase()
-        .slice(0, 20);                 // Keep it short
+        .slice(0, 10);                // Keep it very short
 
-    // 3. Create the final safe filename
-    const fileName = `${Date.now()}-${cleanName}.${ext}`;
-    // -------------------------------
+    const fileName = `v2-${Date.now()}-${cleanName}.${ext}`;
 
     const { error } = await supabase.storage.from('product-images').upload(fileName, fileToUpload); 
     
     if (error) { 
-        console.error("Supabase Upload Error:", error); 
+        console.error("Upload Error:", error.message); 
         return null; 
     }
 
     const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
     return publicUrl;
 };
-
 export default function InventoryTab({ products, fetchProducts }: { products: any[], fetchProducts: () => void }) {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);

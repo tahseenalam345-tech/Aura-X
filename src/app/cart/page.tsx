@@ -1,21 +1,38 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
-import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Truck } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Truck, Loader2 } from "lucide-react";
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, cartTotal } = useCart();
+  const [isMounted, setIsMounted] = useState(false);
 
+  // Constants
   const FREE_SHIPPING_THRESHOLD = 5000;
   const STANDARD_SHIPPING_COST = 250;
 
+  // Hydration Fix: Ensures the client-side cart matches the server render
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Derived Values
   const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
   const shippingCost = isFreeShipping ? 0 : STANDARD_SHIPPING_COST;
   const finalTotal = cartTotal + shippingCost;
   const amountNeededForFreeShip = FREE_SHIPPING_THRESHOLD - cartTotal;
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">
+        <Loader2 className="animate-spin text-aura-gold" size={32} />
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32">
@@ -50,56 +67,66 @@ export default function CartPage() {
                         <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
                            <div 
                              className="h-full bg-aura-gold transition-all duration-500" 
-                             style={{ width: `${(cartTotal / FREE_SHIPPING_THRESHOLD) * 100}%` }}
+                             style={{ width: `${Math.min((cartTotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
                            ></div>
                         </div>
                     </div>
                  </div>
               )}
 
-              {cart.map((item) => (
-                <div key={`${item.id}-${item.color}`} className="flex gap-4 md:gap-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group hover:border-aura-gold/30 transition-all">
-                  
-                  <div className="relative w-24 h-24 md:w-32 md:h-32 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
-                    <Image src={item.image} alt={item.name} fill className="object-contain p-2 mix-blend-multiply" decoding="async" />
-                  </div>
+              {cart.map((item) => {
+                const extras = (item.isGift ? 150 : 0) + (item.addBox ? 100 : 0);
+                const itemTotalPrice = (item.price + extras) * item.quantity;
 
-                  <div className="flex-1 flex flex-col justify-between py-1">
-                    <div>
-                      <div className="flex justify-between items-start">
-                         <h3 className="font-serif font-bold text-lg md:text-xl text-aura-brown line-clamp-1">{item.name}</h3>
-                         <button 
-                           onClick={() => removeFromCart(item.id, item.color)} 
-                           className="text-gray-300 hover:text-red-500 transition-colors p-1"
-                           aria-label={`Remove ${item.name} from cart`}
-                         >
-                           <Trash2 size={18} />
-                         </button>
-                      </div>
-                      {item.color && <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">Color: {item.color}</p>}
-                      
-                      <div className="flex gap-2 mt-2 flex-wrap">
-                         {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-bold border border-purple-100">Gift Wrap (+Rs 150)</span>}
-                         {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold border border-orange-100">Premium Box (+Rs 100)</span>}
-                      </div>
+                return (
+                  <div key={`${item.id}-${item.color}`} className="flex gap-4 md:gap-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group hover:border-aura-gold/30 transition-all">
+                    <div className="relative w-24 h-24 md:w-32 md:h-32 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
+                      <Image 
+                        src={item.image} 
+                        alt={item.name} 
+                        fill 
+                        sizes="150px"
+                        className="object-contain p-2 mix-blend-multiply" 
+                        priority={false}
+                      />
                     </div>
 
-                    <div className="flex justify-between items-end mt-4">
-                      <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-8 md:h-10">
-                        <button onClick={() => updateQuantity(item.id, item.color, -1)} className="w-8 md:w-10 flex items-center justify-center hover:text-aura-gold hover:bg-white rounded-l-full transition-colors" aria-label={`Decrease quantity of ${item.name}`}><Minus size={14} /></button>
-                        <span className="text-xs font-bold w-4 text-center" aria-live="polite">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, item.color, 1)} className="w-8 md:w-10 flex items-center justify-center hover:text-aura-gold hover:bg-white rounded-r-full transition-colors" aria-label={`Increase quantity of ${item.name}`}><Plus size={14} /></button>
+                    <div className="flex-1 flex flex-col justify-between py-1">
+                      <div>
+                        <div className="flex justify-between items-start">
+                           <h3 className="font-serif font-bold text-lg md:text-xl text-aura-brown line-clamp-1">{item.name}</h3>
+                           <button 
+                             onClick={() => removeFromCart(item.id, item.color)} 
+                             className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                           >
+                             <Trash2 size={18} />
+                           </button>
+                        </div>
+                        {item.color && <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">Color: {item.color}</p>}
+                        
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                           {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-bold border border-purple-100">Gift Wrap (+Rs 150)</span>}
+                           {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold border border-orange-100">Premium Box (+Rs 100)</span>}
+                        </div>
                       </div>
-                      
-                      <div className="text-right">
-                         <p className="text-sm font-bold text-aura-brown">
-                            Rs {((item.price + (item.isGift ? 150 : 0) + (item.addBox ? 100 : 0)) * item.quantity).toLocaleString()}
-                         </p>
+
+                      <div className="flex justify-between items-end mt-4">
+                        <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-8 md:h-10">
+                          <button onClick={() => updateQuantity(item.id, item.color, -1)} className="w-8 md:w-10 flex items-center justify-center hover:text-aura-gold hover:bg-white rounded-l-full transition-colors"><Minus size={14} /></button>
+                          <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.id, item.color, 1)} className="w-8 md:w-10 flex items-center justify-center hover:text-aura-gold hover:bg-white rounded-r-full transition-colors"><Plus size={14} /></button>
+                        </div>
+                        
+                        <div className="text-right">
+                           <p className="text-sm font-bold text-aura-brown">
+                             Rs {itemTotalPrice.toLocaleString()}
+                           </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="lg:col-span-1">
@@ -128,7 +155,7 @@ export default function CartPage() {
                    <span className="font-serif text-2xl font-bold text-aura-brown">Rs {finalTotal.toLocaleString()}</span>
                 </div>
 
-                <Link href="/checkout" className="block w-full bg-aura-brown text-white text-center py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold hover:shadow-xl transition-all flex items-center justify-center gap-2 group shadow-md" aria-label="Proceed to checkout page">
+                <Link href="/checkout" className="block w-full bg-aura-brown text-white text-center py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold hover:shadow-xl transition-all flex items-center justify-center gap-2 group shadow-md">
                    PROCEED TO CHECKOUT <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
 
