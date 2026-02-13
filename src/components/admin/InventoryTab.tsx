@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Video, Star, Package, Check } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Video, Star, Package, Check, Palette } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
@@ -46,32 +46,52 @@ const compressImage = (file: File): Promise<Blob> => {
 const processFileUpload = async (file: File) => {
     const isVideo = file.type.startsWith('video/');
     let fileToUpload: File | Blob = file;
-    if (!isVideo) { try { fileToUpload = await compressImage(file); } catch (e) { console.error(e); return null; } }
+
+    if (!isVideo) { 
+        try { fileToUpload = await compressImage(file); } 
+        catch (e) { console.error(e); return null; } 
+    }
+
     const ext = isVideo ? 'mp4' : 'jpg';
-    const fileName = `${Date.now()}-${file.name.replace(/\s/g, '-').slice(0, 10)}.${ext}`;
+
+    // --- NEW SANITIZATION LOGIC ---
+    // 1. Remove the extension from the original name
+    const originalName = file.name.split('.').slice(0, -1).join('.');
+    
+    // 2. Remove brackets, dots, spaces, and special symbols
+    // This replaces anything that IS NOT a letter or number with a single dash
+    const cleanName = originalName
+        .replace(/[^a-zA-Z0-9]/g, '-') // Replace brackets/dots/spaces with -
+        .replace(/-+/g, '-')           // Turn multiple dashes (---) into one (-)
+        .toLowerCase()
+        .slice(0, 20);                 // Keep it short
+
+    // 3. Create the final safe filename
+    const fileName = `${Date.now()}-${cleanName}.${ext}`;
+    // -------------------------------
+
     const { error } = await supabase.storage.from('product-images').upload(fileName, fileToUpload); 
-    if (error) { console.error(error); return null; }
+    
+    if (error) { 
+        console.error("Supabase Upload Error:", error); 
+        return null; 
+    }
+
     const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
     return publicUrl;
 };
 
-// --- COMPONENT ---
 export default function InventoryTab({ products, fetchProducts }: { products: any[], fetchProducts: () => void }) {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", image: "" });
 
-  // --- FORM DEFAULTS ---
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", 
     stock: 1, category: "", 
-    price: 0, 
-    originalPrice: 0, 
-    discount: 0, 
-    costPrice: 0,
-    tags: "" as string, 
-    priority: 100, viewCount: 0, isEidExclusive: false, 
+    price: 0, originalPrice: 0, discount: 0, costPrice: 0,
+    tags: "" as string, priority: 100, viewCount: 0, isEidExclusive: false, 
     movement: "Quartz (Battery)", waterResistance: "0ATM (No Resistance)", 
     glass: "", caseMaterial: "", caseColor: "Silver", caseShape: "Round", 
     caseDiameter: "40mm", caseThickness: "10mm", 
@@ -79,12 +99,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     dialColor: "", luminous: false, dateDisplay: false, weight: "135g", 
     description: "", warranty: "No Official Warranty", 
     shippingText: "2-4 Working Days", returnPolicy: "7 Days Return Policy", boxIncluded: false, 
-    mainImage: "", gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
+    mainImage: "", baseColorName: "Silver",
+    gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
     video: "", manualReviews: [] as any[] 
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // --- HANDLERS ---
   const handleAddNewClick = () => {
     const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
     setFormData({ ...initialFormState, sku: randomSku });
@@ -93,15 +113,11 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
 
   const handleEditClick = (item: any) => {
-    // 1. EXTRACT SPECS
     const specs = item.specs || {};
-
-    // 2. EXTRACT TAGS
     let singleTag = "";
     if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
     else if (typeof item.tags === 'string') singleTag = item.tags;
 
-    // 3. FULL MAPPING
     setFormData({
         ...initialFormState,
         name: item.name || "",
@@ -112,17 +128,16 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         discount: item.discount || 0,
         description: item.description || "",
         mainImage: item.main_image || "",
+        baseColorName: item.colors?.[0]?.name || "Silver",
         tags: singleTag,
         priority: item.priority || 100,
         isEidExclusive: item.is_eid_exclusive || false,
-        colors: item.colors || [],
+        colors: item.colors?.slice(1) || [], 
         manualReviews: item.manual_reviews || [],
-
         sku: specs.sku || item.sku || "",
         stock: specs.stock || 1,
         costPrice: specs.cost_price || 0,
         viewCount: specs.view_count || 0,
-        
         movement: specs.movement || "Quartz (Battery)",
         waterResistance: specs.water_resistance || "0ATM (No Resistance)",
         glass: specs.glass || "",
@@ -131,22 +146,18 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         caseShape: specs.case_shape || "Round",
         caseDiameter: specs.case_size || "40mm",
         caseThickness: specs.case_thickness || "10mm",
-        
         strapMaterial: specs.strap || "",
         strapColor: specs.strap_color || "",
         strapWidth: specs.strap_width || "20mm",
         adjustable: specs.adjustable ?? true,
-        
         dialColor: specs.dial_color || "",
         luminous: specs.luminous ?? false,
         dateDisplay: specs.date_display ?? false,
         weight: specs.weight || "135g",
-        
         warranty: specs.warranty || "No Official Warranty",
         shippingText: specs.shipping_text || "2-4 Working Days",
         returnPolicy: specs.return_policy || "7 Days Return Policy",
         boxIncluded: specs.box_included ?? false,
-        
         gallery: specs.gallery || [],
         video: specs.video || ""
     });
@@ -156,8 +167,49 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     setShowForm(true);
   };
 
+  const applyImageToState = (url: string, type: string, index?: number) => {
+    if (type === 'main') setFormData(prev => ({ ...prev, mainImage: url }));
+    else if (type === 'gallery') setFormData(prev => ({ ...prev, gallery: [...prev.gallery, url] }));
+    else if (type === 'video') setFormData(prev => ({ ...prev, video: url }));
+    else if (type === 'review') setNewReview(prev => ({ ...prev, image: url }));
+    else if (type === 'color' && index !== undefined) {
+        setFormData(prev => {
+            const newColors = [...prev.colors];
+            newColors[index].image = url;
+            return { ...prev, colors: newColors };
+        });
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, type: 'main' | 'gallery' | 'video') => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const url = await processFileUpload(e.dataTransfer.files[0]);
+      if (url) applyImageToState(url, type);
+    }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent, type: 'main' | 'gallery' | 'video') => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                const url = await processFileUpload(file);
+                if (url) applyImageToState(url, type);
+            }
+        }
+    }
+  };
+
   const handlePublish = async (e: React.FormEvent) => {
       e.preventDefault();
+      const mainColorVariant = {
+          name: formData.baseColorName,
+          hex: COLOR_MAP[formData.baseColorName] || "#C0C0C0",
+          image: formData.mainImage
+      };
+      const allColors = [mainColorVariant, ...formData.colors];
       const tagsArray = formData.tags ? [formData.tags] : [];
 
       const productPayload = {
@@ -166,7 +218,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           description: formData.description, main_image: formData.mainImage, tags: tagsArray, 
           rating: formData.priority, is_sale: formData.discount > 0, 
           priority: formData.priority, is_eid_exclusive: formData.isEidExclusive, 
-          colors: formData.colors, manual_reviews: formData.manualReviews, 
+          colors: allColors, manual_reviews: formData.manualReviews, 
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
@@ -191,10 +243,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const deleteItem = async (id: number) => {
       if(!confirm("Are you sure? This cannot be undone.")) return;
-      const { error, count } = await supabase.from('products').delete({ count: 'exact' }).eq('id', id);
+      const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) { toast.error(`Delete Failed: ${error.message}`); return; }
-      if (count === 0) { toast.error("Delete Failed: Permission Denied."); return; }
-      toast.success("Item successfully deleted!");
+      toast.success("Item deleted!");
       fetchProducts();
   };
 
@@ -212,41 +263,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     const url = await processFileUpload(e.target.files[0]);
     if (!url) return;
     applyImageToState(url, type, index);
-  };
-
-  const handleDrop = async (e: React.DragEvent, type: 'main' | 'gallery' | 'video') => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const url = await processFileUpload(e.dataTransfer.files[0]);
-      if (url) applyImageToState(url, type);
-    }
-  };
-
-  const handlePaste = async (e: React.ClipboardEvent, type: 'main' | 'gallery' | 'video') => {
-    const items = e.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf("image") !== -1) {
-            const file = items[i].getAsFile();
-            if (file) {
-                const url = await processFileUpload(file);
-                if (url) applyImageToState(url, type);
-            }
-        }
-    }
-  };
-
-  const applyImageToState = (url: string, type: string, index?: number) => {
-    if (type === 'main') setFormData(prev => ({ ...prev, mainImage: url }));
-    else if (type === 'gallery') setFormData(prev => ({ ...prev, gallery: [...prev.gallery, url] }));
-    else if (type === 'video') setFormData(prev => ({ ...prev, video: url }));
-    else if (type === 'review') setNewReview(prev => ({ ...prev, image: url }));
-    else if (type === 'color' && index !== undefined) {
-        setFormData(prev => {
-            const newColors = [...prev.colors];
-            newColors[index].image = url;
-            return { ...prev, colors: newColors };
-        });
-    }
   };
 
   const removeImage = (type: 'main' | 'gallery' | 'video', index?: number) => {
@@ -268,8 +284,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
 
   const deleteReview = (index: number) => {
-    const updatedReviews = formData.manualReviews.filter((_, i) => i !== index);
-    setFormData({ ...formData, manualReviews: updatedReviews });
+    setFormData({ ...formData, manualReviews: formData.manualReviews.filter((_, i) => i !== index) });
   };
 
   return (
@@ -290,14 +305,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     {item.main_image && (
                                         isVideoFile(item.main_image) 
                                         ? <video src={item.main_image} className="w-full h-full object-cover" muted /> 
-                                        : <Image 
-                                            src={item.main_image} 
-                                            alt="" 
-                                            fill 
-                                            sizes="40px"
-                                            className="object-cover" 
-                                            unoptimized 
-                                          />
+                                        : <Image src={item.main_image} alt="" fill sizes="40px" className="object-cover" unoptimized />
                                     )}
                                 </div>
                                 <div className="truncate max-w-[150px]">
@@ -394,20 +402,33 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </section>
 
                             <section className="space-y-6">
-                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals</h3>
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals & Variants</h3>
                                 <div className="flex flex-col md:flex-row gap-6 mb-6">
-                                    <div className="w-full md:w-40">
-                                        <label className="block text-xs font-bold text-gray-500 mb-2">Main Image</label>
-                                        <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}
-                                            onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'main')} onPaste={(e) => handlePaste(e, 'main')} tabIndex={0}>
-                                            {formData.mainImage ? (
-                                                <>
-                                                    {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" /> : <Image src={formData.mainImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" />}
-                                                    <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
-                                                </>
-                                            ) : (
-                                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400 mt-1">Click / Paste / Drop</span><input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'main')}/></label>
-                                            )}
+                                    <div className="w-full md:w-40 space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 mb-2">Main Image</label>
+                                            <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}
+                                                onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'main')} onPaste={(e) => handlePaste(e, 'main')} tabIndex={0}>
+                                                {formData.mainImage ? (
+                                                    <>
+                                                        {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" /> : <Image src={formData.mainImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" />}
+                                                        <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
+                                                    </>
+                                                ) : (
+                                                    <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400 mt-1">Upload</span><input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'main')}/></label>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="text-[10px] font-bold text-aura-gold flex items-center gap-1 uppercase tracking-tight"><Palette size={10}/> Main Color</label>
+                                            <select 
+                                                className="w-full p-2 bg-aura-gold/5 border border-aura-gold/20 rounded-lg text-xs font-bold text-aura-brown" 
+                                                value={formData.baseColorName} 
+                                                onChange={e => setFormData({...formData, baseColorName: e.target.value})}
+                                            >
+                                                {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
                                         </div>
                                     </div>
                                     <div className="flex-1">
@@ -425,29 +446,16 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="w-full md:w-40">
-                                        <label className="block text-xs font-bold text-gray-500 mb-2">Short Video</label>
-                                        <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.video ? 'border-aura-gold' : 'border-gray-300'}`}
-                                            onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'video')} onPaste={(e) => handlePaste(e, 'video')} tabIndex={0}>
-                                            {formData.video ? (
-                                                <>
-                                                    <video src={formData.video} className="object-cover w-full h-full" autoPlay muted loop />
-                                                    <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('video');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
-                                                </>
-                                            ) : (
-                                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Video size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400 mt-1">Add Video</span><input type="file" accept="video/*" className="hidden" onChange={(e) => handleImageUpload(e, 'video')}/></label>
-                                            )}
-                                        </div>
-                                    </div>
                                 </div>
+                                
                                 <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                                    <label className="block text-xs font-bold text-gray-500 mb-4 uppercase">Color Variants</label>
+                                    <label className="block text-xs font-bold text-gray-500 mb-4 uppercase tracking-widest">Additional Color Variants</label>
                                     <div className="space-y-4">
                                         {formData.colors.map((color, index) => (
                                             <div key={index} className="flex flex-col md:flex-row gap-4 items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
                                                 <input type="color" className="w-10 h-10 rounded border-none cursor-pointer" value={color.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} />
                                                 <select className="flex-1 p-2 border rounded-lg text-sm bg-white" value={color.name || ""} onChange={(e) => { const name = e.target.value; const c = [...formData.colors]; c[index].name = name; if (COLOR_MAP[name]) c[index].hex = COLOR_MAP[name]; setFormData({...formData, colors: c}); }}>
-                                                    <option value="">Select Popular Color</option>
+                                                    <option value="">Select Variant Color</option>
                                                     {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
                                                 </select>
                                                 <label className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg text-xs font-bold cursor-pointer hover:bg-gray-100 w-full md:w-auto justify-center border">
@@ -456,7 +464,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 <button type="button" onClick={() => setFormData({...formData, colors: formData.colors.filter((_, i) => i !== index)})} className="text-red-400"><Trash2 size={18}/></button>
                                             </div>
                                         ))}
-                                        <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, { name: "Silver", hex: "#C0C0C0", image: "" }]})} className="text-sm font-bold text-aura-brown flex items-center gap-2"><Plus size={16} /> Add Color Variant</button>
+                                        <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, { name: "Silver", hex: "#C0C0C0", image: "" }]})} className="text-sm font-bold text-aura-brown flex items-center gap-2 hover:text-aura-gold transition-colors"><Plus size={16} /> Add Another Color</button>
                                     </div>
                                 </div>
                             </section>

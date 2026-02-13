@@ -28,7 +28,7 @@ export default function CategoryPage() {
   
   // --- SORTING STATE ---
   const [sortBy, setSortBy] = useState("featured");
-  const [sortOpen, setSortOpen] = useState(false); // New state for mobile sort menu
+  const [sortOpen, setSortOpen] = useState(false); 
 
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
@@ -77,19 +77,15 @@ export default function CategoryPage() {
 
     return true;
   }).sort((a, b) => {
-    // 1. Featured (Priority High -> Low)
     if (sortBy === "featured") {
         return (b.priority || 0) - (a.priority || 0);
     }
-    // 2. Newest (Date New -> Old)
     if (sortBy === "newest") {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
-    // 3. Price Low -> High
     if (sortBy === "low-high") {
         return a.price - b.price;
     }
-    // 4. Price High -> Low
     if (sortBy === "high-low") {
         return b.price - a.price;
     }
@@ -215,7 +211,6 @@ export default function CategoryPage() {
 
                 <p className="hidden md:block text-sm text-gray-500 italic" aria-live="polite">Showing {filteredProducts.length} masterpieces</p>
                 
-                {/* --- SORT BY DROPDOWN (UPDATED FOR MOBILE TAP) --- */}
                 <div className="relative z-20">
                     <button 
                         onClick={() => setSortOpen(!sortOpen)} 
@@ -226,7 +221,6 @@ export default function CategoryPage() {
                         <ChevronDown size={16} className={`transition-transform duration-300 ${sortOpen ? 'rotate-180' : ''}`} />
                     </button>
 
-                    {/* BACKDROP: Closes menu when tapping outside */}
                     {sortOpen && (
                         <div 
                             className="fixed inset-0 z-10 cursor-default" 
@@ -234,7 +228,6 @@ export default function CategoryPage() {
                         />
                     )}
 
-                    {/* DROPDOWN MENU */}
                     <AnimatePresence>
                         {sortOpen && (
                             <motion.div 
@@ -273,7 +266,7 @@ export default function CategoryPage() {
                 <div className="flex flex-col gap-12">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                         <AnimatePresence mode="popLayout">
-                            {visibleProducts.map((product) => (
+                            {visibleProducts.map((product, index) => (
                                 <motion.div 
                                     key={product.id}
                                     variants={fadeInUp}
@@ -282,7 +275,11 @@ export default function CategoryPage() {
                                     exit={{ opacity: 0, scale: 0.9 }}
                                     layout
                                 >
-                                    <ProductCard product={product} />
+                                    {/* Critical Fix: Pass priority only to the first 4 visible items */}
+                                    <ProductCard 
+                                      product={product} 
+                                      priority={index < 4} 
+                                    />
                                 </motion.div>
                             ))}
                         </AnimatePresence>
