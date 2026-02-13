@@ -44,7 +44,7 @@ export default function PrivacyPolicyPage() {
 
             <section>
                 <h3 className="text-xl font-bold mb-3 text-aura-brown">3. Contact Us</h3>
-                <p>If you have questions, email us at <strong>support@aura-x.com</strong>.</p>
+                <p>If you have questions, email us at <strong>auraxofficial1@gmail.com</strong>.</p>
             </section>
         </div>
       </div>

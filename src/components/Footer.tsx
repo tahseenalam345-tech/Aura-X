@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { Facebook, Instagram, Twitter, Youtube, ArrowRight, Phone, Mail, Loader2 } from "lucide-react";
+import { Facebook, Instagram, Music, ArrowRight, Phone, Mail, Loader2 } from "lucide-react"; // Imported Music for TikTok
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 
@@ -56,21 +56,31 @@ export function Footer() {
                     
                     {/* Social Icons */}
                     <div className="flex gap-4">
-                        {[
-                          { Icon: Facebook, label: "Follow us on Facebook" },
-                          { Icon: Instagram, label: "Follow us on Instagram" },
-                          { Icon: Twitter, label: "Follow us on Twitter" },
-                          { Icon: Youtube, label: "Subscribe to our Youtube channel" }
-                        ].map(({ Icon, label }, i) => (
-                            <Link 
-                                key={i} 
-                                href="#" 
-                                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:bg-aura-gold hover:text-aura-brown transition-all duration-300 transform hover:-translate-y-1"
-                                aria-label={label}
-                            >
-                                <Icon size={18} />
-                            </Link>
-                        ))}
+                        <Link 
+                            href="https://www.facebook.com/share/18Qq6jArr7/" 
+                            target="_blank"
+                            className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:bg-aura-gold hover:text-aura-brown transition-all duration-300 transform hover:-translate-y-1"
+                            aria-label="Follow us on Facebook"
+                        >
+                            <Facebook size={18} />
+                        </Link>
+                        <Link 
+                            href="https://www.instagram.com/aura.x_official?igsh=MWtubHVsZ2dvbmVrNQ==" 
+                            target="_blank"
+                            className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:bg-aura-gold hover:text-aura-brown transition-all duration-300 transform hover:-translate-y-1"
+                            aria-label="Follow us on Instagram"
+                        >
+                            <Instagram size={18} />
+                        </Link>
+                        {/* TikTok Button */}
+                        <Link 
+                            href="#" // PASTE YOUR TIKTOK LINK HERE
+                            target="_blank"
+                            className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:bg-aura-gold hover:text-aura-brown transition-all duration-300 transform hover:-translate-y-1"
+                            aria-label="Follow us on TikTok"
+                        >
+                            <Music size={18} /> 
+                        </Link>
                     </div>
                 </div>
 
@@ -143,11 +153,11 @@ export function Footer() {
                         </a>
 
                         <a 
-                            href="mailto:tahseenalam345@gmail.com" 
+                            href="mailto:auraxofficial1@gmail.com" 
                             className="flex items-center gap-3 hover:text-aura-gold transition-colors"
                         >
                             <Mail size={14} className="text-aura-gold"/> 
-                            <span className="font-mono tracking-wide">tahseenalam345@gmail.com</span>
+                            <span className="font-mono tracking-wide">auraxofficial1@gmail.com</span>
                         </a>
                     </div>
                 </div>

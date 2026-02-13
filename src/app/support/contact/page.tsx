@@ -58,11 +58,11 @@ export default function ContactPage() {
                         <div className="space-y-6">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-aura-gold"><Phone size={20}/></div>
-                                <div><p className="text-xs text-white/50 uppercase tracking-widest">Phone</p><p className="font-bold">+92 326 1688628</p></div>
+                                <div><p className="text-xs text-white/50 uppercase tracking-widest">Phone</p><p className="font-bold">+92 336 9178278</p></div>
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-aura-gold"><Mail size={20}/></div>
-                                <div><p className="text-xs text-white/50 uppercase tracking-widest">Email</p><p className="font-bold">support@aura-x.com</p></div>
+                                <div><p className="text-xs text-white/50 uppercase tracking-widest">Email</p><p className="font-bold">auraxofficial1@gmail.com</p></div>
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-aura-gold"><MapPin size={20}/></div>

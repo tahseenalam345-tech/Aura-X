@@ -156,7 +156,7 @@ export default function ReturnPage() {
                             Our team is available Mon-Sat (10am - 6pm) to assist you with your returns.
                         </p>
                         <div className="space-y-2 text-sm font-medium">
-                            <p className="flex justify-between border-b border-dashed border-gray-100 pb-2"><span>Email:</span> <span className="text-aura-brown">support@aura-x.pk</span></p>
+                            <p className="flex justify-between border-b border-dashed border-gray-100 pb-2"><span>Email:</span> <span className="text-aura-brown">auraxofficial1@gmail.com</span></p>
                             <p className="flex justify-between pt-1"><span>WhatsApp:</span> <span className="text-aura-brown">+92 336 9871278</span></p>
                         </div>
                     </div>
