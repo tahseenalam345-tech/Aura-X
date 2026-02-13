@@ -98,7 +98,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   // MANUAL REVIEW STATE
   const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", image: "" });
 
-  // --- DEFAULT STATE (For Add New) ---
+  // FORM DATA DEFAULTS
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", 
     stock: 1, 
@@ -133,39 +133,75 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [formData, setFormData] = useState(initialFormState);
 
   // --- HANDLERS ---
-  
-  // 1. ADD NEW (Resets everything to Default)
   const handleAddNewClick = () => {
     const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
-    setFormData({ ...initialFormState, sku: randomSku }); // <--- CLEAN SLATE
+    setFormData({ ...initialFormState, sku: randomSku });
     setIsEditing(false);
     setShowForm(true);
   };
 
-  // 2. EDIT (Populates from Database)
   const handleEditClick = (item: any) => {
-    // Helper to get single tag from DB
+    // 1. Get Tag
     let singleTag = "";
     if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
     else if (typeof item.tags === 'string') singleTag = item.tags;
 
-    // MERGE LOGIC: Defaults -> Item Root -> Item Specs
+    // 2. Get Specs Safely
+    const specs = item.specs || {};
+
+    // 3. MAP DATABASE KEYS (snake_case) TO FORM STATE KEYS (camelCase)
+    // This assumes your DB columns in "specs" JSON are snake_case as saved by handlePublish
     setFormData({
-        ...initialFormState, // 1. Start with safe defaults (prevents undefined errors)
-        ...item,             // 2. Overwrite with basic DB fields (name, price, etc)
-        ...item.specs,       // 3. Overwrite with technical specs (dimensions, warranty, etc)
+        ...initialFormState, // Start with defaults
+        ...item,             // Overwrite Top-level (name, price, etc.)
         
-        // 4. Force specific overrides to ensure types match
-        tags: singleTag,
+        // --- MANUAL MAPPING START ---
+        // Basic Info
+        sku: specs.sku || "",
+        stock: specs.stock || 1,
+        costPrice: specs.cost_price || 0,
+        viewCount: specs.view_count || 0,
+        
+        // Case
+        caseMaterial: specs.case_material || "",
+        caseColor: specs.case_color || "Silver",
+        caseShape: specs.case_shape || "Round",
+        caseDiameter: specs.case_size || "40mm",      // DB uses case_size
+        caseThickness: specs.case_thickness || "10mm", // DB uses case_thickness
+        glass: specs.glass || "",
+        
+        // Strap
+        strapMaterial: specs.strap || "",             // DB uses strap
+        strapColor: specs.strap_color || "",          // DB uses strap_color
+        strapWidth: specs.strap_width || "20mm",
+        adjustable: specs.adjustable ?? true,
+        
+        // Dial & Features
+        dialColor: specs.dial_color || "",            // DB uses dial_color
+        luminous: specs.luminous ?? false,
+        dateDisplay: specs.date_display ?? false,     // DB uses date_display
+        weight: specs.weight || "135g",
+        waterResistance: specs.water_resistance || "0ATM (No Resistance)", // DB uses water_resistance
+        movement: specs.movement || "Quartz (Battery)",
+        
+        // Shipping
+        warranty: specs.warranty || "No Official Warranty",
+        shippingText: specs.shipping_text || "2-4 Working Days", // DB uses shipping_text
+        returnPolicy: specs.return_policy || "7 Days Return Policy", // DB uses return_policy
+        boxIncluded: specs.box_included ?? false,     // DB uses box_included
+        
+        // Media
         mainImage: item.main_image || "",
-        originalPrice: item.original_price || 0,
-        isEidExclusive: item.is_eid_exclusive || false,
-        costPrice: item.specs?.cost_price || 0, 
-        gallery: item.specs?.gallery || [],
-        video: item.specs?.video || "",
-        colors: item.colors || [], // Load saved colors
-        manualReviews: item.manual_reviews || [] // Load saved reviews
+        gallery: specs.gallery || [],
+        video: specs.video || "",
+        
+        // Extras
+        colors: item.colors || [],
+        manualReviews: item.manual_reviews || [],
+        tags: singleTag,
+        isEidExclusive: item.is_eid_exclusive || false
     });
+
     setEditId(item.id);
     setIsEditing(true);
     setShowForm(true);
@@ -188,11 +224,26 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           manual_reviews: formData.manualReviews, 
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
-              movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
-              case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
-              strap: formData.strapMaterial, strap_color: formData.strapColor, strap_width: formData.strapWidth, adjustable: formData.adjustable,
-              dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay, weight: formData.weight,
-              warranty: formData.warranty, shipping_text: formData.shippingText, return_policy: formData.returnPolicy, box_included: formData.boxIncluded,
+              movement: formData.movement, 
+              water_resistance: formData.waterResistance, // Saved as snake_case in DB automatically if JSONB, but let's be explicit
+              glass: formData.glass,
+              case_material: formData.caseMaterial, 
+              case_color: formData.caseColor, 
+              case_shape: formData.caseShape, 
+              case_size: formData.caseDiameter, // Saving as case_size
+              case_thickness: formData.caseThickness, // Saving as case_thickness
+              strap: formData.strapMaterial, // Saving as strap
+              strap_color: formData.strapColor, // Saving as strap_color
+              strap_width: formData.strapWidth, 
+              adjustable: formData.adjustable,
+              dial_color: formData.dialColor, // Saving as dial_color
+              luminous: formData.luminous, 
+              date_display: formData.dateDisplay, // Saving as date_display
+              weight: formData.weight,
+              warranty: formData.warranty, 
+              shipping_text: formData.shippingText, // Saving as shipping_text
+              return_policy: formData.returnPolicy, // Saving as return_policy
+              box_included: formData.boxIncluded, // Saving as box_included
               gallery: formData.gallery,
               video: formData.video
           }
