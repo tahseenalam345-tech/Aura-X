@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Video, Star, Package, Check, Palette } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
@@ -53,37 +53,25 @@ const processFileUpload = async (file: File) => {
     }
 
     const ext = isVideo ? 'mp4' : 'jpg';
-
-    // --- NUCLEAR SANITIZATION ---
-    // This removes EVERY character except basic letters and numbers.
-    // No dots, no dashes, no brackets, no spaces.
-    const cleanName = file.name
-        .split('.')[0]               // Get name before the dot
-        .replace(/[^a-zA-Z0-9]/g, '') // Delete everything else
-        .toLowerCase()
-        .slice(0, 10);                // Keep it very short
-
+    const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
     const fileName = `v2-${Date.now()}-${cleanName}.${ext}`;
 
     const { error } = await supabase.storage.from('product-images').upload(fileName, fileToUpload); 
-    
-    if (error) { 
-        console.error("Upload Error:", error.message); 
-        return null; 
-    }
+    if (error) { console.error("Upload Error:", error.message); return null; }
 
     const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
     return publicUrl;
 };
+
 export default function InventoryTab({ products, fetchProducts }: { products: any[], fetchProducts: () => void }) {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('table'); // NEW VIEW MODE STATE
   const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", image: "" });
 
   const initialFormState = {
-    name: "", brand: "AURA-X", sku: "", 
-    stock: 1, category: "", 
+    name: "", brand: "AURA-X", sku: "", stock: 1, category: "", 
     price: 0, originalPrice: 0, discount: 0, costPrice: 0,
     tags: "" as string, priority: 100, viewCount: 0, isEidExclusive: false, 
     movement: "Quartz (Battery)", waterResistance: "0ATM (No Resistance)", 
@@ -283,43 +271,102 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   return (
     <>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
-            <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base"><Plus size={18} /> Add New</button>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+            <div className="flex items-center gap-4">
+                <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
+                {/* VIEW SWITCHER BUTTONS */}
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button onClick={() => setViewMode('table')} className={`p-2 rounded-md ${viewMode === 'table' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Table View"><TableIcon size={18}/></button>
+                    <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Grid View (Large)"><LayoutGrid size={18}/></button>
+                    <button onClick={() => setViewMode('list')} className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Detail List View"><List size={18}/></button>
+                </div>
+            </div>
+            <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base w-full md:w-auto justify-center"><Plus size={18} /> Add New</button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto pb-20">
-            <table className="w-full text-left min-w-[600px]">
-                <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Actions</th></tr></thead>
-                <tbody className="divide-y divide-gray-50">
-                    {products.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50/50">
-                            <td className="p-4 flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gray-100 rounded-lg relative overflow-hidden flex-shrink-0">
-                                    {item.main_image && (
-                                        isVideoFile(item.main_image) 
-                                        ? <video src={item.main_image} className="w-full h-full object-cover" muted /> 
-                                        : <Image src={item.main_image} alt="" fill sizes="40px" className="object-cover" unoptimized />
-                                    )}
-                                </div>
-                                <div className="truncate max-w-[150px]">
-                                    <p className="font-bold text-aura-brown text-sm">{item.name}</p>
-                                    {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID EXCLUSIVE</span>}
-                                </div>
-                            </td>
-                            <td className="p-4 text-sm">{item.specs?.stock}</td>
-                            <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
-                            <td className="p-4 text-right">
-                                <div className="flex justify-end gap-2">
-                                    <button onClick={() => handleEditClick(item)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={14}/></button>
-                                    <button onClick={() => deleteItem(item.id)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={14}/></button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+        {/* TABLE VIEW */}
+        {viewMode === 'table' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto pb-20">
+                <table className="w-full text-left min-w-[600px]">
+                    <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Actions</th></tr></thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {products.map((item) => (
+                            <tr key={item.id} className="hover:bg-gray-50/50">
+                                <td className="p-4 flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gray-100 rounded-lg relative overflow-hidden flex-shrink-0">
+                                        {item.main_image && (isVideoFile(item.main_image) ? <video src={item.main_image} className="w-full h-full object-cover" muted /> : <Image src={item.main_image} alt="" fill sizes="40px" className="object-cover" unoptimized />)}
+                                    </div>
+                                    <div className="truncate max-w-[150px]">
+                                        <p className="font-bold text-aura-brown text-sm">{item.name}</p>
+                                        {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID EXCLUSIVE</span>}
+                                    </div>
+                                </td>
+                                <td className="p-4 text-sm">{item.specs?.stock}</td>
+                                <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
+                                <td className="p-4 text-right">
+                                    <div className="flex justify-end gap-2">
+                                        <button onClick={() => handleEditClick(item)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={14}/></button>
+                                        <button onClick={() => deleteItem(item.id)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={14}/></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        )}
+
+        {/* GRID VIEW (Large Icons - 2 items per row) */}
+        {viewMode === 'grid' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-20">
+                {products.map((item) => (
+                    <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col group">
+                        <div className="relative aspect-square w-full bg-gray-50">
+                            {item.main_image && (isVideoFile(item.main_image) ? <video src={item.main_image} className="w-full h-full object-cover" muted /> : <Image src={item.main_image} alt="" fill sizes="(max-width: 768px) 100vw, 500px" className="object-cover group-hover:scale-105 transition-transform duration-500" unoptimized />)}
+                            <div className="absolute bottom-2 left-2 flex gap-2">
+                                {item.is_eid_exclusive && <span className="text-[10px] bg-black text-aura-gold px-3 py-1 rounded-full border border-aura-gold font-bold">EID EXCLUSIVE</span>}
+                                <span className="text-[10px] bg-white/90 text-aura-brown px-3 py-1 rounded-full font-bold shadow-sm">{item.specs?.stock} in stock</span>
+                            </div>
+                        </div>
+                        <div className="p-4 flex justify-between items-center bg-white">
+                            <div>
+                                <h3 className="font-bold text-aura-brown truncate max-w-[180px]">{item.name}</h3>
+                                <p className="text-aura-gold font-bold">Rs {item.price.toLocaleString()}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => handleEditClick(item)} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"><Edit2 size={18}/></button>
+                                <button onClick={() => deleteItem(item.id)} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all"><Trash2 size={18}/></button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+
+        {/* LIST VIEW (Detailed) */}
+        {viewMode === 'list' && (
+            <div className="space-y-4 pb-20">
+                {products.map((item) => (
+                    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+                        <div className="w-24 h-24 bg-gray-50 rounded-lg relative overflow-hidden flex-shrink-0 border">
+                             {item.main_image && (isVideoFile(item.main_image) ? <video src={item.main_image} className="w-full h-full object-cover" muted /> : <Image src={item.main_image} alt="" fill sizes="100px" className="object-cover" unoptimized />)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-aura-brown truncate text-lg">{item.name}</h3>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mt-1">
+                                <span>SKU: {item.specs?.sku}</span>
+                                <span className="font-bold text-green-600">Stock: {item.specs?.stock}</span>
+                                <span className="font-bold text-aura-gold">Rs {item.price.toLocaleString()}</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <button onClick={() => handleEditClick(item)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-colors"><Edit2 size={14}/> Edit</button>
+                            <button onClick={() => deleteItem(item.id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-red-600 hover:text-white transition-colors"><Trash2 size={14}/> Delete</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
 
         {showForm && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4">
