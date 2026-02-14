@@ -11,18 +11,17 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { customer, items, total, city } = body;
 
-    // 1. Insert Order (Let Database generate the ID)
+    // 1. Insert Order (We removed the 'id' field so the Database handles it automatically)
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert([
         {
-          // REMOVED: id: shortId (This was likely causing the crash!)
           customer_name: customer.name,
           phone: customer.phone,
           email: customer.email,
           address: customer.address,
           city: city,
-          items: items, // Make sure your 'orders' table has a JSONB column named 'items'
+          items: items, 
           total: total,
           status: 'Processing',
           created_at: new Date().toISOString()
@@ -32,37 +31,23 @@ export async function POST(request: Request) {
       .single();
 
     if (orderError) {
-        console.error("Supabase Insert Error:", orderError.message); // Check your terminal for this!
-        throw new Error("Database failed to save order: " + orderError.message);
+        console.error("Database Error:", orderError.message);
+        throw new Error("Failed to save order to database.");
     }
 
     // 2. Update Stock
     for (const item of items) {
-      const { data: product } = await supabase
-        .from('products')
-        .select('specs')
-        .eq('id', item.id)
-        .single();
-        
-      // Safe check for specs
-      if (product && product.specs) {
-        const currentStock = Number(product.specs.stock) || 0;
-        const newStock = Math.max(0, currentStock - item.quantity);
-        
-        const newSpecs = { ...product.specs, stock: newStock };
-
-        await supabase
-          .from('products')
-          .update({ specs: newSpecs })
-          .eq('id', item.id);
+      const { data: product } = await supabase.from('products').select('specs').eq('id', item.id).single();
+      if (product?.specs) {
+        const newStock = Math.max(0, (Number(product.specs.stock) || 0) - item.quantity);
+        await supabase.from('products').update({ specs: { ...product.specs, stock: newStock } }).eq('id', item.id);
       }
     }
 
-    // 3. Success! Return the real Database ID
     return NextResponse.json({ success: true, orderId: orderData.id });
 
   } catch (error: any) {
-    console.error('Checkout API Critical Error:', error);
+    console.error('Checkout Critical Error:', error);
     return NextResponse.json({ error: error.message || 'Order failed' }, { status: 500 });
   }
 }

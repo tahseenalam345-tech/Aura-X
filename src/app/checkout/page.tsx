@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
-import { ArrowLeft, ArrowRight, Lock, MapPin, Phone, User, Mail, CreditCard, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Mail, Phone, MapPin, CreditCard, Lock, ArrowRight, Loader2, Truck } from "lucide-react";
 import toast from "react-hot-toast";
+import emailjs from '@emailjs/browser';
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -20,7 +21,6 @@ export default function CheckoutPage() {
 
   const FREE_SHIPPING_THRESHOLD = 5000;
   const STANDARD_SHIPPING_COST = 250;
-   
   const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
   const shippingCost = isFreeShipping ? 0 : STANDARD_SHIPPING_COST;
   const finalTotal = cartTotal + shippingCost;
@@ -30,6 +30,9 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
+        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
+        // 1. Prepare Order Items
         const orderItems = cart.map(item => ({
             id: item.id,
             name: item.name,
@@ -41,9 +44,7 @@ export default function CheckoutPage() {
             addBox: item.addBox
         }));
 
-        // Combine names for the backend
-        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-
+        // 2. Call API to Save to Database
         const response = await fetch('/api/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -67,16 +68,47 @@ export default function CheckoutPage() {
             throw new Error(result.error || "Order failed");
         }
 
-        // Success! Clear cart and redirect properly
+        // --- 3. GENERATE 5-DIGIT DISPLAY ID ---
+        // We use the database ID for technical tracking, but this short ID for emails/visuals
+        const displayOrderId = Math.floor(10000 + Math.random() * 90000).toString();
+
+        // --- 4. SEND EMAIL (Exact Template Match) ---
+        const emailParams = {
+            email_subject: `Order Confirmation #${displayOrderId}`,
+            to_email: formData.email,
+            name: fullName, // This maps to "A message by {{name}}..." in your template
+            
+            // Your custom fields from the screenshot:
+            email_heading: "Thank You For Your Order!",
+            order_id: displayOrderId,
+            email_message: `Your order has been placed successfully. We will ship it to ${formData.city} soon.`,
+            order_items: cart.map(i => `${i.name} (x${i.quantity})`).join(', '),
+            total_amount: finalTotal.toLocaleString(),
+            
+            // Customer Details section
+            customer_name: fullName,
+            phone: formData.phone,
+            city: formData.city,
+            address: formData.address
+        };
+
+        await emailjs.send(
+            'service_wfw89r5',   // Your Service ID
+            'template_igr7ie6',  // Your Template ID
+            emailParams,
+            'OQmFriQxX0btmE7W3'  // Your Public Key
+        );
+
         toast.success("Order Placed Successfully!");
         clearCart();
         
-        // FIXED REDIRECTION: Now points to /success with all needed params
-        router.push(`/success?id=${result.orderId}&total=${finalTotal}&name=${encodeURIComponent(formData.firstName)}`);
+        // 5. Redirect to Success Page
+        // We pass the short display ID so the user sees "5 numbers"
+        router.push(`/success?id=${displayOrderId}&total=${finalTotal}&name=${encodeURIComponent(formData.firstName)}`);
 
     } catch (error: any) {
         console.error("Checkout Error:", error);
-        toast.error(error.message || "Something went wrong. Please try again.");
+        toast.error(error.message || "Order saved, but connection failed.");
     } finally {
         setLoading(false);
     }
@@ -113,6 +145,7 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24">
           <div className="lg:col-span-7">
              <form id="checkout-form" onSubmit={handlePlaceOrder} className="space-y-8">
+                {/* Contact Info */}
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-8 h-8 bg-aura-gold/10 text-aura-gold rounded-full flex items-center justify-center text-sm">1</span> Contact Information</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -122,6 +155,7 @@ export default function CheckoutPage() {
                       <div className="space-y-2 md:col-span-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="phone">Phone Number</label><div className="relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input required id="phone" name="phone" onChange={handleInputChange} type="tel" placeholder="e.g. 0300 1234567" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div></div>
                    </div>
                 </div>
+                {/* Shipping Info */}
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-8 h-8 bg-aura-gold/10 text-aura-gold rounded-full flex items-center justify-center text-sm">2</span> Shipping Details</h2>
                    <div className="space-y-4">
@@ -132,6 +166,7 @@ export default function CheckoutPage() {
                       </div>
                    </div>
                 </div>
+                {/* Payment */}
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-8 h-8 bg-aura-gold/10 text-aura-gold rounded-full flex items-center justify-center text-sm">3</span> Payment Method</h2>
                    <div className="space-y-3">
@@ -143,6 +178,7 @@ export default function CheckoutPage() {
                 </div>
              </form>
           </div>
+          {/* Summary */}
           <div className="lg:col-span-5">
              <div className="sticky top-32">
                 <div className="bg-white p-6 md:p-8 rounded-2xl border border-aura-gold/20 shadow-xl">
