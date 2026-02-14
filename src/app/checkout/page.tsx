@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
-import { ArrowLeft, User, Mail, Phone, MapPin, CreditCard, Lock, ArrowRight, Loader2, Truck } from "lucide-react";
+import { ArrowLeft, User, Mail, Phone, MapPin, CreditCard, Lock, ArrowRight, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import emailjs from '@emailjs/browser';
 
@@ -44,7 +44,7 @@ export default function CheckoutPage() {
             addBox: item.addBox
         }));
 
-        // 2. Call API to Save to Database
+        // 2. Call API to Save Order
         const response = await fetch('/api/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -53,8 +53,7 @@ export default function CheckoutPage() {
                     name: fullName,
                     email: formData.email,
                     phone: formData.phone,
-                    address: formData.address,
-                    postalCode: formData.postalCode
+                    address: `${formData.address}, ${formData.postalCode}`,
                 },
                 items: orderItems,
                 total: finalTotal,
@@ -63,52 +62,47 @@ export default function CheckoutPage() {
         });
 
         const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Order failed");
 
-        if (!response.ok) {
-            throw new Error(result.error || "Order failed");
-        }
+        // 3. Get the ORD-XXXXX code from the API
+        const orderCode = result.orderId;
 
-        // --- 3. GENERATE 5-DIGIT DISPLAY ID ---
-        // We use the database ID for technical tracking, but this short ID for emails/visuals
-        const displayOrderId = Math.floor(10000 + Math.random() * 90000).toString();
-
-        // --- 4. SEND EMAIL (Exact Template Match) ---
+        // 4. Send Email (Admin & Customer receive this)
         const emailParams = {
-            email_subject: `Order Confirmation #${displayOrderId}`,
+            email_subject: `Order Confirmation #${orderCode}`,
             to_email: formData.email,
-            name: fullName, // This maps to "A message by {{name}}..." in your template
+            to_name: fullName,
             
-            // Your custom fields from the screenshot:
+            // Your specific template variables:
             email_heading: "Thank You For Your Order!",
-            order_id: displayOrderId,
-            email_message: `Your order has been placed successfully. We will ship it to ${formData.city} soon.`,
+            order_id: orderCode, // Shows ORD-XXXXX in email
+            email_message: `Your order has been received. We will ship to ${formData.city} soon.`,
             order_items: cart.map(i => `${i.name} (x${i.quantity})`).join(', '),
-            total_amount: finalTotal.toLocaleString(),
+            total_amount: `Rs ${finalTotal.toLocaleString()}`,
             
-            // Customer Details section
             customer_name: fullName,
             phone: formData.phone,
             city: formData.city,
             address: formData.address
         };
 
+        // USING YOUR KEYS
         await emailjs.send(
-            'service_wfw89r5',   // Your Service ID
-            'template_igr7ie6',  // Your Template ID
+            'service_wfw89r5',   
+            'template_ccsvo5z',  
             emailParams,
-            'OQmFriQxX0btmE7W3'  // Your Public Key
+            'OQmFriQxX0btmE7W3'
         );
 
         toast.success("Order Placed Successfully!");
         clearCart();
         
-        // 5. Redirect to Success Page
-        // We pass the short display ID so the user sees "5 numbers"
-        router.push(`/success?id=${displayOrderId}&total=${finalTotal}&name=${encodeURIComponent(formData.firstName)}`);
+        // 5. Redirect using the ORD-XXXXX code
+        router.push(`/success?id=${orderCode}&total=${finalTotal}&name=${encodeURIComponent(formData.firstName)}`);
 
     } catch (error: any) {
         console.error("Checkout Error:", error);
-        toast.error(error.message || "Order saved, but connection failed.");
+        toast.error(error.message || "Something went wrong.");
     } finally {
         setLoading(false);
     }
@@ -184,8 +178,9 @@ export default function CheckoutPage() {
                 <div className="bg-white p-6 md:p-8 rounded-2xl border border-aura-gold/20 shadow-xl">
                    <h3 className="font-serif text-xl font-bold mb-6 pb-4 border-b border-gray-100">Order Summary</h3>
                    <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4 mb-6 custom-scrollbar">
-                      {cart.map((item) => (
-                         <div key={`${item.id}-${item.color}`} className="flex gap-4 items-center">
+                      {/* FIXED KEY ISSUE HERE */}
+                      {cart.map((item, index) => (
+                         <div key={`${item.id}-${item.color}-${index}`} className="flex gap-4 items-center">
                             <div className="relative w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0"><Image src={item.image} alt={item.name} fill className="object-contain p-1 mix-blend-multiply" decoding="async" /><span className="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-bl-lg">x{item.quantity}</span></div>
                             <div className="flex-1 min-w-0"><p className="font-bold text-sm text-aura-brown truncate">{item.name}</p><p className="text-xs text-gray-400">{item.color || "Standard"}</p>{item.isGift && <span className="text-[9px] text-purple-600 block">+ Gift Wrap</span>}{item.addBox && <span className="text-[9px] text-orange-600 block">+ Box</span>}</div>
                             <span className="text-sm font-bold text-aura-brown">Rs {((item.price + (item.isGift?150:0) + (item.addBox?100:0)) * item.quantity).toLocaleString()}</span>

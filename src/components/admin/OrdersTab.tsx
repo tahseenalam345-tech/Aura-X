@@ -17,7 +17,7 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
 
   // --- HANDLERS ---
   const handleStatusChange = async (orderId: string, newStatus: string) => {
-      // Optimistic UI Update (Optional, but we rely on fetchOrders for truth)
+      // Optimistic UI Update
       if (selectedOrder?.id === orderId) setSelectedOrder({ ...selectedOrder, status: newStatus });
       
       const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
@@ -27,7 +27,7 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
           console.error(error);
       } else {
           toast.success(`Marked as ${newStatus}`);
-          fetchOrders(); // Refresh parent data
+          fetchOrders(); 
       }
   };
 
@@ -41,7 +41,7 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
       } else {
           if(selectedOrder?.id === orderId) setSelectedOrder(null);
           toast.success("Order Deleted");
-          fetchOrders(); // Refresh parent data
+          fetchOrders(); 
       }
   };
 
@@ -56,7 +56,6 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
       if (error) {
           toast.error("Failed to save note");
       } else {
-          // Update local state so it doesn't flicker
           setSelectedOrder({ ...selectedOrder, admin_notes: adminNote });
           toast.success("Note Saved");
           fetchOrders();
@@ -70,8 +69,10 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
 
   const sendWhatsApp = () => {
       if (!selectedOrder) return;
-      const text = `Hi ${selectedOrder.customer_name}, regarding your order #ORD-${selectedOrder.id.slice(0,8).toUpperCase()}...`;
-      // Format number: Remove '0' at start, add '92', remove non-digits
+      // FIX: Use order_code for WhatsApp message
+      const displayId = selectedOrder.order_code || selectedOrder.id.slice(0,8).toUpperCase();
+      const text = `Hi ${selectedOrder.customer_name}, regarding your order #${displayId}...`;
+      
       const rawNumber = selectedOrder.phone || "";
       const fmtNumber = rawNumber.replace(/\D/g, '').replace(/^0/, '92');
       
@@ -94,7 +95,6 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                     className={`px-4 md:px-6 py-3 whitespace-nowrap rounded-t-xl font-bold text-sm transition-all relative ${orderStatusFilter === status ? 'bg-white text-aura-brown border-t border-x border-gray-200 -mb-[1px] z-10' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
                 >
                     {status}
-                    {/* Badge Counter */}
                     {status === 'Processing' && orders.filter(o => o.status === 'Processing').length > 0 && (
                         <span className="ml-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">
                             {orders.filter(o => o.status === 'Processing').length}
@@ -117,7 +117,10 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                             {order.status === 'Processing' ? <Clock size={18}/> : <Check size={18}/>}
                         </div>
                         <div>
-                            <p className="font-bold text-aura-brown text-sm md:text-base">#{order.id.slice(0, 8).toUpperCase()}</p>
+                            {/* FIX: Display order_code instead of ID slice */}
+                            <p className="font-bold text-aura-brown text-sm md:text-base">
+                                {order.order_code || `#${order.id.slice(0, 8).toUpperCase()}`}
+                            </p>
                             <p className="text-xs text-gray-500">{order.customer_name} • {new Date(order.created_at).toLocaleDateString()}</p>
                         </div>
                     </div>
@@ -141,7 +144,10 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                     {/* LEFT SIDE: DETAILS */}
                     <div className="flex-1 p-6 md:p-8 bg-gray-50 overflow-y-auto">
                         <div className="flex justify-between items-center mb-6 pt-8 md:pt-0">
-                            <h3 className="font-serif text-2xl font-bold text-aura-brown">Order #{selectedOrder.id.slice(0,8).toUpperCase()}</h3>
+                            {/* FIX: Display order_code in Modal Title */}
+                            <h3 className="font-serif text-2xl font-bold text-aura-brown">
+                                {selectedOrder.order_code || `Order #${selectedOrder.id.slice(0,8).toUpperCase()}`}
+                            </h3>
                             <div className="flex gap-2">
                                 <button onClick={() => deleteOrder(selectedOrder.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="Delete Order"><Trash2 size={20}/></button>
                                 <button onClick={() => setSelectedOrder(null)} className="hidden md:block p-2 hover:bg-gray-200 rounded-full"><X size={24}/></button>

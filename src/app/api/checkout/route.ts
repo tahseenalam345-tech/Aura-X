@@ -11,11 +11,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { customer, items, total, city } = body;
 
-    // 1. Insert Order (We removed the 'id' field so the Database handles it automatically)
+    // 1. GENERATE SHORT READABLE CODE (e.g. ORD-58291)
+    // We will save this in your 'order_code' column
+    const shortCode = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
+
+    // 2. Insert Order
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert([
         {
+          order_code: shortCode, // Saving to the column you mentioned
           customer_name: customer.name,
           phone: customer.phone,
           email: customer.email,
@@ -32,10 +37,10 @@ export async function POST(request: Request) {
 
     if (orderError) {
         console.error("Database Error:", orderError.message);
-        throw new Error("Failed to save order to database.");
+        throw new Error("Failed to save order.");
     }
 
-    // 2. Update Stock
+    // 3. Update Stock
     for (const item of items) {
       const { data: product } = await supabase.from('products').select('specs').eq('id', item.id).single();
       if (product?.specs) {
@@ -44,7 +49,8 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, orderId: orderData.id });
+    // 4. Return the SHORT CODE (ORD-XXXXX) to the frontend
+    return NextResponse.json({ success: true, orderId: shortCode });
 
   } catch (error: any) {
     console.error('Checkout Critical Error:', error);
