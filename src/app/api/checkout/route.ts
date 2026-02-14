@@ -1,10 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-// Initialize Supabase (Use Service Role Key for Admin privileges to update stock)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // ⚠️ IMPORTANT: Must use SERVICE_ROLE_KEY from .env
+  process.env.SUPABASE_SERVICE_ROLE_KEY! 
 );
 
 export async function POST(request: Request) {
@@ -12,57 +11,48 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { customer, items, total, city } = body;
 
-    // 1. Validate Stock First (Double Check)
-    for (const item of items) {
-      const { data: product } = await supabase
-        .from('products')
-        .select('specs')
-        .eq('id', item.id)
-        .single();
+    // 1. GENERATE SHORT ORDER ID (e.g., ORD-7890)
+    const shortId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      const currentStock = product?.specs?.stock || 0;
-
-      if (currentStock < item.quantity) {
-        return NextResponse.json(
-          { error: `Sorry, ${item.name} is out of stock.` },
-          { status: 400 }
-        );
-      }
-    }
-
-    // 2. Create the Order
+    // 2. Insert Order
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert([
         {
+          id: shortId, // Ensure your 'orders' table ID column is Text, not Int (or remove this line to let DB auto-generate)
           customer_name: customer.name,
           phone: customer.phone,
           email: customer.email,
           address: customer.address,
           city: city,
-          items: items, // Save full cart JSON
+          items: items, // Stores the full JSON of cart items
           total: total,
-          status: 'Processing'
+          status: 'Processing',
+          created_at: new Date().toISOString()
         }
       ])
       .select()
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+        console.error("Supabase Order Error:", orderError);
+        throw new Error("Failed to save order to database.");
+    }
 
-    // 3. THE MAGIC: Decrease Stock for each item
+    // 3. Update Stock (Decrease)
     for (const item of items) {
-      // Fetch current stock again to be safe
+      // Get current stock
       const { data: product } = await supabase
         .from('products')
         .select('specs')
         .eq('id', item.id)
         .single();
         
-      if (product) {
-        const newStock = Math.max(0, (product.specs.stock || 0) - item.quantity);
+      if (product && product.specs) {
+        const currentStock = Number(product.specs.stock) || 0;
+        const newStock = Math.max(0, currentStock - item.quantity);
         
-        // Update the JSONB specs column with new stock
+        // Update ONLY the stock field inside the specs JSON
         const newSpecs = { ...product.specs, stock: newStock };
 
         await supabase
@@ -72,10 +62,12 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, orderId: orderData.id });
+    // 4. Return Success
+    // We return the actual ID from the database just in case
+    return NextResponse.json({ success: true, orderId: orderData.id || shortId });
 
-  } catch (error) {
-    console.error('Checkout Error:', error);
-    return NextResponse.json({ error: 'Order failed' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Checkout API Error:', error);
+    return NextResponse.json({ error: error.message || 'Order failed' }, { status: 500 });
   }
 }

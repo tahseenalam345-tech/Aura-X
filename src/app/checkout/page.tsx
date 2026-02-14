@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
-import { ArrowLeft, ArrowRight, Lock, MapPin, Phone, User, Mail, CreditCard } from "lucide-react";
+import { ArrowLeft, ArrowRight, Lock, MapPin, Phone, User, Mail, CreditCard, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function CheckoutPage() {
@@ -20,7 +20,7 @@ export default function CheckoutPage() {
 
   const FREE_SHIPPING_THRESHOLD = 5000;
   const STANDARD_SHIPPING_COST = 250;
-  
+   
   const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
   const shippingCost = isFreeShipping ? 0 : STANDARD_SHIPPING_COST;
   const finalTotal = cartTotal + shippingCost;
@@ -41,11 +41,20 @@ export default function CheckoutPage() {
             addBox: item.addBox
         }));
 
+        // Combine names for the backend
+        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
         const response = await fetch('/api/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                customer: formData,
+                customer: {
+                    name: fullName,
+                    email: formData.email,
+                    phone: formData.phone,
+                    address: formData.address,
+                    postalCode: formData.postalCode
+                },
                 items: orderItems,
                 total: finalTotal,
                 city: formData.city
@@ -58,9 +67,12 @@ export default function CheckoutPage() {
             throw new Error(result.error || "Order failed");
         }
 
+        // Success! Clear cart and redirect properly
         toast.success("Order Placed Successfully!");
         clearCart();
-        router.push(`/thank-you?orderId=${result.orderId}`);
+        
+        // FIXED REDIRECTION: Now points to /success with all needed params
+        router.push(`/success?id=${result.orderId}&total=${finalTotal}&name=${encodeURIComponent(formData.firstName)}`);
 
     } catch (error: any) {
         console.error("Checkout Error:", error);
@@ -93,7 +105,7 @@ export default function CheckoutPage() {
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-32 md:pt-40">
         <div className="flex items-center gap-2 mb-8 text-sm text-gray-500">
-           <Link href="/cart" className="flex items-center gap-1 hover:text-aura-brown transition-colors" aria-label="Go back to shopping cart"><ArrowLeft size={14}/> Back to Cart</Link>
+           <Link href="/cart" className="flex items-center gap-1 hover:text-aura-brown transition-colors"><ArrowLeft size={14}/> Back to Cart</Link>
            <span className="text-gray-300">|</span>
            <span className="font-bold text-aura-gold">Secure Checkout</span>
         </div>
@@ -116,10 +128,7 @@ export default function CheckoutPage() {
                       <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="address">Full Address</label><div className="relative"><MapPin className="absolute left-4 top-3 text-gray-300" size={18}/><textarea required id="address" name="address" onChange={handleInputChange} placeholder="House #, Street, Area" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold h-24 resize-none" /></div></div>
                       <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="city">City</label><input required id="city" name="city" onChange={handleInputChange} type="text" placeholder="e.g. Lahore" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-400 uppercase" htmlFor="postalCode">Postal Code (Optional)</label>
-                            <input id="postalCode" name="postalCode" onChange={handleInputChange} type="text" placeholder="e.g. 54000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" />
-                          </div>
+                          <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="postalCode">Postal Code</label><input id="postalCode" name="postalCode" onChange={handleInputChange} type="text" placeholder="e.g. 54000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div>
                       </div>
                    </div>
                 </div>
@@ -152,7 +161,9 @@ export default function CheckoutPage() {
                       <div className="flex justify-between items-center"><span>Shipping</span>{isFreeShipping ? <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs">Free</span> : <span className="font-bold text-aura-brown">Rs {STANDARD_SHIPPING_COST}</span>}</div>
                    </div>
                    <div className="flex justify-between items-end border-t border-dashed border-gray-200 pt-6 mb-8"><span className="font-bold text-lg">Total to Pay</span><span className="font-serif text-3xl font-bold text-aura-brown">Rs {finalTotal.toLocaleString()}</span></div>
-                   <button type="submit" form="checkout-form" disabled={loading} className="w-full bg-aura-brown text-white py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed">{loading ? "PROCESSING..." : "PLACE ORDER"} {!loading && <ArrowRight size={16} />}</button>
+                   <button type="submit" form="checkout-form" disabled={loading} className="w-full bg-aura-brown text-white py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                        {loading ? <><Loader2 className="animate-spin" size={20}/> PROCESSING...</> : <><span className="flex items-center gap-2">PLACE ORDER <ArrowRight size={16} /></span></>}
+                   </button>
                    <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400"><Lock size={12} /><span>128-bit Encrypted Security</span></div>
                 </div>
              </div>
