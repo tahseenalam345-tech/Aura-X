@@ -11,21 +11,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { customer, items, total, city } = body;
 
-    // 1. GENERATE SHORT ORDER ID (e.g., ORD-7890)
-    const shortId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-
-    // 2. Insert Order
+    // 1. Insert Order (Let Database generate the ID)
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert([
         {
-          id: shortId, // Ensure your 'orders' table ID column is Text, not Int (or remove this line to let DB auto-generate)
+          // REMOVED: id: shortId (This was likely causing the crash!)
           customer_name: customer.name,
           phone: customer.phone,
           email: customer.email,
           address: customer.address,
           city: city,
-          items: items, // Stores the full JSON of cart items
+          items: items, // Make sure your 'orders' table has a JSONB column named 'items'
           total: total,
           status: 'Processing',
           created_at: new Date().toISOString()
@@ -35,24 +32,23 @@ export async function POST(request: Request) {
       .single();
 
     if (orderError) {
-        console.error("Supabase Order Error:", orderError);
-        throw new Error("Failed to save order to database.");
+        console.error("Supabase Insert Error:", orderError.message); // Check your terminal for this!
+        throw new Error("Database failed to save order: " + orderError.message);
     }
 
-    // 3. Update Stock (Decrease)
+    // 2. Update Stock
     for (const item of items) {
-      // Get current stock
       const { data: product } = await supabase
         .from('products')
         .select('specs')
         .eq('id', item.id)
         .single();
         
+      // Safe check for specs
       if (product && product.specs) {
         const currentStock = Number(product.specs.stock) || 0;
         const newStock = Math.max(0, currentStock - item.quantity);
         
-        // Update ONLY the stock field inside the specs JSON
         const newSpecs = { ...product.specs, stock: newStock };
 
         await supabase
@@ -62,12 +58,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Return Success
-    // We return the actual ID from the database just in case
-    return NextResponse.json({ success: true, orderId: orderData.id || shortId });
+    // 3. Success! Return the real Database ID
+    return NextResponse.json({ success: true, orderId: orderData.id });
 
   } catch (error: any) {
-    console.error('Checkout API Error:', error);
+    console.error('Checkout API Critical Error:', error);
     return NextResponse.json({ error: error.message || 'Order failed' }, { status: 500 });
   }
 }
