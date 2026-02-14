@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react"; // Added useState for interactive switching
+import React, { useState } from "react"; 
 import Image from "next/image";
 import Link from "next/link";
 import { Star, ShoppingBag } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+import toast from "react-hot-toast";
 
 interface Product {
   id: string;
@@ -18,10 +20,12 @@ interface Product {
   reviews_count?: number;
   tags?: string[];
   manual_reviews?: { rating: number }[]; 
-  colors?: { name: string; hex: string; image: string }[]; // Added colors interface
+  colors?: { name: string; hex: string; image: string }[]; 
 }
 
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
+  const { addToCart } = useCart();
+
   // --- COLOR & IMAGE SWITCHING LOGIC ---
   const [activeImage, setActiveImage] = useState(product.main_image || product.image || "/placeholder.jpg");
   const [activeColorName, setActiveColorName] = useState("");
@@ -45,6 +49,24 @@ export function ProductCard({ product, priority = false }: { product: Product; p
   const avgRating = realReviews.length > 0
     ? (realReviews.reduce((acc, r) => acc + r.rating, 0) / realReviews.length).toFixed(1)
     : (product.rating || 5.0); 
+
+  // --- ADD TO CART HANDLER ---
+  const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault(); 
+    e.stopPropagation(); 
+
+    addToCart({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: activeImage, 
+        quantity: 1,
+        color: activeColorName || "Standard",
+        isGift: false,
+        addBox: false
+    });
+    toast.success("Added to Cart");
+  };
 
   return (
     <div className="group block relative h-full">
@@ -71,7 +93,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                  </div>
             )}
 
-            {/* PRODUCT IMAGE (Dynamically changes based on color selection) */}
+            {/* PRODUCT IMAGE */}
             <div className="relative w-full h-full">
                 <Image
                     src={activeImage}
@@ -101,6 +123,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                       {product.colors?.map((color, i) => (
                         <button
                           key={i}
+                          type="button"
                           onMouseEnter={() => { setActiveImage(color.image); setActiveColorName(color.name); }}
                           onClick={(e) => { e.preventDefault(); setActiveImage(color.image); }}
                           className={`w-3 h-3 rounded-full border border-black/10 transition-transform hover:scale-125 ${activeImage === color.image ? 'ring-1 ring-aura-gold ring-offset-1' : ''}`}
@@ -140,7 +163,8 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                 <div className="flex items-end justify-between border-t border-black/5 pt-3">
                     <div className="flex flex-col">
                         {originalPrice > product.price && (
-                            <span className="text-[11px] text-gray-500 line-through mb-0.5 font-sans font-medium">
+                            // UPDATED: Changed from text-gray-500 to text-gray-900 and font-bold for clarity
+                            <span className="text-[11px] text-gray-900 line-through mb-0.5 font-sans font-bold opacity-80">
                                 Rs {originalPrice.toLocaleString()}
                             </span>
                         )}
@@ -150,7 +174,9 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                     </div>
                     
                     <button 
-                      className="w-8 h-8 md:w-9 md:h-9 bg-[#1A1A1A] text-white rounded-full flex items-center justify-center shadow-md hover:bg-[#C5A67C] hover:scale-110 transition-all duration-300"
+                      type="button"
+                      onClick={handleAddToCart}
+                      className="w-8 h-8 md:w-9 md:h-9 bg-[#1A1A1A] text-white rounded-full flex items-center justify-center shadow-md hover:bg-[#C5A67C] hover:scale-110 transition-all duration-300 cursor-pointer z-20"
                       aria-label={`Add ${product.name} to cart`}
                     >
                         <ShoppingBag size={14} className="md:w-4 md:h-4" />
