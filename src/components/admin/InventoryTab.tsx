@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
@@ -67,8 +67,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('table'); // NEW VIEW MODE STATE
-  const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", image: "" });
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('table');
+  const [searchQuery, setSearchQuery] = useState(""); // SEARCH STATE
+  // UPDATED REVIEW STATE FOR MULTIPLE IMAGES
+  const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", images: [] as string[] });
 
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", stock: 1, category: "", 
@@ -86,6 +88,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     video: "", manualReviews: [] as any[] 
   };
   const [formData, setFormData] = useState(initialFormState);
+
+  // SEARCH FILTER LOGIC
+  const filteredProducts = products.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (item.specs?.sku || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleAddNewClick = () => {
     const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -153,7 +161,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     if (type === 'main') setFormData(prev => ({ ...prev, mainImage: url }));
     else if (type === 'gallery') setFormData(prev => ({ ...prev, gallery: [...prev.gallery, url] }));
     else if (type === 'video') setFormData(prev => ({ ...prev, video: url }));
-    else if (type === 'review') setNewReview(prev => ({ ...prev, image: url }));
+    else if (type === 'review') setNewReview(prev => ({ ...prev, images: [...prev.images, url] })); // APPEND TO REVIEW IMAGES
     else if (type === 'color' && index !== undefined) {
         setFormData(prev => {
             const newColors = [...prev.colors];
@@ -163,7 +171,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     }
   };
 
-  const handleDrop = async (e: React.DragEvent, type: 'main' | 'gallery' | 'video') => {
+  const handleDrop = async (e: React.DragEvent, type: 'main' | 'gallery' | 'video' | 'review') => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const url = await processFileUpload(e.dataTransfer.files[0]);
@@ -171,7 +179,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     }
   };
 
-  const handlePaste = async (e: React.ClipboardEvent, type: 'main' | 'gallery' | 'video') => {
+  const handlePaste = async (e: React.ClipboardEvent, type: 'main' | 'gallery' | 'video' | 'review') => {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf("image") !== -1) {
@@ -204,7 +212,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
-              case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, 
+              case_material: formData.case_material, case_color: formData.caseColor, case_shape: formData.caseShape, 
               case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
               strap: formData.strapMaterial, strap_color: formData.strapColor, strap_width: formData.strapWidth, adjustable: formData.adjustable,
               dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay, weight: formData.weight,
@@ -247,11 +255,14 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     applyImageToState(url, type, index);
   };
 
-  const removeImage = (type: 'main' | 'gallery' | 'video', index?: number) => {
+  const removeImage = (type: 'main' | 'gallery' | 'video' | 'review', index?: number) => {
     if(type === 'main') setFormData({...formData, mainImage: ""});
     else if(type === 'video') setFormData({...formData, video: ""});
     else if(type === 'gallery' && index !== undefined) {
         setFormData({...formData, gallery: formData.gallery.filter((_, i) => i !== index)});
+    }
+    else if(type === 'review' && index !== undefined) {
+        setNewReview(prev => ({...prev, images: prev.images.filter((_, i) => i !== index)}));
     }
   };
 
@@ -262,7 +273,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const addReview = () => {
     setFormData({...formData, manualReviews: [newReview, ...formData.manualReviews]});
-    setNewReview({ user: "", date: "", rating: 5, comment: "", image: "" });
+    setNewReview({ user: "", date: "", rating: 5, comment: "", images: [] });
   };
 
   const deleteReview = (index: number) => {
@@ -272,16 +283,29 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   return (
     <>
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 w-full lg:w-auto">
                 <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
+                
+                {/* SEARCH BAR */}
+                <div className="relative flex-1 lg:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input 
+                        type="text" 
+                        placeholder="Search by Name or SKU..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold"
+                    />
+                </div>
+
                 {/* VIEW SWITCHER BUTTONS */}
-                <div className="flex bg-gray-100 p-1 rounded-lg">
+                <div className="flex bg-gray-100 p-1 rounded-lg flex-shrink-0">
                     <button onClick={() => setViewMode('table')} className={`p-2 rounded-md ${viewMode === 'table' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Table View"><TableIcon size={18}/></button>
                     <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Grid View (Large)"><LayoutGrid size={18}/></button>
                     <button onClick={() => setViewMode('list')} className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Detail List View"><List size={18}/></button>
                 </div>
             </div>
-            <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base w-full md:w-auto justify-center"><Plus size={18} /> Add New</button>
+            <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base w-full md:w-auto justify-center flex-shrink-0"><Plus size={18} /> Add New</button>
         </div>
 
         {/* TABLE VIEW */}
@@ -290,7 +314,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                 <table className="w-full text-left min-w-[600px]">
                     <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Actions</th></tr></thead>
                     <tbody className="divide-y divide-gray-50">
-                        {products.map((item) => (
+                        {filteredProducts.map((item) => (
                             <tr key={item.id} className="hover:bg-gray-50/50">
                                 <td className="p-4 flex items-center gap-3">
                                     <div className="w-10 h-10 bg-gray-100 rounded-lg relative overflow-hidden flex-shrink-0">
@@ -319,7 +343,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         {/* GRID VIEW (Large Icons - 2 items per row) */}
         {viewMode === 'grid' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-20">
-                {products.map((item) => (
+                {filteredProducts.map((item) => (
                     <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col group">
                         <div className="relative aspect-square w-full bg-gray-50">
                             {item.main_image && (isVideoFile(item.main_image) ? <video src={item.main_image} className="w-full h-full object-cover" muted /> : <Image src={item.main_image} alt="" fill sizes="(max-width: 768px) 100vw, 500px" className="object-cover group-hover:scale-105 transition-transform duration-500" unoptimized />)}
@@ -346,7 +370,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         {/* LIST VIEW (Detailed) */}
         {viewMode === 'list' && (
             <div className="space-y-4 pb-20">
-                {products.map((item) => (
+                {filteredProducts.map((item) => (
                     <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
                         <div className="w-24 h-24 bg-gray-50 rounded-lg relative overflow-hidden flex-shrink-0 border">
                              {item.main_image && (isVideoFile(item.main_image) ? <video src={item.main_image} className="w-full h-full object-cover" muted /> : <Image src={item.main_image} alt="" fill sizes="100px" className="object-cover" unoptimized />)}
@@ -547,21 +571,51 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             <option value="4">⭐⭐⭐⭐ (4)</option>
                                             <option value="3">⭐⭐⭐ (3)</option>
                                         </select>
-                                        <label className="flex items-center gap-2 px-3 py-2 bg-gray-50 border rounded-xl text-xs font-bold cursor-pointer w-full md:w-auto justify-center">
-                                            {newReview.image ? "Pic Added" : "Add Pic"} <input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'review')}/>
-                                        </label>
                                     </div>
                                     <textarea placeholder="Review message..." className="w-full p-3 border rounded-xl text-sm mb-3" value={newReview.comment || ""} onChange={e => setNewReview({...newReview, comment: e.target.value})}></textarea>
-                                    <button type="button" onClick={addReview} className="bg-aura-brown text-white px-4 py-2 rounded-lg text-sm font-bold">Add Fake Review</button>
+                                    
+                                    {/* DRAG & DROP ZONE FOR MULTIPLE REVIEW PICS */}
+                                    <div className="mb-4">
+                                        <label className="block text-xs font-bold text-gray-500 mb-2">Review Images (Multiple)</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {newReview.images.map((img, idx) => (
+                                                <div key={idx} className="w-16 h-16 rounded-lg relative overflow-hidden border border-gray-200 group">
+                                                    <Image src={img} alt="" fill className="object-cover" />
+                                                    <button type="button" onClick={() => removeImage('review', idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-80 hover:opacity-100"><X size={12}/></button>
+                                                </div>
+                                            ))}
+                                            <div className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold bg-gray-50"
+                                                onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'review')} onPaste={(e) => handlePaste(e, 'review')} tabIndex={0}>
+                                                <label className="w-full h-full flex items-center justify-center cursor-pointer"><Plus size={16} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'review')}/></label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button type="button" onClick={addReview} className="bg-aura-brown text-white px-4 py-2 rounded-lg text-sm font-bold w-full md:w-auto">Add Fake Review</button>
 
                                     <div className="mt-6 space-y-2">
                                         {(formData.manualReviews || []).map((rev, i) => (
-                                            <div key={i} className="bg-gray-50 p-3 rounded-lg border border-gray-100 flex justify-between items-center">
-                                                <div className="flex items-center gap-3">
-                                                    {rev.image && <Image src={rev.image} width={30} height={30} alt="" className="rounded-full" />}
-                                                    <div>
+                                            <div key={i} className="bg-gray-50 p-3 rounded-lg border border-gray-100 flex justify-between items-start">
+                                                <div className="flex gap-3">
+                                                    <div className="space-y-1">
                                                         <p className="text-xs font-bold">{rev.user || ""} <span className="text-aura-gold">{'★'.repeat(rev.rating || 5)}</span></p>
                                                         <p className="text-[10px] text-gray-500">{rev.comment || ""}</p>
+                                                        {/* DISPLAY MULTIPLE IMAGES IN LIST */}
+                                                        {rev.images && rev.images.length > 0 && (
+                                                            <div className="flex gap-1 mt-1">
+                                                                {rev.images.map((img: string, k: number) => (
+                                                                    <div key={k} className="w-8 h-8 relative rounded overflow-hidden border">
+                                                                        <Image src={img} fill className="object-cover" alt=""/>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {/* BACKWARD COMPATIBILITY FOR OLD SINGLE IMAGE REVIEWS */}
+                                                        {!rev.images && rev.image && (
+                                                            <div className="w-8 h-8 relative rounded overflow-hidden border mt-1">
+                                                                <Image src={rev.image} fill className="object-cover" alt=""/>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <button type="button" onClick={() => deleteReview(i)} className="text-red-400 hover:bg-red-50 p-1 rounded"><Trash2 size={14}/></button>
