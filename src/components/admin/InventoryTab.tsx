@@ -212,7 +212,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
-              case_material: formData.case_material, case_color: formData.caseColor, case_shape: formData.caseShape, 
+              case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, 
               case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
               strap: formData.strapMaterial, strap_color: formData.strapColor, strap_width: formData.strapWidth, adjustable: formData.adjustable,
               dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay, weight: formData.weight,
