@@ -11,11 +11,18 @@ import { useCart } from "@/context/CartContext";
 import { 
   Star, Truck, ShieldCheck, 
   Minus, Plus, ShoppingBag, Heart, Share2, 
-  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package
+  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package, Sun, Calendar, Filter, Image as ImageIcon
 } from "lucide-react";
 import toast from "react-hot-toast"; 
 
 const isVideoFile = (url: string) => url?.toLowerCase().includes('.mp4') || url?.toLowerCase().includes('.webm');
+
+// Helper for random avatar colors
+const getAvatarColor = (name: string) => {
+    const colors = ['bg-red-100 text-red-600', 'bg-blue-100 text-blue-600', 'bg-green-100 text-green-600', 'bg-purple-100 text-purple-600', 'bg-orange-100 text-orange-600', 'bg-pink-100 text-pink-600'];
+    const index = name.length % colors.length;
+    return colors[index];
+};
 
 export default function ProductClient() {
   const { id } = useParams();
@@ -43,10 +50,12 @@ export default function ProductClient() {
   const [reviewText, setReviewText] = useState("");
   const [reviewImage, setReviewImage] = useState<string | null>(null);
   const [productReviews, setProductReviews] = useState<any[]>([]);
+  const [reviewSort, setReviewSort] = useState("all"); // NEW: Sort State
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const GIFT_COST = 150;
-  const BOX_COST = 100;
+  // UPDATED PRICES
+  const GIFT_COST = 300;
+  const BOX_COST = 200;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -61,7 +70,6 @@ export default function ProductClient() {
 
        if (currentProduct) {
            setProduct(currentProduct);
-           // Default active image should be the main image
            setActiveImage(currentProduct.main_image);
            setProductReviews(currentProduct.manual_reviews || []);
 
@@ -91,6 +99,16 @@ export default function ProductClient() {
       return totalStars / productReviews.length;
   }, [productReviews]);
 
+  const sortedReviews = useMemo(() => {
+      if (reviewSort === 'with_images') {
+          return productReviews.filter(r => (r.images && r.images.length > 0) || r.image);
+      }
+      if (reviewSort !== 'all') {
+          return productReviews.filter(r => Math.round(Number(r.rating)) === Number(reviewSort));
+      }
+      return productReviews;
+  }, [productReviews, reviewSort]);
+
   const { totalPrice, specs, selectedColor, allImages } = useMemo(() => {
       if (!product) return { basePrice: 0, extras: 0, totalPrice: 0, specs: {}, selectedColor: null, allImages: [] };
 
@@ -109,7 +127,6 @@ export default function ProductClient() {
           extras: ex,
           totalPrice: bPrice + ex,
           specs: product.specs || {},
-          // CORRECTED: Ensure selectedColor pulls from the product's color array
           selectedColor: product.colors?.[selectedColorIndex] || null,
           allImages: imgs
       };
@@ -150,7 +167,6 @@ export default function ProductClient() {
       id: product.id,
       name: product.name,
       price: product.price,
-      // If a color is selected, use its image, otherwise use main image
       image: selectedColor?.image || activeImage,
       color: selectedColor?.name || "Standard", 
       quantity: quantity,
@@ -204,7 +220,8 @@ export default function ProductClient() {
             rating: reviewRating,
             date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             comment: reviewText,
-            image: finalImageUrl
+            image: finalImageUrl, // Keep backward compatibility
+            images: finalImageUrl ? [finalImageUrl] : [] // New multi-image support
         };
         const { data: freshProduct } = await supabase.from('products').select('manual_reviews').eq('id', product.id).single();
         const currentReviews = freshProduct?.manual_reviews || [];
@@ -332,14 +349,35 @@ export default function ProductClient() {
                     )}
                 </div>
 
-                <div className="flex flex-col mb-6">
+                <div className="flex flex-col mb-4">
                     <div className="flex items-baseline gap-3">
                         <span className="text-3xl md:text-4xl font-serif font-bold text-aura-brown">Rs {totalPrice.toLocaleString()}</span>
                         {product.original_price > product.price && <span className="text-base text-gray-300 line-through decoration-red-300">Rs {product.original_price.toLocaleString()}</span>}
                     </div>
                 </div>
 
-                {/* UPDATED: COLOR SELECTION INTEGRATION */}
+                {/* --- NEW: KEY FEATURES BADGES --- */}
+                {(specs.luminous || specs.date_display || specs.box_included) && (
+                    <div className="flex flex-wrap gap-3 mb-6">
+                        {specs.luminous && (
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-aura-gold/5 border border-aura-gold/20 rounded-lg text-xs font-bold text-aura-brown/80">
+                                <Sun size={14} className="text-aura-gold"/> Luminous Hands
+                            </span>
+                        )}
+                        {specs.date_display && (
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-aura-gold/5 border border-aura-gold/20 rounded-lg text-xs font-bold text-aura-brown/80">
+                                <Calendar size={14} className="text-aura-gold"/> Date Display
+                            </span>
+                        )}
+                        {specs.box_included && (
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-aura-gold/5 border border-aura-gold/20 rounded-lg text-xs font-bold text-aura-brown/80">
+                                <Package size={14} className="text-aura-gold"/> Box Included
+                            </span>
+                        )}
+                    </div>
+                )}
+                {/* -------------------------------- */}
+
                 {product.colors && product.colors.length > 0 && (
                     <div className="mb-6">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select Finish</p>
@@ -427,48 +465,89 @@ export default function ProductClient() {
           </div>
         </div>
 
-        {/* TESTIMONIALS SECTION */}
+        {/* UPDATED TESTIMONIALS SECTION */}
         <div className="mb-12 md:mb-24 border-t border-gray-200 pt-10">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex justify-between items-center mb-6 md:mb-8">
+            <div className="max-w-6xl mx-auto">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                    <h2 className="text-2xl md:text-3xl font-serif text-aura-brown">Testimonials</h2>
-                   <button onClick={() => setShowReviewForm(!showReviewForm)} className="text-sm font-bold text-aura-gold border-b border-aura-gold pb-0.5">{showReviewForm ? "Close" : "Write Review"}</button>
+                   <button onClick={() => setShowReviewForm(!showReviewForm)} className="bg-aura-brown text-white px-6 py-2 rounded-full text-xs font-bold hover:bg-aura-gold transition-colors">{showReviewForm ? "Cancel Review" : "Write a Review"}</button>
+                </div>
+
+                {/* SORTING CONTROLS */}
+                <div className="flex flex-wrap gap-2 mb-8 justify-center md:justify-start">
+                    {["all", "5", "4", "3", "with_images"].map((type) => (
+                        <button 
+                            key={type} 
+                            onClick={() => setReviewSort(type)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${reviewSort === type ? 'bg-aura-brown text-white border-aura-brown' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
+                        >
+                            {type === "with_images" ? <span className="flex items-center gap-1"><ImageIcon size={12}/> With Photos</span> : type === "all" ? "All Reviews" : `${type} Stars`}
+                        </button>
+                    ))}
                 </div>
 
                 {showReviewForm && (
-                   <div className="bg-[#FAF9F6] p-6 rounded-2xl shadow-inner mb-8">
+                   <div className="bg-[#FAF9F6] p-6 rounded-2xl shadow-inner mb-8 border border-aura-gold/20 max-w-2xl mx-auto">
                       <div className="space-y-4">
-                          <div className="flex gap-2 text-gray-300">
-                             {[1,2,3,4,5].map(star => <Star key={star} size={24} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className="cursor-pointer text-aura-gold"/>)}
+                          <p className="font-bold text-center text-aura-brown mb-2">How would you rate this product?</p>
+                          <div className="flex justify-center gap-3 text-gray-300 pb-4 border-b border-gray-200">
+                             {[1,2,3,4,5].map(star => <Star key={star} size={32} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className={`cursor-pointer transition-transform hover:scale-110 ${star <= reviewRating ? "text-aura-gold" : "text-gray-300"}`} />)}
                           </div>
                           <input type="text" value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Your Name" className="w-full border border-gray-200 p-3 rounded-xl bg-white text-sm focus:border-aura-gold outline-none" />
-                          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Write your review..." className="w-full border border-gray-200 p-3 rounded-xl bg-white h-24 text-sm focus:border-aura-gold outline-none"></textarea>
-                          <div className="flex justify-between items-center">
+                          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Tell us what you think..." className="w-full border border-gray-200 p-3 rounded-xl bg-white h-24 text-sm focus:border-aura-gold outline-none"></textarea>
+                          <div className="flex justify-between items-center pt-2">
                               <input type="file" id="review-image-upload" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
                               <div className="flex items-center gap-3">
-                                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-xs font-bold text-gray-500"><Camera size={16} /> {reviewImage ? "Change" : "Add Photo"}</button>
-                                 {reviewImage && <div className="relative w-8 h-8 rounded border border-aura-gold"><Image src={reviewImage} alt="Review preview" fill className="object-cover" /><button onClick={() => setReviewImage(null)} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white"><X size={12}/></button></div>}
+                                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-aura-brown transition-colors"><Camera size={16} /> {reviewImage ? "Change Photo" : "Add Photo"}</button>
+                                 {reviewImage && <div className="relative w-10 h-10 rounded border border-aura-gold overflow-hidden"><Image src={reviewImage} alt="Preview" fill className="object-cover" /><button onClick={() => setReviewImage(null)} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white"><X size={12}/></button></div>}
                               </div>
-                              <button onClick={handleSubmitReview} className="bg-aura-brown text-white px-6 py-2 rounded-full text-xs font-bold">Post</button>
+                              <button onClick={handleSubmitReview} className="bg-aura-brown text-white px-8 py-2.5 rounded-full text-xs font-bold hover:shadow-lg hover:bg-aura-gold transition-all">Post Review</button>
                           </div>
                       </div>
                    </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {productReviews.length > 0 ? productReviews.map((review: any, index: number) => (
-                      <div key={review.id || index} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                          <div className="flex justify-between items-start mb-2">
-                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-aura-brown font-bold text-xs">{(review.user || "A").charAt(0)}</div>
-                                <div><p className="font-bold text-sm text-gray-800">{review.user}</p><div className="flex text-aura-gold">{[...Array(5)].map((_, i) => (<Star key={i} size={10} fill={i < review.rating ? "currentColor" : "none"} />))}</div></div>
+                {/* REVIEWS GRID (Masonry-like feel) */}
+                <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
+                   {sortedReviews.length > 0 ? sortedReviews.map((review: any, index: number) => (
+                      <div key={review.id || index} className="break-inside-avoid bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start mb-4">
+                             <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${getAvatarColor(review.user || "A")}`}>
+                                    {(review.user || "A").charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-sm text-gray-800">{review.user}</p>
+                                    <span className="text-[10px] text-gray-400 block">{review.date}</span>
+                                </div>
                              </div>
-                             <span className="text-[10px] text-gray-400">{review.date}</span>
+                             <div className="flex text-aura-gold bg-aura-gold/5 px-2 py-1 rounded-lg">
+                                {[...Array(5)].map((_, i) => (<Star key={i} size={10} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "text-aura-gold" : "text-gray-200"}/>))}
+                             </div>
                           </div>
-                          <p className="text-gray-600 text-xs mb-3 italic">"{review.comment}"</p>
-                          {review.image && <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 cursor-zoom-in" onClick={() => setLightboxImage(review.image)}><Image src={review.image} alt="Review photo" fill className="object-cover hover:scale-110 transition-transform" /></div>}
+                          
+                          <p className="text-gray-600 text-sm mb-4 leading-relaxed">"{review.comment}"</p>
+                          
+                          {/* UPDATED: Handle both single 'image' and multi 'images' array */}
+                          {(review.images?.length > 0 || review.image) && (
+                              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                                  {review.images ? (
+                                      review.images.map((img: string, i: number) => (
+                                          <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-zoom-in" onClick={() => setLightboxImage(img)}>
+                                              <Image src={img} alt="Review" fill className="object-cover hover:scale-110 transition-transform" />
+                                          </div>
+                                      ))
+                                  ) : (
+                                      review.image && (
+                                          <div className="relative w-full h-40 rounded-lg overflow-hidden border border-gray-200 cursor-zoom-in" onClick={() => setLightboxImage(review.image)}>
+                                              <Image src={review.image} alt="Review" fill className="object-cover hover:scale-105 transition-transform" />
+                                          </div>
+                                      )
+                                  )}
+                              </div>
+                          )}
                       </div>
-                   )) : <p className="text-gray-400 italic text-sm text-center col-span-2">No reviews yet.</p>}
+                   )) : <div className="col-span-full py-12 text-center text-gray-400 italic bg-gray-50 rounded-2xl border border-dashed border-gray-200">No reviews found matching your filter.</div>}
                 </div>
             </div>
         </div>
