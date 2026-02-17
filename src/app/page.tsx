@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, X, ChevronDown, Filter, User, Users, Heart } from "lucide-react"; 
+import { ArrowRight, X, ChevronDown, Filter, User, Users, Heart, ShieldCheck } from "lucide-react"; 
 
 // --- CONFIGURATION ---
 const FILTER_TAGS = ["All", "Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"];
@@ -203,8 +203,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --- DYNAMIC EID STRIP --- */}
-      <Link href="/eid-collection" className="block bg-[#1E1B18] border-y border-aura-gold/20 py-4 overflow-hidden group relative cursor-pointer z-20">
+      {/* --- TRUST STRIP (OPEN PARCEL POLICY) - UPDATED FOR VISIBILITY --- */}
+      <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center relative z-20 shadow-lg">
+        <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
+          <ShieldCheck size={16} className="text-aura-gold"/> 
+          OFFICIAL POLICY: Open Parcel Before Payment Allowed
+        </p>
+      </div>
+
+      {/* --- DYNAMIC EID STRIP (HIDDEN) --- */}
+      {/* <Link href="/eid-collection" className="block bg-[#1E1B18] border-y border-aura-gold/20 py-4 overflow-hidden group relative cursor-pointer z-20">
         <div className="absolute inset-0 bg-aura-gold/5 group-hover:bg-aura-gold/10 transition-colors"></div>
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center relative z-10">
             <div className="flex items-center gap-4">
@@ -223,6 +231,7 @@ export default function Home() {
             </div>
         </div>
       </Link>
+      */}
 
       {/* --- Masterpiece Series Section --- */}
       <section className="py-20 px-4 bg-white rounded-t-[3rem] shadow-inner relative z-10 -mt-2">

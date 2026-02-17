@@ -11,7 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { 
   Star, Truck, ShieldCheck, 
   Minus, Plus, ShoppingBag, Heart, Share2, 
-  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package, Sun, Calendar, Filter, Image as ImageIcon
+  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package, Sun, Calendar, Filter, Image as ImageIcon, Video
 } from "lucide-react";
 import toast from "react-hot-toast"; 
 
@@ -276,7 +276,17 @@ export default function ProductClient() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-24 md:pt-36">
+      {/* --- TRUST STRIP (Fixed Padding to Avoid Cut-off) --- */}
+      <div className="pt-24 md:pt-32"> 
+          <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center shadow-lg">
+            <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
+              <ShieldCheck size={16} className="text-aura-gold"/> 
+              OFFICIAL POLICY: Open Parcel Before Payment Allowed
+            </p>
+          </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 md:pt-12">
         <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-400 mb-4 md:mb-6 font-medium">
             <Link href="/" className="hover:text-aura-gold flex items-center gap-1"><Home size={14}/> Home</Link>
             <span>/</span>
@@ -356,7 +366,7 @@ export default function ProductClient() {
                     </div>
                 </div>
 
-                {/* --- NEW: KEY FEATURES BADGES --- */}
+                {/* --- KEY FEATURES BADGES --- */}
                 {(specs.luminous || specs.date_display || specs.box_included) && (
                     <div className="flex flex-wrap gap-3 mb-6">
                         {specs.luminous && (
@@ -376,7 +386,6 @@ export default function ProductClient() {
                         )}
                     </div>
                 )}
-                {/* -------------------------------- */}
 
                 {product.colors && product.colors.length > 0 && (
                     <div className="mb-6">
@@ -432,6 +441,12 @@ export default function ProductClient() {
                                 </button>
                             </div>
                             <button onClick={handleAddToCart} className="w-full h-12 border border-aura-gold/50 text-aura-brown rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold hover:text-white transition-all">BUY NOW</button>
+                            
+                            {/* --- UPDATED: BOLD & LARGE PACKING VIDEO NOTE --- */}
+                            <p className="text-sm font-bold text-center text-aura-brown flex items-center justify-center gap-2 mt-4 p-2 bg-aura-gold/10 rounded-lg border border-aura-gold/20 shadow-sm">
+                                <Video size={18} className="text-aura-brown"/> 
+                                We share packing video before dispatch.
+                            </p>
                         </>
                     ) : (
                         <div className="w-full bg-[#FAF9F6] border border-red-100 p-4 rounded-xl text-center">
@@ -465,7 +480,7 @@ export default function ProductClient() {
           </div>
         </div>
 
-        {/* UPDATED TESTIMONIALS SECTION */}
+        {/* TESTIMONIALS SECTION */}
         <div className="mb-12 md:mb-24 border-t border-gray-200 pt-10">
             <div className="max-w-6xl mx-auto">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -528,7 +543,6 @@ export default function ProductClient() {
                           
                           <p className="text-gray-600 text-sm mb-4 leading-relaxed">"{review.comment}"</p>
                           
-                          {/* UPDATED: Handle both single 'image' and multi 'images' array */}
                           {(review.images?.length > 0 || review.image) && (
                               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                                   {review.images ? (

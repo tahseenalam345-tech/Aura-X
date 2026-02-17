@@ -38,7 +38,17 @@ export default function CartPage() {
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-32 md:pt-40">
+      {/* --- TRUST STRIP (Added Here) --- */}
+      <div className="pt-24 md:pt-32"> 
+          <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center shadow-lg">
+            <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
+              <ShieldCheck size={16} className="text-aura-gold"/> 
+              OFFICIAL POLICY: Open Parcel Before Payment Allowed
+            </p>
+          </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 md:pt-12">
         <h1 className="text-4xl md:text-5xl font-serif font-medium text-center mb-12">Your Shopping Bag</h1>
 
         {cart.length === 0 ? (
@@ -75,7 +85,8 @@ export default function CartPage() {
               )}
 
               {cart.map((item) => {
-                const extras = (item.isGift ? 150 : 0) + (item.addBox ? 100 : 0);
+                // UPDATED PRICES HERE: Gift 300, Box 200
+                const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
                 const itemTotalPrice = (item.price + extras) * item.quantity;
 
                 return (
@@ -105,8 +116,8 @@ export default function CartPage() {
                         {item.color && <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">Color: {item.color}</p>}
                         
                         <div className="flex gap-2 mt-2 flex-wrap">
-                           {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-bold border border-purple-100">Gift Wrap (+Rs 150)</span>}
-                           {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold border border-orange-100">Premium Box (+Rs 100)</span>}
+                           {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-bold border border-purple-100">Gift Wrap (+Rs 300)</span>}
+                           {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold border border-orange-100">Premium Box (+Rs 200)</span>}
                         </div>
                       </div>
 
