@@ -8,7 +8,13 @@ import { Footer } from "@/components/Footer";
 import EidPopup from "@/components/EidPopup";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import Script from "next/script";
-import TrustPopup from "@/components/TrustPopup";
+import dynamic from 'next/dynamic'; // 1. Import dynamic
+
+// 2. Lazy load the TrustPopup so it doesn't block the initial page load
+// ssr: false means this component is never rendered on the server
+const TrustPopup = dynamic(() => import('@/components/TrustPopup'), {
+  ssr: false,
+});
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair', display: 'swap' });
 const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable: '--font-lato', display: 'swap' });
@@ -92,7 +98,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster position="top-center" /> 
             
             <WhatsAppButton />
+            
+            {/* Lazy loaded popup */}
             <TrustPopup />
+            
             {children}
             <Footer />
           </CartProvider>
