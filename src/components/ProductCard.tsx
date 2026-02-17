@@ -82,11 +82,11 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                 </div>
             )}
 
-            {/* TAGS */}
+            {/* TAGS (Updated for better visibility) */}
             {product.tags && product.tags.length > 0 && (
-                 <div className="absolute top-3 left-3 z-20 flex flex-col gap-1 pointer-events-none max-w-[50%]">
+                 <div className="absolute top-3 left-3 z-20 flex flex-col gap-1 pointer-events-none w-auto max-w-[70%]">
                     {product.tags.slice(0, 1).map(tag => (
-                        <span key={tag} className="bg-[#C5A67C] text-white text-[9px] font-bold px-2 py-1 rounded-md uppercase tracking-widest shadow-sm truncate">
+                        <span key={tag} className="bg-[#1E1B18] text-aura-gold border border-aura-gold/30 text-[9px] md:text-[10px] font-bold px-3 py-1.5 rounded-md uppercase tracking-wider shadow-md whitespace-normal leading-tight">
                             {tag}
                         </span>
                     ))}
@@ -113,7 +113,8 @@ export function ProductCard({ product, priority = false }: { product: Product; p
         <div className="px-4 pb-4 md:px-5 md:pb-5 flex-1 flex flex-col justify-between">
             <div className="mt-3">
                 <div className="flex justify-between items-start mb-2">
-                  <p className="text-[9px] md:text-[10px] text-[#C5A67C] font-extrabold tracking-[0.2em] uppercase">
+                  {/* CATEGORY (Updated: Bolder and Larger) */}
+                  <p className="text-[11px] md:text-xs text-[#8B6E4E] font-black tracking-[0.2em] uppercase">
                       {product.category || "LUXURY"}
                   </p>
                   
@@ -163,7 +164,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                 <div className="flex items-end justify-between border-t border-black/5 pt-3">
                     <div className="flex flex-col">
                         {originalPrice > product.price && (
-                            // UPDATED: Changed from text-gray-500 to text-gray-900 and font-bold for clarity
                             <span className="text-[11px] text-gray-900 line-through mb-0.5 font-sans font-bold opacity-80">
                                 Rs {originalPrice.toLocaleString()}
                             </span>
@@ -173,6 +173,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                         </span>
                     </div>
                     
+                    {/* ADD TO CART BUTTON */}
                     <button 
                       type="button"
                       onClick={handleAddToCart}

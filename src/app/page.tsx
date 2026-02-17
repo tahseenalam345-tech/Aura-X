@@ -7,12 +7,11 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, X, ChevronDown, Filter } from "lucide-react"; 
+import { ArrowRight, X, ChevronDown, Filter, User, Users, Heart } from "lucide-react"; 
 
 // --- CONFIGURATION ---
-// TARGET_DATE removed - now fetched dynamically from DB
 const FILTER_TAGS = ["All", "Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"];
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 9; // Changed to 9 to divide evenly by 3 categories
 
 // --- ANIMATIONS ---
 const fadeInUp: Variants = {
@@ -29,7 +28,6 @@ const categories = [
   { id: "couple", title: "Timeless Bond", subtitle: "FOR COUPLES", image: "/couples.png", link: "/couple" }
 ];
 
-// --- SUB-COMPONENTS ---
 const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
     <Link href={cat.link} className={`relative group overflow-hidden rounded-3xl shadow-lg h-[280px] md:h-[450px] w-full block ${className}`}>
         <Image src={cat.image} alt={`${cat.title} Collection`} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" sizes="(max-width: 768px) 100vw, 50vw" quality={75} />
@@ -47,82 +45,90 @@ export default function Home() {
   const [isEidLive, setIsEidLive] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   
-  // --- FILTER & PAGINATION STATE ---
+  // --- FILTER STATE ---
   const [activeTag, setActiveTag] = useState("All");
+  const [activeCategory, setActiveCategory] = useState("All"); // NEW: Category Filter
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // --- 1. REAL TIME CHECK (Dynamic from Supabase) ---
   useEffect(() => {
     const checkTime = async () => {
-      const { data } = await supabase
-        .from('admin_settings')
-        .select('eid_reveal_date')
-        .single();
-
+      const { data } = await supabase.from('admin_settings').select('eid_reveal_date').single();
       if (data?.eid_reveal_date) {
-        const targetTime = new Date(data.eid_reveal_date).getTime();
-        const now = new Date().getTime();
-        setIsEidLive(now >= targetTime);
+        setIsEidLive(new Date().getTime() >= new Date(data.eid_reveal_date).getTime());
       }
     };
-
     checkTime();
-    // Check every minute so it unlocks automatically without refresh
     const interval = setInterval(checkTime, 60000); 
     return () => clearInterval(interval);
   }, []);
 
-  // --- 2. BANNER SLIDER OPTIMIZED: Delay start to prevent Forced Reflow ---
   useEffect(() => {
     const idleTimer = setTimeout(() => {
-      const timer = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % watchImages.length);
-      }, 4000);
+      const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
       return () => clearInterval(timer);
     }, 500); 
-    
     return () => clearTimeout(idleTimer);
   }, []);
 
-  // --- 3. FETCH PRODUCTS (Initial & Filter Change) ---
+  // --- FETCH PRODUCTS (Initial & Filter Change) ---
   useEffect(() => {
-    fetchProducts(1, true); // Reset to page 1 on filter change
-  }, [activeTag]);
+    fetchProducts(1, true);
+  }, [activeTag, activeCategory]);
 
   const fetchProducts = async (pageNumber: number, reset: boolean = false) => {
       setLoadingMore(true); 
 
-      const from = (pageNumber - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
+      // If Category is "All" and Tag is "All", we perform the "Mix Logic"
+      if (activeCategory === "All" && activeTag === "All") {
+          const from = (pageNumber - 1) * 3; // Fetch 3 of each per page
+          const to = from + 2;
 
-      let query = supabase
-          .from('products')
-          .select('*')
-          .eq('is_eid_exclusive', false)
-          .order('priority', { ascending: false }) // High Priority first
-          .range(from, to);
+          // Parallel Fetch: Get top Men, top Women, top Couple
+          const [men, women, couple] = await Promise.all([
+              supabase.from('products').select('*').eq('category', 'men').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to),
+              supabase.from('products').select('*').eq('category', 'women').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to),
+              supabase.from('products').select('*').eq('category', 'couple').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to)
+          ]);
 
-      // --- APPLY FILTERS ---
-      if (activeTag === "Under2000") {
-          // PRICE FILTER: Show items less than 2000
-          query = query.lt('price', 2000);
-      } else if (activeTag !== "All") {
-          // TAG FILTER: Check if tags array contains the active tag
-          query = query.contains('tags', [activeTag]);
-      }
-
-      const { data } = await query;
-
-      if (data) {
-          if (reset) {
-              setProducts(data);
-              setPage(1);
-          } else {
-              setProducts(prev => [...prev, ...data]);
+          // Interleave them: [Man1, Woman1, Couple1, Man2, Woman2, Couple2...]
+          const mixed: any[] = [];
+          for (let i = 0; i < 3; i++) {
+              if (men.data?.[i]) mixed.push(men.data[i]);
+              if (women.data?.[i]) mixed.push(women.data[i]);
+              if (couple.data?.[i]) mixed.push(couple.data[i]);
           }
-          setHasMore(data.length === ITEMS_PER_PAGE);
+
+          if (reset) setProducts(mixed);
+          else setProducts(prev => [...prev, ...mixed]);
+          
+          setHasMore(mixed.length > 0);
+      } 
+      else {
+          // Standard Filtering Logic
+          const from = (pageNumber - 1) * ITEMS_PER_PAGE;
+          const to = from + ITEMS_PER_PAGE - 1;
+
+          let query = supabase.from('products').select('*').eq('is_eid_exclusive', false);
+
+          // Apply Category Filter
+          if (activeCategory !== "All") query = query.eq('category', activeCategory);
+
+          // Apply Tag/Price Filter
+          if (activeTag === "Under2000") query = query.lt('price', 2000);
+          else if (activeTag !== "All") query = query.contains('tags', [activeTag]);
+
+          // Always sort by priority
+          query = query.order('priority', { ascending: false }).range(from, to);
+
+          const { data } = await query;
+
+          if (data) {
+              if (reset) setProducts(data);
+              else setProducts(prev => [...prev, ...data]);
+              setHasMore(data.length === ITEMS_PER_PAGE);
+          }
       }
       setLoadingMore(false);
   };
@@ -133,7 +139,6 @@ export default function Home() {
       fetchProducts(nextPage, false);
   };
 
-  // Helper for Banner Animation
   const getPosition = (index: number) => {
     const diff = (index - currentIndex + watchImages.length) % watchImages.length;
     if (diff === 0) return { x: 0, scale: 1.1, zIndex: 50, opacity: 1, blur: 0 };
@@ -167,20 +172,18 @@ export default function Home() {
           </div>
           
           <div className="relative h-[350px] md:h-[550px] w-full flex justify-center items-center">
-             {watchImages.map((src, index) => {
+              {watchImages.map((src, index) => {
                const pos = getPosition(index);
                if (pos.opacity === 0) return null; 
                return (
                  <motion.div
                    key={index}
-                   // ⚡ THE FIX: This forces the server to render the image instantly
                    initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity, filter: `blur(${pos.blur}px)` }}
                    animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity, filter: `blur(${pos.blur}px)` }}
                    transition={{ duration: 0.8 }}
                    className="absolute"
                  >
                     <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-                      {/* --- LCP OPTIMIZATION: PRIORITY & FETCHPRIORITY ENABLED --- */}
                       <Image 
                         src={src} 
                         alt="AURA-X Premium Luxury Watch Model" 
@@ -243,7 +246,7 @@ export default function Home() {
              <button onClick={() => setShowCategoryModal(true)} className="text-aura-gold text-xs font-bold uppercase tracking-widest border-b border-aura-gold pb-1 hover:text-aura-brown transition-colors">View All</button>
           </div>
 
-          {/* TAG FILTERS */}
+          {/* 1. TAG FILTERS */}
           <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
              {FILTER_TAGS.map(tag => (
                  <button 
@@ -256,7 +259,32 @@ export default function Home() {
              ))}
           </div>
 
-          {/* UNDER 2000 FILTER BUTTON (Interactive) */}
+          {/* 2. NEW CATEGORY SELECTOR BUTTONS */}
+          <div className="grid grid-cols-3 gap-2 md:gap-4 max-w-2xl mx-auto mb-8">
+              <button 
+                onClick={() => setActiveCategory(activeCategory === 'men' ? 'All' : 'men')}
+                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${activeCategory === 'men' ? 'bg-[#1E1B18] text-aura-gold border-[#1E1B18]' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
+              >
+                  <User size={20} className="mb-1"/>
+                  <span className="text-xs font-bold uppercase tracking-wider">For Him</span>
+              </button>
+              <button 
+                onClick={() => setActiveCategory(activeCategory === 'women' ? 'All' : 'women')}
+                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${activeCategory === 'women' ? 'bg-[#1E1B18] text-aura-gold border-[#1E1B18]' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
+              >
+                  <Heart size={20} className="mb-1"/>
+                  <span className="text-xs font-bold uppercase tracking-wider">For Her</span>
+              </button>
+              <button 
+                onClick={() => setActiveCategory(activeCategory === 'couple' ? 'All' : 'couple')}
+                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${activeCategory === 'couple' ? 'bg-[#1E1B18] text-aura-gold border-[#1E1B18]' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
+              >
+                  <Users size={20} className="mb-1"/>
+                  <span className="text-xs font-bold uppercase tracking-wider">Couples</span>
+              </button>
+          </div>
+
+          {/* 3. UNDER 2000 FILTER BUTTON */}
           <div className="flex justify-center mb-10">
              <button 
                 onClick={() => setActiveTag("Under2000")}
