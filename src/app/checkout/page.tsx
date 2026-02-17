@@ -67,47 +67,46 @@ export default function CheckoutPage() {
         // 3. Get the ORD-XXXXX code from the API
         const orderCode = result.orderId;
 
-       // 4. Send Email (Admin & Customer receive this)
-        const emailParams = {
+       // --- 4. SEND EMAILS (Two Separate Emails for Privacy) ---
+      // --- 4. SEND EMAILS (Two Separate Emails for Privacy) ---
+        
+        // Define Email 1 (For Customer)
+        const customerEmailParams = {
             email_subject: `Order Confirmation #${orderCode}`,
-            
-            // --- UPDATED: Sends to Customer AND Admin ---
-            // Replace 'admin@aura-x.com' with your actual email address
-            to_email: `${formData.email}, auraxofficial1@gmail.com`, 
-            
+            to_email: formData.email, // Send to Customer
             to_name: fullName,
-            
-            // Your specific template variables:
             email_heading: "Thank You For Your Order!",
-            order_id: orderCode, 
+            order_id: orderCode,
             email_message: `Your order has been received. We will ship to ${formData.city} soon.`,
             order_items: cart.map(i => `${i.name} (x${i.quantity})`).join(', '),
-            total_amount: `Rs ${finalTotal.toLocaleString()}`,
-            
+            total_amount: `Rs ${finalTotal.toLocaleString()}`, 
             customer_name: fullName,
             phone: formData.phone,
             city: formData.city,
             address: formData.address
         };
 
-        await emailjs.send(
-            'service_wfw89r5',   // Your Service ID (Keep this same)
-            'template_ccsvo5z',  // --- UPDATED: Your New Template ID ---
-            emailParams,
-            'OQmFriQxX0btmE7W3'  // Your Public Key (Keep this same)
-        );
+        // Define Email 2 (For Admin/You)
+        const adminEmailParams = {
+            ...customerEmailParams, // Copy order details
+            to_email: "tahseenalam345@GMAIL.COM", // Your Email
+            to_name: "Admin",
+            email_heading: "⚠️ NEW ORDER RECEIVED",
+            email_subject: `New Order Alert: #${orderCode}`,
+            email_message: `A new order has been placed by ${fullName}. Check Supabase for details.`
+        };
 
-        // USING YOUR KEYS
-        await emailjs.send(
-            'service_wfw89r5',   
-            'template_ccsvo5z',  
-            emailParams,
-            'OQmFriQxX0btmE7W3'
-        );
+        // Send both emails using the CORRECT variable names
+        await Promise.all([
+            // Send to Customer
+            emailjs.send('service_wfw89r5', 'template_ccsvo5z', customerEmailParams, 'OQmFriQxX0btmE7W3'),
+            
+            // Send to Admin
+            emailjs.send('service_wfw89r5', 'template_ccsvo5z', adminEmailParams, 'OQmFriQxX0btmE7W3')
+        ]);
 
         toast.success("Order Placed Successfully!");
         clearCart();
-        
         // 5. Redirect using the ORD-XXXXX code
         router.push(`/success?id=${orderCode}&total=${finalTotal}&name=${encodeURIComponent(formData.firstName)}`);
 
