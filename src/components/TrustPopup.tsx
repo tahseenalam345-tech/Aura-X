@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PackageOpen, X, ShieldCheck, CheckCircle, Video, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function TrustPopup() {
   const [isVisible, setIsVisible] = useState(false);
@@ -33,21 +34,27 @@ export default function TrustPopup() {
   return (
     <AnimatePresence>
       {isVisible && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+        <div 
+            // ADDED: Click backdrop to close
+            onClick={handleClose} 
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md cursor-pointer"
+        >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            // UPDATED: Background color is now a rich off-white, not plain white
-            className="relative bg-[#FDFBF7] w-full max-w-sm rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)] border border-aura-gold/40"
+            // UPDATED: Faster duration (0.25s) so it feels snappy, not lazy
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            // ADDED: Stop propagation so clicking the card itself doesn't close it
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-[#FDFBF7] w-full max-w-sm rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)] border border-aura-gold/40 cursor-default"
           >
             {/* Top Decoration */}
             <div className="h-1.5 w-full bg-gradient-to-r from-[#1E1B18] via-aura-gold to-[#1E1B18]"></div>
 
             {/* Close Button */}
             <button 
-              onClick={handleClose} 
+              onClick={(e) => { e.stopPropagation(); handleClose(); }} 
               className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full transition-colors text-gray-500 hover:text-red-500 z-10 shadow-sm"
             >
               <X size={20} strokeWidth={2.5} />
@@ -63,7 +70,7 @@ export default function TrustPopup() {
                 </div>
               </div>
 
-              {/* Text Content - INCREASED SIZE & BOLDNESS */}
+              {/* Text Content */}
               <h2 className="text-2xl font-serif font-black text-aura-brown mb-2 tracking-tight">
                 Shop with Confidence
               </h2>
@@ -72,7 +79,7 @@ export default function TrustPopup() {
                 <span className="font-extrabold text-aura-gold uppercase tracking-wider bg-[#1E1B18] px-2 py-0.5 rounded text-xs mt-1 inline-block">Open Parcel Policy</span>
               </p>
 
-              {/* Key Points Box - FILLED BACKGROUND */}
+              {/* Key Points Box */}
               <div className="bg-white rounded-2xl p-5 mb-6 text-left space-y-4 border border-gray-200 shadow-inner">
                 
                 <div className="flex items-center gap-4">
@@ -109,10 +116,19 @@ export default function TrustPopup() {
               {/* CTA Button */}
               <button 
                 onClick={handleClose} 
-                className="w-full py-4 bg-[#1E1B18] text-white rounded-xl font-bold text-xs tracking-[0.2em] hover:bg-aura-gold hover:text-white transition-all shadow-xl active:scale-95 uppercase flex items-center justify-center gap-2 group"
+                className="w-full py-4 bg-[#1E1B18] text-white rounded-xl font-bold text-xs tracking-[0.2em] hover:bg-aura-gold hover:text-white transition-all shadow-xl active:scale-95 uppercase flex items-center justify-center gap-2 group mb-4"
               >
                 Start Exploring <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
               </button>
+
+              {/* Policy Link */}
+              <Link 
+                href="/support/return" 
+                onClick={handleClose}
+                className="text-[10px] text-gray-400 border-b border-gray-300 hover:text-aura-brown hover:border-aura-brown transition-all pb-0.5"
+              >
+                Read our policies
+              </Link>
             </div>
           </motion.div>
         </div>
