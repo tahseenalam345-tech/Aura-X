@@ -67,15 +67,19 @@ export default function CheckoutPage() {
         // 3. Get the ORD-XXXXX code from the API
         const orderCode = result.orderId;
 
-        // 4. Send Email (Admin & Customer receive this)
+       // 4. Send Email (Admin & Customer receive this)
         const emailParams = {
             email_subject: `Order Confirmation #${orderCode}`,
-            to_email: formData.email,
+            
+            // --- UPDATED: Sends to Customer AND Admin ---
+            // Replace 'admin@aura-x.com' with your actual email address
+            to_email: `${formData.email}, auraxofficial1@gmail.com`, 
+            
             to_name: fullName,
             
             // Your specific template variables:
             email_heading: "Thank You For Your Order!",
-            order_id: orderCode, // Shows ORD-XXXXX in email
+            order_id: orderCode, 
             email_message: `Your order has been received. We will ship to ${formData.city} soon.`,
             order_items: cart.map(i => `${i.name} (x${i.quantity})`).join(', '),
             total_amount: `Rs ${finalTotal.toLocaleString()}`,
@@ -85,6 +89,13 @@ export default function CheckoutPage() {
             city: formData.city,
             address: formData.address
         };
+
+        await emailjs.send(
+            'service_wfw89r5',   // Your Service ID (Keep this same)
+            'template_ccsvo5z',  // --- UPDATED: Your New Template ID ---
+            emailParams,
+            'OQmFriQxX0btmE7W3'  // Your Public Key (Keep this same)
+        );
 
         // USING YOUR KEYS
         await emailjs.send(
