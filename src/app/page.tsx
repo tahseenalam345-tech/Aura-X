@@ -22,12 +22,12 @@ const fadeInUp: Variants = {
 
 // --- STATIC DATA ---
 // TIP: Convert these to .webp in your public folder for instant 100% speed score!
-const watchImages = ["/pic1.png", "/pic2.png", "/pic3.png", "/pic4.png"]; 
+const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
 const categories = [
-  { id: "men", title: "Gents' Heritage", subtitle: "EXPLORE MEN'S", image: "/mens.jpg", link: "/men" },
-  { id: "women", title: "Ladies' Precision", subtitle: "EXPLORE WOMEN'S", image: "/ladies.png", link: "/women" },
-  { id: "couple", title: "Timeless Bond", subtitle: "FOR COUPLES", image: "/couples.png", link: "/couple" }
+  { id: "men", title: "Gents' Heritage", subtitle: "EXPLORE MEN'S", image: "/mens.webp", link: "/men" },
+  { id: "women", title: "Ladies' Precision", subtitle: "EXPLORE WOMEN'S", image: "/ladies.webp", link: "/women" },
+  { id: "couple", title: "Timeless Bond", subtitle: "FOR COUPLES", image: "/couples.webp", link: "/couple" }
 ];
 
 const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
