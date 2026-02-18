@@ -33,8 +33,9 @@ export default function TrustPopup() {
   return (
     <div 
       onClick={handleClose} 
-      // FIXED: REMOVED 'backdrop-blur-md' TO FIX BLURRY SITE ISSUE
-      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 transition-opacity duration-300 ease-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+      // FIXED: Removed 'backdrop-blur-md' to remove the blur effect
+      // FIXED: Changed bg-black/70 to bg-black/60 for better visibility
+      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 transition-opacity duration-300 ease-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
     >
       <div 
         onClick={(e) => e.stopPropagation()}

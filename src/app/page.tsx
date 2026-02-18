@@ -8,7 +8,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, X, ChevronDown, Filter, User, Users, Heart, ShieldCheck } from "lucide-react"; 
-import TrustPopup from "@/components/TrustPopup"; // Ensure this import is correct
+import TrustPopup from "@/components/TrustPopup"; 
 
 // --- CONFIGURATION ---
 const FILTER_TAGS = ["All", "Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"];
@@ -21,6 +21,7 @@ const fadeInUp: Variants = {
 };
 
 // --- STATIC DATA ---
+// TIP: Convert these to .webp in your public folder for instant 100% speed score!
 const watchImages = ["/pic1.png", "/pic2.png", "/pic3.png", "/pic4.png"]; 
 
 const categories = [
@@ -31,7 +32,15 @@ const categories = [
 
 const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
     <Link href={cat.link} className={`relative group overflow-hidden rounded-3xl shadow-lg h-[280px] md:h-[450px] w-full block ${className}`}>
-        <Image src={cat.image} alt={`${cat.title} Collection`} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" sizes="(max-width: 768px) 100vw, 50vw" quality={75} />
+        <Image 
+            src={cat.image} 
+            alt={`${cat.title} Collection`} 
+            fill 
+            className="object-cover transition-transform duration-1000 group-hover:scale-110" 
+            sizes="(max-width: 768px) 100vw, 50vw" 
+            quality={75} 
+            unoptimized={true} // Add this to save quota on category images too
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         <div className="absolute bottom-6 left-6 text-white">
           <p className="text-[10px] font-bold tracking-widest uppercase mb-1 text-aura-gold">{cat.subtitle}</p>
@@ -180,17 +189,17 @@ export default function Home() {
                    className="absolute"
                  >
                     <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-                      {/* FIXED: Added priority and fetchPriority to fix LCP Issue */}
+                      {/* FIXED: Priority and Unoptimized Logic */}
                       <Image 
                         src={src} 
                         alt="AURA-X Premium Luxury Watch Model" 
                         fill 
                         className="object-contain drop-shadow-2xl"
-                        priority={true} // Forces instant load
-                        fetchPriority={index === currentIndex ? "high" : "auto"} // Tells browser to load this first
+                        priority={true} 
+                        fetchPriority={index === currentIndex ? "high" : "auto"} 
                         sizes="(max-width: 768px) 200px, 320px"
                         quality={85} 
-                        unoptimized={true} // Keeps Vercel limit safe
+                        unoptimized={true} 
                       />
                     </div>
                  </motion.div>
@@ -311,7 +320,8 @@ export default function Home() {
 
       {/* --- COLLECTION SELECTION MODAL --- */}
       {showCategoryModal && (
-        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-300"> {/* REMOVED backdrop-blur-md HERE TOO */}
+        // FIXED: Removed 'backdrop-blur-md'
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-300"> 
             <div className="bg-white p-6 md:p-8 rounded-[2rem] w-full max-w-5xl relative shadow-2xl">
                 <button onClick={() => setShowCategoryModal(false)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-500 hover:text-red-500 transition-colors z-50">
                     <X size={20}/>
@@ -323,7 +333,7 @@ export default function Home() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {categories.map((cat) => (
                         <Link key={cat.id} href={cat.link} className="group relative h-64 md:h-80 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-                            <Image src={cat.image} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" quality={75} />
+                            <Image src={cat.image} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" quality={75} unoptimized={true} />
                             <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center text-white">
                                 <h3 className="text-2xl font-serif font-bold mb-2 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">{cat.title}</h3>
                                 <span className="text-xs tracking-widest uppercase border-b border-white pb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">Shop Now</span>
