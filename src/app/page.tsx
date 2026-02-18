@@ -8,10 +8,11 @@ import { ProductCard } from "@/components/ProductCard";
 import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, X, ChevronDown, Filter, User, Users, Heart, ShieldCheck } from "lucide-react"; 
+import TrustPopup from "@/components/TrustPopup"; // Ensure this import is correct
 
 // --- CONFIGURATION ---
 const FILTER_TAGS = ["All", "Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"];
-const ITEMS_PER_PAGE = 9; // Changed to 9 to divide evenly by 3 categories
+const ITEMS_PER_PAGE = 9; 
 
 // --- ANIMATIONS ---
 const fadeInUp: Variants = {
@@ -47,7 +48,7 @@ export default function Home() {
   
   // --- FILTER STATE ---
   const [activeTag, setActiveTag] = useState("All");
-  const [activeCategory, setActiveCategory] = useState("All"); // NEW: Category Filter
+  const [activeCategory, setActiveCategory] = useState("All"); 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -82,17 +83,15 @@ export default function Home() {
 
       // If Category is "All" and Tag is "All", we perform the "Mix Logic"
       if (activeCategory === "All" && activeTag === "All") {
-          const from = (pageNumber - 1) * 3; // Fetch 3 of each per page
+          const from = (pageNumber - 1) * 3; 
           const to = from + 2;
 
-          // Parallel Fetch: Get top Men, top Women, top Couple
           const [men, women, couple] = await Promise.all([
               supabase.from('products').select('*').eq('category', 'men').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to),
               supabase.from('products').select('*').eq('category', 'women').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to),
               supabase.from('products').select('*').eq('category', 'couple').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to)
           ]);
 
-          // Interleave them: [Man1, Woman1, Couple1, Man2, Woman2, Couple2...]
           const mixed: any[] = [];
           for (let i = 0; i < 3; i++) {
               if (men.data?.[i]) mixed.push(men.data[i]);
@@ -106,20 +105,16 @@ export default function Home() {
           setHasMore(mixed.length > 0);
       } 
       else {
-          // Standard Filtering Logic
           const from = (pageNumber - 1) * ITEMS_PER_PAGE;
           const to = from + ITEMS_PER_PAGE - 1;
 
           let query = supabase.from('products').select('*').eq('is_eid_exclusive', false);
 
-          // Apply Category Filter
           if (activeCategory !== "All") query = query.eq('category', activeCategory);
 
-          // Apply Tag/Price Filter
           if (activeTag === "Under2000") query = query.lt('price', 2000);
           else if (activeTag !== "All") query = query.contains('tags', [activeTag]);
 
-          // Always sort by priority
           query = query.order('priority', { ascending: false }).range(from, to);
 
           const { data } = await query;
@@ -150,6 +145,7 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown overflow-x-hidden bg-[#F2F0E9]">
       <Navbar />
+      <TrustPopup />
 
       {/* --- HERO SECTION --- */}
       <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden">
@@ -184,15 +180,17 @@ export default function Home() {
                    className="absolute"
                  >
                     <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
+                      {/* FIXED: Added priority and fetchPriority to fix LCP Issue */}
                       <Image 
                         src={src} 
                         alt="AURA-X Premium Luxury Watch Model" 
                         fill 
                         className="object-contain drop-shadow-2xl"
-                        priority={true}
-                        fetchPriority={index === currentIndex ? "high" : "auto"}
+                        priority={true} // Forces instant load
+                        fetchPriority={index === currentIndex ? "high" : "auto"} // Tells browser to load this first
                         sizes="(max-width: 768px) 200px, 320px"
-                        quality={75} 
+                        quality={85} 
+                        unoptimized={true} // Keeps Vercel limit safe
                       />
                     </div>
                  </motion.div>
@@ -203,35 +201,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --- TRUST STRIP (OPEN PARCEL POLICY) - UPDATED FOR VISIBILITY --- */}
+      {/* --- TRUST STRIP --- */}
       <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center relative z-20 shadow-lg">
         <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
           <ShieldCheck size={16} className="text-aura-gold"/> 
           OFFICIAL POLICY: Open Parcel Before Payment Allowed
         </p>
       </div>
-
-      {/* --- DYNAMIC EID STRIP (HIDDEN) --- */}
-      {/* <Link href="/eid-collection" className="block bg-[#1E1B18] border-y border-aura-gold/20 py-4 overflow-hidden group relative cursor-pointer z-20">
-        <div className="absolute inset-0 bg-aura-gold/5 group-hover:bg-aura-gold/10 transition-colors"></div>
-        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center relative z-10">
-            <div className="flex items-center gap-4">
-                <span className="text-2xl animate-pulse">🌙</span>
-                <div className="text-left">
-                    <p className={`text-[10px] font-bold tracking-[0.2em] uppercase ${isEidLive ? 'text-green-400 animate-pulse' : 'text-aura-gold'}`}>
-                        {isEidLive ? "● NOW LIVE" : "Coming Soon"}
-                    </p>
-                    <p className="text-white font-serif text-lg md:text-xl">
-                        {isEidLive ? "The Eid Collection is Unlocked & Ready" : "The Eid Collection — Unlocking Ramzan 10th"}
-                    </p>
-                </div>
-            </div>
-            <div className="hidden md:flex items-center gap-2 text-white/50 text-xs font-bold uppercase tracking-widest group-hover:text-white transition-colors">
-                {isEidLive ? "Enter The Shop" : "View Locked Content"} <ArrowRight size={16} />
-            </div>
-        </div>
-      </Link>
-      */}
 
       {/* --- Masterpiece Series Section --- */}
       <section className="py-20 px-4 bg-white rounded-t-[3rem] shadow-inner relative z-10 -mt-2">
@@ -268,7 +244,7 @@ export default function Home() {
              ))}
           </div>
 
-          {/* 2. NEW CATEGORY SELECTOR BUTTONS */}
+          {/* 2. CATEGORY SELECTOR BUTTONS */}
           <div className="grid grid-cols-3 gap-2 md:gap-4 max-w-2xl mx-auto mb-8">
               <button 
                 onClick={() => setActiveCategory(activeCategory === 'men' ? 'All' : 'men')}
@@ -293,7 +269,7 @@ export default function Home() {
               </button>
           </div>
 
-          {/* 3. UNDER 2000 FILTER BUTTON */}
+          {/* 3. UNDER 2000 FILTER */}
           <div className="flex justify-center mb-10">
              <button 
                 onClick={() => setActiveTag("Under2000")}
@@ -314,7 +290,6 @@ export default function Home() {
             {products.length > 0 ? products.map((product) => (
               <ProductCard key={product.id} product={product} />
             )) : (
-              // SKELETON OR NO ITEMS
               loadingMore ? [1,2,3,4].map(i => <div key={i} className="h-64 bg-gray-200 rounded-2xl animate-pulse"></div>) : <p className="col-span-full text-center text-gray-400 py-10 italic">No items found in this collection.</p>
             )}
           </div>
@@ -336,7 +311,7 @@ export default function Home() {
 
       {/* --- COLLECTION SELECTION MODAL --- */}
       {showCategoryModal && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-300"> {/* REMOVED backdrop-blur-md HERE TOO */}
             <div className="bg-white p-6 md:p-8 rounded-[2rem] w-full max-w-5xl relative shadow-2xl">
                 <button onClick={() => setShowCategoryModal(false)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-500 hover:text-red-500 transition-colors z-50">
                     <X size={20}/>
