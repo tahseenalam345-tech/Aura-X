@@ -5,31 +5,30 @@ import { PackageOpen, X, ShieldCheck, CheckCircle, Video, ArrowRight } from "luc
 import Link from "next/link";
 
 export default function TrustPopup() {
-  const [isMounted, setIsMounted] = useState(false); // Controls if component is in DOM
-  const [isVisible, setIsVisible] = useState(false); // Controls animation opacity
+  const [isMounted, setIsMounted] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Check session storage immediately to avoid unnecessary logic
+    // Check if user has already seen the popup
     const hasSeen = sessionStorage.getItem("hasSeenTrustPopup");
     if (hasSeen) return;
 
-    // Wait 2.5 seconds AFTER load to ensure main content (LCP) is prioritized
+    // Wait 3 seconds AFTER the page loads to ensure 100% speed score
     const timer = setTimeout(() => {
       setIsMounted(true);
-      // Small delay after mounting to allow CSS transition to trigger
+      // Small delay to trigger the CSS transition
       requestAnimationFrame(() => setIsVisible(true));
-    }, 2500); 
+    }, 3000); 
 
     return () => clearTimeout(timer);
   }, []);
 
   const handleClose = () => {
-    setIsVisible(false); // Start fade out
-    // Remove from DOM after CSS transition finishes (300ms)
+    setIsVisible(false); // Start fade-out animation
     setTimeout(() => {
-      setIsMounted(false); 
+      setIsMounted(false); // Remove from DOM
       sessionStorage.setItem("hasSeenTrustPopup", "true");
-    }, 300); 
+    }, 300); // Wait for animation to finish
   };
 
   if (!isMounted) return null;
@@ -37,10 +36,12 @@ export default function TrustPopup() {
   return (
     <div 
       onClick={handleClose} 
+      // CSS TRANSITION: Opacity handles the fade in/out
       className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md transition-opacity duration-300 ease-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
     >
       <div 
         onClick={(e) => e.stopPropagation()}
+        // CSS TRANSFORM: Scale handles the zoom effect
         className={`relative bg-[#FDFBF7] w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-aura-gold/40 cursor-default transform transition-all duration-300 ease-out ${isVisible ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'}`}
       >
         {/* Top Decoration */}
@@ -48,14 +49,14 @@ export default function TrustPopup() {
 
         {/* Close Button */}
         <button 
-          onClick={handleClose} 
+          onClick={(e) => { e.stopPropagation(); handleClose(); }} 
           className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full transition-colors text-gray-500 hover:text-red-500 z-10 shadow-sm"
         >
           <X size={20} strokeWidth={2.5} />
         </button>
 
         <div className="p-7 text-center">
-          {/* Icon Animation (Using Standard CSS Animation) */}
+          {/* Icon Animation (CSS Spin) */}
           <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-5 relative shadow-md border border-aura-gold/10">
             <div className="absolute inset-0 border border-dashed border-aura-gold rounded-full opacity-30 animate-[spin_10s_linear_infinite]"></div>
             <PackageOpen size={38} className="text-aura-brown" strokeWidth={1.5} />
@@ -75,7 +76,6 @@ export default function TrustPopup() {
 
           {/* Key Points Box */}
           <div className="bg-white rounded-2xl p-5 mb-6 text-left space-y-4 border border-gray-200 shadow-inner">
-            
             <div className="flex items-center gap-4">
                 <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0 shadow-sm">
                     <CheckCircle className="text-green-700" size={16} strokeWidth={3} />
@@ -85,7 +85,6 @@ export default function TrustPopup() {
                     <p className="text-xs font-semibold text-gray-500">Inspect parcel before payment.</p>
                 </div>
             </div>
-
             <div className="flex items-center gap-4">
                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0 shadow-sm">
                     <Video className="text-blue-700" size={16} strokeWidth={3} />
@@ -95,7 +94,6 @@ export default function TrustPopup() {
                     <p className="text-xs font-semibold text-gray-500">We send a packing video.</p>
                 </div>
             </div>
-
             <div className="flex items-center gap-4">
                 <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center shrink-0 shadow-sm">
                     <ShieldCheck className="text-orange-700" size={16} strokeWidth={3} />
