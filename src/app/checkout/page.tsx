@@ -11,13 +11,22 @@ import toast from "react-hot-toast";
 import emailjs from '@emailjs/browser';
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, clearCart } = useCart();
+  const { cart, clearCart } = useCart();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "", lastName: "", email: "", phone: "",
     address: "", city: "", postalCode: ""
   });
+
+  // --- 1. FORCE RECALCULATE TOTAL (Fixes price issue) ---
+  const GIFT_PRICE = 300;
+  const BOX_PRICE = 200;
+
+  const cartTotal = cart.reduce((total, item) => {
+    const extras = (item.isGift ? GIFT_PRICE : 0) + (item.addBox ? BOX_PRICE : 0);
+    return total + ((item.price + extras) * item.quantity);
+  }, 0);
 
   const FREE_SHIPPING_THRESHOLD = 5000;
   const STANDARD_SHIPPING_COST = 250;
@@ -32,7 +41,7 @@ export default function CheckoutPage() {
     try {
         const fullName = `${formData.firstName} ${formData.lastName}`.trim();
 
-        // 1. Prepare Order Items
+        // 2. Prepare Order Items with correct flags
         const orderItems = cart.map(item => ({
             id: item.id,
             name: item.name,
@@ -44,7 +53,7 @@ export default function CheckoutPage() {
             addBox: item.addBox
         }));
 
-        // 2. Call API to Save Order
+        // 3. Call API to Save Order
         const response = await fetch('/api/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -56,7 +65,7 @@ export default function CheckoutPage() {
                     address: `${formData.address}, ${formData.postalCode}`,
                 },
                 items: orderItems,
-                total: finalTotal,
+                total: finalTotal, // Sends the corrected total
                 city: formData.city
             })
         });
@@ -64,16 +73,12 @@ export default function CheckoutPage() {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Order failed");
 
-        // 3. Get the ORD-XXXXX code from the API
         const orderCode = result.orderId;
 
-       // --- 4. SEND EMAILS (Two Separate Emails for Privacy) ---
-      // --- 4. SEND EMAILS (Two Separate Emails for Privacy) ---
-        
-        // Define Email 1 (For Customer)
+        // --- 4. SEND EMAILS ---
         const customerEmailParams = {
             email_subject: `Order Confirmation #${orderCode}`,
-            to_email: formData.email, // Send to Customer
+            to_email: formData.email,
             to_name: fullName,
             email_heading: "Thank You For Your Order!",
             order_id: orderCode,
@@ -86,28 +91,22 @@ export default function CheckoutPage() {
             address: formData.address
         };
 
-        // Define Email 2 (For Admin/You)
         const adminEmailParams = {
-            ...customerEmailParams, // Copy order details
-            to_email: "tahseenalam345@GMAIL.COM", // Your Email
+            ...customerEmailParams,
+            to_email: "tahseenalam345@GMAIL.COM",
             to_name: "Admin",
             email_heading: "⚠️ NEW ORDER RECEIVED",
             email_subject: `New Order Alert: #${orderCode}`,
             email_message: `A new order has been placed by ${fullName}. Check Supabase for details.`
         };
 
-        // Send both emails using the CORRECT variable names
         await Promise.all([
-            // Send to Customer
             emailjs.send('service_wfw89r5', 'template_ccsvo5z', customerEmailParams, 'OQmFriQxX0btmE7W3'),
-            
-            // Send to Admin
             emailjs.send('service_wfw89r5', 'template_ccsvo5z', adminEmailParams, 'OQmFriQxX0btmE7W3')
         ]);
 
         toast.success("Order Placed Successfully!");
         clearCart();
-        // 5. Redirect using the ORD-XXXXX code
         router.push(`/success?id=${orderCode}&total=${finalTotal}&name=${encodeURIComponent(formData.firstName)}`);
 
     } catch (error: any) {
@@ -188,12 +187,19 @@ export default function CheckoutPage() {
                 <div className="bg-white p-6 md:p-8 rounded-2xl border border-aura-gold/20 shadow-xl">
                    <h3 className="font-serif text-xl font-bold mb-6 pb-4 border-b border-gray-100">Order Summary</h3>
                    <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4 mb-6 custom-scrollbar">
-                      {/* FIXED KEY ISSUE HERE */}
                       {cart.map((item, index) => (
                          <div key={`${item.id}-${item.color}-${index}`} className="flex gap-4 items-center">
                             <div className="relative w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0"><Image src={item.image} alt={item.name} fill className="object-contain p-1 mix-blend-multiply" decoding="async" /><span className="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-bl-lg">x{item.quantity}</span></div>
-                            <div className="flex-1 min-w-0"><p className="font-bold text-sm text-aura-brown truncate">{item.name}</p><p className="text-xs text-gray-400">{item.color || "Standard"}</p>{item.isGift && <span className="text-[9px] text-purple-600 block">+ Gift Wrap</span>}{item.addBox && <span className="text-[9px] text-orange-600 block">+ Box</span>}</div>
-                            <span className="text-sm font-bold text-aura-brown">Rs {((item.price + (item.isGift?150:0) + (item.addBox?100:0)) * item.quantity).toLocaleString()}</span>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-bold text-sm text-aura-brown truncate">{item.name}</p>
+                                <p className="text-xs text-gray-400">{item.color || "Standard"}</p>
+                                {item.isGift && <span className="text-[9px] text-purple-600 block">+ Gift Wrap (300)</span>}
+                                {item.addBox && <span className="text-[9px] text-orange-600 block">+ Box (200)</span>}
+                            </div>
+                            <span className="text-sm font-bold text-aura-brown">
+                                {/* UPDATED CALCULATION TO 300 and 200 */}
+                                Rs {((item.price + (item.isGift?300:0) + (item.addBox?200:0)) * item.quantity).toLocaleString()}
+                            </span>
                          </div>
                       ))}
                    </div>
@@ -203,7 +209,7 @@ export default function CheckoutPage() {
                    </div>
                    <div className="flex justify-between items-end border-t border-dashed border-gray-200 pt-6 mb-8"><span className="font-bold text-lg">Total to Pay</span><span className="font-serif text-3xl font-bold text-aura-brown">Rs {finalTotal.toLocaleString()}</span></div>
                    <button type="submit" form="checkout-form" disabled={loading} className="w-full bg-aura-brown text-white py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed">
-                        {loading ? <><Loader2 className="animate-spin" size={20}/> PROCESSING...</> : <><span className="flex items-center gap-2">PLACE ORDER <ArrowRight size={16} /></span></>}
+                       {loading ? <><Loader2 className="animate-spin" size={20}/> PROCESSING...</> : <><span className="flex items-center gap-2">PLACE ORDER <ArrowRight size={16} /></span></>}
                    </button>
                    <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400"><Lock size={12} /><span>128-bit Encrypted Security</span></div>
                 </div>

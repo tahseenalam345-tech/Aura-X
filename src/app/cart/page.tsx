@@ -8,14 +8,23 @@ import { useCart } from "@/context/CartContext";
 import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Truck, Loader2 } from "lucide-react";
 
 export default function CartPage() {
-  const { cart, updateQuantity, removeFromCart, cartTotal } = useCart();
+  const { cart, updateQuantity, removeFromCart } = useCart();
   const [isMounted, setIsMounted] = useState(false);
 
   // Constants
   const FREE_SHIPPING_THRESHOLD = 5000;
   const STANDARD_SHIPPING_COST = 250;
+  
+  // --- UPDATED PRICING LOGIC ---
+  const GIFT_PRICE = 300;
+  const BOX_PRICE = 200;
 
-  // Hydration Fix: Ensures the client-side cart matches the server render
+  // Recalculate total manually to ensure new prices (200 & 300) are used
+  const cartTotal = cart.reduce((total, item) => {
+    const extras = (item.isGift ? GIFT_PRICE : 0) + (item.addBox ? BOX_PRICE : 0);
+    return total + ((item.price + extras) * item.quantity);
+  }, 0);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -38,7 +47,7 @@ export default function CartPage() {
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32">
       <Navbar />
 
-      {/* --- TRUST STRIP (Added Here) --- */}
+      {/* --- TRUST STRIP --- */}
       <div className="pt-24 md:pt-32"> 
           <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center shadow-lg">
             <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
@@ -68,24 +77,24 @@ export default function CartPage() {
             <div className="lg:col-span-2 space-y-6">
               
               {!isFreeShipping && (
-                 <div className="bg-white p-4 rounded-xl border border-aura-gold/20 flex items-center gap-4 shadow-sm">
-                    <div className="p-2 bg-aura-gold/10 rounded-full text-aura-gold"><Truck size={20}/></div>
-                    <div className="flex-1">
-                        <p className="text-sm font-bold text-aura-brown">
-                            Add <span className="text-aura-gold">Rs {amountNeededForFreeShip.toLocaleString()}</span> more for Free Shipping!
-                        </p>
-                        <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-                           <div 
-                             className="h-full bg-aura-gold transition-all duration-500" 
-                             style={{ width: `${Math.min((cartTotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
-                           ></div>
-                        </div>
-                    </div>
-                 </div>
+                  <div className="bg-white p-4 rounded-xl border border-aura-gold/20 flex items-center gap-4 shadow-sm">
+                     <div className="p-2 bg-aura-gold/10 rounded-full text-aura-gold"><Truck size={20}/></div>
+                     <div className="flex-1">
+                         <p className="text-sm font-bold text-aura-brown">
+                             Add <span className="text-aura-gold">Rs {amountNeededForFreeShip.toLocaleString()}</span> more for Free Shipping!
+                         </p>
+                         <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+                            <div 
+                              className="h-full bg-aura-gold transition-all duration-500" 
+                              style={{ width: `${Math.min((cartTotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
+                            ></div>
+                         </div>
+                     </div>
+                  </div>
               )}
 
               {cart.map((item) => {
-                // UPDATED PRICES HERE: Gift 300, Box 200
+                // Ensure prices are 300 and 200 here as well
                 const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
                 const itemTotalPrice = (item.price + extras) * item.quantity;
 
