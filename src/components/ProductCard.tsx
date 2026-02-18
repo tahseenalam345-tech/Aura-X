@@ -82,7 +82,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                 </div>
             )}
 
-            {/* TAGS (Updated for better visibility) */}
+            {/* TAGS */}
             {product.tags && product.tags.length > 0 && (
                  <div className="absolute top-3 left-3 z-20 flex flex-col gap-1 pointer-events-none w-auto max-w-[70%]">
                     {product.tags.slice(0, 1).map(tag => (
@@ -93,7 +93,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                  </div>
             )}
 
-            {/* PRODUCT IMAGE */}
+            {/* PRODUCT IMAGE - UPDATED FOR PERFORMANCE */}
             <div className="relative w-full h-full">
                 <Image
                     src={activeImage}
@@ -103,6 +103,9 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                     className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                     sizes="(max-width: 768px) 50vw, 25vw"
                     priority={priority}
+                    // EMERGENCY FIX: Stop Vercel from transforming these 79 product images
+                    unoptimized={true} 
+                    // ONLY load when in view to keep site speed high
                     loading={priority ? undefined : "lazy"}
                     decoding="async"
                 />
@@ -113,7 +116,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
         <div className="px-4 pb-4 md:px-5 md:pb-5 flex-1 flex flex-col justify-between">
             <div className="mt-3">
                 <div className="flex justify-between items-start mb-2">
-                  {/* CATEGORY (Updated: Bolder and Larger) */}
                   <p className="text-[11px] md:text-xs text-[#8B6E4E] font-black tracking-[0.2em] uppercase">
                       {product.category || "LUXURY"}
                   </p>
@@ -173,8 +175,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                         </span>
                     </div>
                     
-                    {/* ADD TO CART BUTTON */}
-                    <button 
+                <button 
                       type="button"
                       onClick={handleAddToCart}
                       className="w-8 h-8 md:w-9 md:h-9 bg-[#1A1A1A] text-white rounded-full flex items-center justify-center shadow-md hover:bg-[#C5A67C] hover:scale-110 transition-all duration-300 cursor-pointer z-20"

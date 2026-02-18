@@ -233,7 +233,8 @@ export function Navbar() {
                              {searchResults.map((product) => (
                                 <Link href={`/product/${product.id}`} key={product.id} onClick={handleCloseAll} className="flex gap-4 items-center group cursor-pointer p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all border border-transparent hover:border-gray-100">
                                    <div className="w-16 h-16 bg-white border border-gray-100 rounded-lg relative overflow-hidden">
-                                      <Image src={product.main_image || "/placeholder.jpg"} alt={product.name} fill className="object-contain p-1" />
+                                      {/* ADDED unoptimized={true} HERE */}
+                                      <Image src={product.main_image || "/placeholder.jpg"} alt={product.name} fill className="object-contain p-1" unoptimized={true} />
                                    </div>
                                    <div className="flex-1">
                                       <h4 className="font-serif font-bold text-aura-brown group-hover:text-aura-gold transition-colors text-sm line-clamp-1">{product.name}</h4>
@@ -301,7 +302,7 @@ export function Navbar() {
                   <Link href="/wishlist" onClick={handleCloseAll} className="flex items-center gap-4 text-lg font-bold text-aura-brown hover:pl-2 transition-all"><Heart size={18} /> My Wishlist</Link>
                   <Link href="/track-order" onClick={handleCloseAll} className="flex items-center gap-4 text-lg font-bold text-aura-brown hover:pl-2 transition-all"><Truck size={18} /> Track Order</Link>
                   
-                  {/* --- LOGIN/ADMIN LINKS REMOVED HERE TOO --- */}
+                  {/* --- LOGIN/ADMIN LINKS REMOVED --- */}
 
                   {user && <button onClick={() => { logout(); handleCloseAll(); }} className="flex items-center gap-4 text-lg font-medium text-red-400 hover:text-red-500 transition-all mt-4"><LogOut size={18} /> Logout</button>}
                 </div>

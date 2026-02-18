@@ -17,7 +17,6 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
 
   // --- HANDLERS ---
   const handleStatusChange = async (orderId: string, newStatus: string) => {
-      // Optimistic UI Update
       if (selectedOrder?.id === orderId) setSelectedOrder({ ...selectedOrder, status: newStatus });
       
       const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
@@ -81,11 +80,12 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
 
   // --- CALCULATION HELPER ---
   const getOrderTotals = (order: any) => {
-      if (!order || !order.items) return { subtotal: 0, shipping: 0 };
+      if (!order || !order.items) return { subtotal: 0, shipping: 0, isFree: false };
       
       const subtotal = order.items.reduce((acc: number, item: any) => {
-          const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
-          return acc + ((item.price + extras) * (item.quantity || 1));
+          const giftCost = item.isGift ? 300 : 0;
+          const boxCost = item.addBox ? 200 : 0;
+          return acc + ((item.price + giftCost + boxCost) * (item.quantity || 1));
       }, 0);
 
       // Free shipping rule: >= 5000
@@ -225,7 +225,13 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                                     <div key={i} className="flex gap-4 border-b border-gray-50 pb-4 last:border-0">
                                         <div className="w-14 h-14 bg-gray-50 rounded-lg relative overflow-hidden flex-shrink-0 border border-gray-100">
                                             {item.image ? (
-                                                <Image src={item.image} alt="" fill className="object-contain p-1"/>
+                                                <Image 
+                                                    src={item.image} 
+                                                    alt="" 
+                                                    fill 
+                                                    className="object-contain p-1" 
+                                                    unoptimized={true} // <--- SAVES VERCEL TRANSFORMATION QUOTA
+                                                />
                                             ) : (
                                                 <div className="w-full h-full bg-gray-200 flex items-center justify-center text-xs text-gray-400">No Img</div>
                                             )}

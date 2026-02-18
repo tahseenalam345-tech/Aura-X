@@ -108,6 +108,7 @@ export default function CartPage() {
                         sizes="150px"
                         className="object-contain p-2 mix-blend-multiply" 
                         priority={false}
+                        unoptimized={true} // <--- OPTIMIZATION DISABLED TO SAVE VERCEL USAGE
                       />
                     </div>
 

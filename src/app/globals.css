@@ -24,6 +24,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* NEW PERFORMANCE INJECTION: 
+  Handles unoptimized images to keep speed scores high 
+*/
+img {
+  /* Sharpens unoptimized images on mobile/high-res screens */
+  image-rendering: -webkit-optimize-contrast;
+  /* Instructs browser to load only when in view */
+  content-visibility: auto;
+}
+
+/* Prevent images from flickering or jumping when they load */
+.hero-image-fix {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
 /* PERFORMANCE: Reduce Forced Reflow for heavy sections */
 footer, .related-products-section {
   content-visibility: auto;

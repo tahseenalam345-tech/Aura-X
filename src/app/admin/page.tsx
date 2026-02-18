@@ -18,14 +18,17 @@ import MessagesTab from "@/components/admin/MessagesTab";
 import MarketingTab from "@/components/admin/MarketingTab";
 
 export default function AdminDashboard() {
-  const { user, isLoading: authLoading } = useAuth(); // Check actual Supabase User
+  const { user, isLoading: authLoading } = useAuth(); 
   const router = useRouter();
 
-  // --- LOGIN STATE ---
+  // --- STATE ---
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
+  // --- MANUAL OVERRIDE STATE (Fixes the Stuck Loading) ---
+  const [manualAuth, setManualAuth] = useState(false);
 
   // --- DASHBOARD STATE ---
   const [activeTab, setActiveTab] = useState('inventory');
@@ -39,7 +42,6 @@ export default function AdminDashboard() {
   const [contactMessages, setContactMessages] = useState<any[]>([]);
   const [marketingData, setMarketingData] = useState<{launch: any[], newsletter: any[]}>({ launch: [], newsletter: [] });
 
-  // Prevent hydration errors
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
 
@@ -70,7 +72,6 @@ export default function AdminDashboard() {
       });
   }, []);
 
-  // --- 2. MASTER FETCH FUNCTION ---
   const loadDashboardData = useCallback(async () => {
       setDataLoading(true);
       await Promise.all([
@@ -81,10 +82,9 @@ export default function AdminDashboard() {
       setDataLoading(false);
   }, [fetchProducts, fetchOrders, fetchSupportData]);
 
-  // --- 3. INITIAL LOAD & REALTIME ---
+  // --- 3. INITIAL LOAD (Runs on Context Load OR Manual Override) ---
   useEffect(() => {
-    if (user) {
-        // Only load data if we have a real user logged in
+    if (user || manualAuth) {
         loadDashboardData();
 
         const channel = supabase
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
 
         return () => { supabase.removeChannel(channel); };
     }
-  }, [user, loadDashboardData]);
+  }, [user, manualAuth, loadDashboardData]);
 
   // --- HANDLE SECURE LOGIN ---
   const handleAdminLogin = async (e: React.FormEvent) => {
@@ -115,22 +115,23 @@ export default function AdminDashboard() {
         
         toast.success("Welcome back, Commander");
         
-        // --- FIX: FORCE RELOAD TO RECOGNIZE SESSION ---
-        // This ensures the AuthContext picks up the new user session immediately
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
+        // --- FIX: IMMEDIATELY SHOW DASHBOARD (Don't wait for refresh) ---
+        setManualAuth(true); 
+        // Trigger data load immediately
+        loadDashboardData();
 
     } catch (err: any) {
+        console.error(err);
         setLoginError("Access Denied: Invalid Credentials");
-        setIsLoggingIn(false); // Only stop loading if error, otherwise keep loading while reloading
+    } finally {
+        setIsLoggingIn(false);
     }
   };
 
   if (!isMounted) return null;
 
-  // --- IF NOT LOGGED IN, SHOW SECURE LOGIN SCREEN ---
-  if (!user) {
+  // --- SHOW LOGIN SCREEN IF: No User AND No Manual Override ---
+  if (!user && !manualAuth) {
     return (
       <div className="min-h-screen bg-[#1E1B18] flex items-center justify-center p-4 font-sans">
         <div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-2xl text-center relative overflow-hidden">
@@ -189,16 +190,8 @@ export default function AdminDashboard() {
     );
   }
 
-  // --- MAIN DASHBOARD RENDER (Only visible if logged in) ---
-  if (authLoading && !products.length) {
-     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-[#1E1B18] text-white gap-4">
-            <Loader2 className="animate-spin text-aura-gold" size={40} />
-            <p className="font-serif italic tracking-widest">Verifying Authority...</p>
-        </div>
-     );
-  }
-
+  // --- MAIN DASHBOARD RENDER ---
+  // (Shows if user is logged in OR manualAuth is true)
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-gray-800 overflow-hidden">
         

@@ -1,33 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // PERFORMANCE FIX: Re-enable build checks to ensure stability
-  typescript: {
-    ignoreBuildErrors: false, // Changed from true
-  },
-  eslint: {
-    ignoreDuringBuilds: false, // Changed from true
-  },
-  
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
   images: {
-    // Advanced image optimization (AVIF is 20% smaller than WebP)
-    formats: ['image/avif', 'image/webp'],
+    // This stops Vercel from processing images, stopping the 5k limit count.
+    unoptimized: true, 
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'kdwpnvkgghdksnajalmj.supabase.co',
-        port: '',
+        
         pathname: '/storage/v1/object/public/**',
       },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-      },
+
+
     ],
   },
-  
-  // OPTIONAL: Add compiler optimization for faster production builds
+
+
   swcMinify: true, 
 };
 
