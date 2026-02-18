@@ -112,12 +112,18 @@ export default function AdminDashboard() {
         });
 
         if (error) throw error;
+        
         toast.success("Welcome back, Commander");
-        // The useAuth hook will automatically detect the change and re-render with `user` set to true
+        
+        // --- FIX: FORCE RELOAD TO RECOGNIZE SESSION ---
+        // This ensures the AuthContext picks up the new user session immediately
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+
     } catch (err: any) {
         setLoginError("Access Denied: Invalid Credentials");
-    } finally {
-        setIsLoggingIn(false);
+        setIsLoggingIn(false); // Only stop loading if error, otherwise keep loading while reloading
     }
   };
 

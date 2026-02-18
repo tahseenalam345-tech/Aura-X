@@ -69,7 +69,6 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
 
   const sendWhatsApp = () => {
       if (!selectedOrder) return;
-      // FIX: Use order_code for WhatsApp message
       const displayId = selectedOrder.order_code || selectedOrder.id.slice(0,8).toUpperCase();
       const text = `Hi ${selectedOrder.customer_name}, regarding your order #${displayId}...`;
       
@@ -79,6 +78,24 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
       const url = `https://wa.me/${fmtNumber}?text=${encodeURIComponent(text)}`;
       window.open(url, '_blank');
   };
+
+  // --- CALCULATION HELPER ---
+  const getOrderTotals = (order: any) => {
+      if (!order || !order.items) return { subtotal: 0, shipping: 0 };
+      
+      const subtotal = order.items.reduce((acc: number, item: any) => {
+          const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
+          return acc + ((item.price + extras) * (item.quantity || 1));
+      }, 0);
+
+      // Free shipping rule: >= 5000
+      const isFree = subtotal >= 5000;
+      const shipping = isFree ? 0 : 250;
+
+      return { subtotal, shipping, isFree };
+  };
+
+  const { subtotal, shipping, isFree } = selectedOrder ? getOrderTotals(selectedOrder) : { subtotal: 0, shipping: 0, isFree: false };
 
   return (
     <>
@@ -117,7 +134,6 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                             {order.status === 'Processing' ? <Clock size={18}/> : <Check size={18}/>}
                         </div>
                         <div>
-                            {/* FIX: Display order_code instead of ID slice */}
                             <p className="font-bold text-aura-brown text-sm md:text-base">
                                 {order.order_code || `#${order.id.slice(0, 8).toUpperCase()}`}
                             </p>
@@ -144,7 +160,6 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                     {/* LEFT SIDE: DETAILS */}
                     <div className="flex-1 p-6 md:p-8 bg-gray-50 overflow-y-auto">
                         <div className="flex justify-between items-center mb-6 pt-8 md:pt-0">
-                            {/* FIX: Display order_code in Modal Title */}
                             <h3 className="font-serif text-2xl font-bold text-aura-brown">
                                 {selectedOrder.order_code || `Order #${selectedOrder.id.slice(0,8).toUpperCase()}`}
                             </h3>
@@ -199,32 +214,60 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                     {/* RIGHT SIDE: ITEMS */}
                     <div className="w-full md:w-[400px] bg-white border-l border-gray-100 p-6 md:p-8">
                         <h4 className="font-bold text-aura-brown mb-4">Items ({selectedOrder.items?.length})</h4>
-                        <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto">
-                            {selectedOrder.items?.map((item: any, i: number) => (
-                                <div key={i} className="flex gap-4 border-b border-gray-50 pb-4 last:border-0">
-                                    <div className="w-14 h-14 bg-gray-50 rounded-lg relative overflow-hidden flex-shrink-0 border border-gray-100">
-                                        {item.image ? (
-                                            <Image src={item.image} alt="" fill className="object-contain p-1"/>
-                                        ) : (
-                                            <div className="w-full h-full bg-gray-200 flex items-center justify-center text-xs text-gray-400">No Img</div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-bold text-sm text-aura-brown line-clamp-1">{item.name || "Unknown Item"}</p>
-                                        <p className="text-xs text-gray-500">{(item.color || "Standard")} • x{item.quantity || 1}</p>
-                                        <div className="flex gap-2 flex-wrap mt-1">
-                                            {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 rounded">Gift Wrap</span>}
-                                            {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 rounded">Box</span>}
+                        <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2">
+                            {selectedOrder.items?.map((item: any, i: number) => {
+                                const giftCost = item.isGift ? 300 : 0;
+                                const boxCost = item.addBox ? 200 : 0;
+                                const unitPrice = item.price + giftCost + boxCost;
+                                const lineTotal = unitPrice * (item.quantity || 1);
+
+                                return (
+                                    <div key={i} className="flex gap-4 border-b border-gray-50 pb-4 last:border-0">
+                                        <div className="w-14 h-14 bg-gray-50 rounded-lg relative overflow-hidden flex-shrink-0 border border-gray-100">
+                                            {item.image ? (
+                                                <Image src={item.image} alt="" fill className="object-contain p-1"/>
+                                            ) : (
+                                                <div className="w-full h-full bg-gray-200 flex items-center justify-center text-xs text-gray-400">No Img</div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-sm text-aura-brown line-clamp-1">{item.name || "Unknown Item"}</p>
+                                            <p className="text-xs text-gray-500">{(item.color || "Standard")}</p>
+                                            
+                                            {/* Detailed Breakdown */}
+                                            <div className="flex flex-col mt-1 text-[10px] text-gray-400">
+                                                <span>Watch: Rs {item.price.toLocaleString()}</span>
+                                                {item.addBox && <span className="text-orange-600">+ Box (Rs 200)</span>}
+                                                {item.isGift && <span className="text-purple-600">+ Gift Wrap (Rs 300)</span>}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-xs">Rs {lineTotal.toLocaleString()}</p>
+                                            <p className="text-[10px] text-gray-400">Qty: {item.quantity || 1}</p>
                                         </div>
                                     </div>
-                                    <p className="font-bold text-xs mt-1">Rs {(item.price || 0).toLocaleString()}</p>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
+                        
+                        {/* TOTALS SUMMARY */}
                         <div className="pt-4 border-t border-gray-100 space-y-2">
-                            <div className="flex justify-between text-sm text-gray-500"><span>Subtotal</span> <span>Rs {(selectedOrder.total || 0).toLocaleString()}</span></div>
-                            <div className="flex justify-between text-sm text-gray-500"><span>Shipping</span> <span>Paid</span></div>
-                            <div className="flex justify-between text-xl font-bold text-aura-brown mt-2 pt-2 border-t border-gray-100"><span>Total</span> <span>Rs {(Number(selectedOrder.total) || 0).toLocaleString()}</span></div>
+                            <div className="flex justify-between text-sm text-gray-500">
+                                <span>Subtotal</span> 
+                                <span>Rs {subtotal.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-sm text-gray-500">
+                                <span>Shipping</span> 
+                                {isFree ? (
+                                    <span className="text-green-600 font-bold">Free</span>
+                                ) : (
+                                    <span>Rs 250</span>
+                                )}
+                            </div>
+                            <div className="flex justify-between text-xl font-bold text-aura-brown mt-2 pt-2 border-t border-gray-100">
+                                <span>Total</span> 
+                                <span>Rs {Number(selectedOrder.total).toLocaleString()}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
