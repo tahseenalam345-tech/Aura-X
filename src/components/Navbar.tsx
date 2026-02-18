@@ -19,7 +19,6 @@ export function Navbar() {
   const [isSearching, setIsSearching] = useState(false);
 
   const { user, isAdmin, logout } = useAuth(); 
-  // Performance Fix: Use cartCount/totalItems from Context safely
   const { totalItems } = useCart(); 
 
   const announcements = useMemo(() => [
@@ -29,7 +28,7 @@ export function Navbar() {
     "✨ New Collection Dropping Soon - Stay Tuned"
   ], []);
 
-  // --- LOCK BODY SCROLL (Optimized) ---
+  // --- LOCK BODY SCROLL ---
   useEffect(() => {
     const originalStyle = window.getComputedStyle(document.body).overflow;
     if (isSidebarOpen || isSearchOpen) {
@@ -38,7 +37,7 @@ export function Navbar() {
     return () => { document.body.style.overflow = originalStyle; };
   }, [isSidebarOpen, isSearchOpen]);
 
-  // --- REAL TIME SEARCH LOGIC (Optimized Debounce) ---
+  // --- REAL TIME SEARCH LOGIC ---
   useEffect(() => {
     if (searchQuery.trim().length <= 1) {
       setSearchResults([]);
@@ -188,14 +187,11 @@ export function Navbar() {
               </button>
 
               <div className="hidden md:flex items-center gap-4">
-                  {user ? (
+                  {/* --- FIXED: REMOVED LOGIN ICON IF NO USER --- */}
+                  {user && (
                      <button onClick={logout} className="p-2 rounded-full hover:bg-aura-gold/10 transition-colors text-aura-brown">
                         <LogOut className="w-6 h-6" />
                      </button>
-                  ) : (
-                     <Link href="/login" className="p-2 rounded-full hover:bg-aura-gold/10 transition-colors text-aura-brown">
-                        <User className="w-6 h-6" />
-                     </Link>
                   )}
               </div>
           </div>
@@ -232,35 +228,35 @@ export function Navbar() {
 
                   {!isSearching && searchResults.length > 0 && (
                       <div>
-                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Found {searchResults.length} Results</h3>
-                         <div className="space-y-4">
-                            {searchResults.map((product) => (
-                               <Link href={`/product/${product.id}`} key={product.id} onClick={handleCloseAll} className="flex gap-4 items-center group cursor-pointer p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all border border-transparent hover:border-gray-100">
-                                  <div className="w-16 h-16 bg-white border border-gray-100 rounded-lg relative overflow-hidden">
-                                     <Image src={product.main_image || "/placeholder.jpg"} alt={product.name} fill className="object-contain p-1" />
-                                  </div>
-                                  <div className="flex-1">
-                                     <h4 className="font-serif font-bold text-aura-brown group-hover:text-aura-gold transition-colors text-sm line-clamp-1">{product.name}</h4>
-                                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{product.brand || "Aura-X"}</p>
-                                     <p className="text-sm font-bold text-aura-brown mt-1">Rs {product.price.toLocaleString()}</p>
-                                  </div>
-                                  <button className="p-2 bg-gray-50 rounded-full group-hover:bg-aura-brown group-hover:text-white transition-colors"><ArrowRight size={16} /></button>
-                               </Link>
-                            ))}
-                         </div>
+                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Found {searchResults.length} Results</h3>
+                          <div className="space-y-4">
+                             {searchResults.map((product) => (
+                                <Link href={`/product/${product.id}`} key={product.id} onClick={handleCloseAll} className="flex gap-4 items-center group cursor-pointer p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all border border-transparent hover:border-gray-100">
+                                   <div className="w-16 h-16 bg-white border border-gray-100 rounded-lg relative overflow-hidden">
+                                      <Image src={product.main_image || "/placeholder.jpg"} alt={product.name} fill className="object-contain p-1" />
+                                   </div>
+                                   <div className="flex-1">
+                                      <h4 className="font-serif font-bold text-aura-brown group-hover:text-aura-gold transition-colors text-sm line-clamp-1">{product.name}</h4>
+                                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{product.brand || "Aura-X"}</p>
+                                      <p className="text-sm font-bold text-aura-brown mt-1">Rs {product.price.toLocaleString()}</p>
+                                   </div>
+                                   <button className="p-2 bg-gray-50 rounded-full group-hover:bg-aura-brown group-hover:text-white transition-colors"><ArrowRight size={16} /></button>
+                                </Link>
+                             ))}
+                          </div>
                       </div>
                   )}
 
                   {!isSearching && searchResults.length === 0 && searchQuery.trim() === "" && (
                       <div className="mb-10">
-                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Trending Now</h3>
-                         <div className="flex flex-wrap gap-2">
-                            {["Rolex", "Gold", "Luxury", "Men", "Leather", "Silver"].map(tag => (
-                               <button key={tag} onClick={() => handleTagClick(tag)} className="px-4 py-2 rounded-full border border-aura-gold/30 text-aura-brown text-sm font-medium hover:bg-aura-gold hover:text-white transition-colors">
-                                  {tag}
-                               </button>
-                            ))}
-                         </div>
+                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Trending Now</h3>
+                          <div className="flex flex-wrap gap-2">
+                             {["Rolex", "Gold", "Luxury", "Men", "Leather", "Silver"].map(tag => (
+                                <button key={tag} onClick={() => handleTagClick(tag)} className="px-4 py-2 rounded-full border border-aura-gold/30 text-aura-brown text-sm font-medium hover:bg-aura-gold hover:text-white transition-colors">
+                                   {tag}
+                                </button>
+                             ))}
+                          </div>
                       </div>
                   )}
                </div>
@@ -304,13 +300,8 @@ export function Navbar() {
                 <div className="space-y-4">
                   <Link href="/wishlist" onClick={handleCloseAll} className="flex items-center gap-4 text-lg font-bold text-aura-brown hover:pl-2 transition-all"><Heart size={18} /> My Wishlist</Link>
                   <Link href="/track-order" onClick={handleCloseAll} className="flex items-center gap-4 text-lg font-bold text-aura-brown hover:pl-2 transition-all"><Truck size={18} /> Track Order</Link>
-                  <div className="h-[1px] w-full bg-gray-100 my-2 opacity-50"></div>
                   
-                  {!user && <Link href="/login" onClick={handleCloseAll} className="flex items-center gap-4 text-lg font-medium text-aura-brown/70 hover:text-aura-brown transition-all"><LogIn size={18} /> Login / Sign Up</Link>}
-
-                  {user && isAdmin && (
-                      <Link href="/admin" onClick={handleCloseAll} className="flex items-center gap-4 text-lg font-bold text-aura-gold bg-aura-brown/5 p-3 rounded-lg hover:bg-aura-brown/10 transition-all"><LayoutDashboard size={18} /> Admin Dashboard</Link>
-                  )}
+                  {/* --- LOGIN/ADMIN LINKS REMOVED HERE TOO --- */}
 
                   {user && <button onClick={() => { logout(); handleCloseAll(); }} className="flex items-center gap-4 text-lg font-medium text-red-400 hover:text-red-500 transition-all mt-4"><LogOut size={18} /> Logout</button>}
                 </div>

@@ -5,16 +5,9 @@ import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "react-hot-toast";
 import { Footer } from "@/components/Footer";
-import EidPopup from "@/components/EidPopup";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import Script from "next/script";
-import dynamic from 'next/dynamic'; // 1. Import dynamic
-
-// 2. Lazy load the TrustPopup so it doesn't block the initial page load
-// ssr: false means this component is never rendered on the server
-const TrustPopup = dynamic(() => import('@/components/TrustPopup'), {
-  ssr: false,
-});
+import PopupLoader from "@/components/PopupLoader"; // <--- IMPORT THE NEW LOADER
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair', display: 'swap' });
 const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable: '--font-lato', display: 'swap' });
@@ -74,7 +67,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${playfair.variable} ${lato.variable} font-sans antialiased bg-[#FDFBF7]`}>
         
-        {/* --- PERFORMANCE: CHANGED BOTH TO lazyOnload TO ELIMINATE UNUSED JS --- */}
         <Script
           strategy="lazyOnload"
           src="https://www.googletagmanager.com/gtag/js?id=G-M99HK4HLVG"
@@ -99,8 +91,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             
             <WhatsAppButton />
             
-            {/* Lazy loaded popup */}
-            <TrustPopup />
+            {/* The wrapper handles the lazy loading safely */}
+            <PopupLoader />
             
             {children}
             <Footer />

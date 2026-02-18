@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { Facebook, Instagram, Music, ArrowRight, Phone, Mail, Loader2 } from "lucide-react"; // Imported Music for TikTok
+import { Facebook, Instagram, Music, ArrowRight, Phone, Mail, Loader2 } from "lucide-react"; 
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 
@@ -44,12 +44,12 @@ export function Footer() {
                     {/* LOGO */}
                     <Link href="/" className="block relative w-48 h-24 opacity-90 hover:opacity-100 transition-opacity">
                          <Image 
-    src="/logo.png" 
-    alt="AURA-X Luxury Timepieces Brand Logo" 
-    fill 
-    sizes="(max-width: 768px) 50vw, 200px" // <--- ADD THIS LINE
-    className="object-contain object-left" 
-/>
+                            src="/logo.png" 
+                            alt="AURA-X Luxury Timepieces Brand Logo" 
+                            fill 
+                            sizes="(max-width: 768px) 50vw, 200px" 
+                            className="object-contain object-left" 
+                        />
                     </Link>
                     <p className="text-white/60 text-sm leading-relaxed font-light font-serif max-w-xs">
                         Defining the essence of luxury timepieces. Precision, elegance, and timeless heritage crafted for the modern era.
@@ -111,6 +111,7 @@ export function Footer() {
                             <li><Link href="/track-order" className="hover:text-white transition-colors duration-300">Track Order</Link></li>
                             <li><Link href="/support/shipping" className="hover:text-white transition-colors duration-300">Shipping Policy</Link></li>
                             <li><Link href="/support/return" className="hover:text-white transition-colors duration-300">Return & Exchange</Link></li>
+                            <li><Link href="/return-policy" className="hover:text-white transition-colors duration-300">Return Policy</Link></li>
                             <li><Link href="/support/contact" className="hover:text-white transition-colors duration-300">Contact Support</Link></li>
                         </ul>
                     </div>
@@ -170,10 +171,9 @@ export function Footer() {
             {/* --- BOTTOM SECTION --- */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                 
-                {/* Copyright */}
+                {/* Copyright (Admin Link Removed) */}
                 <div className="text-white/40 text-xs tracking-wider flex gap-6">
                     <span>© 2026 AURA-X</span>
-                    <Link href="/admin" className="hover:text-aura-gold transition">Admin Login</Link>
                     <Link href="/privacy-policy" className="hover:text-white transition">Privacy Policy</Link>
                 </div>
                 
@@ -188,14 +188,14 @@ export function Footer() {
                         <p className="text-xs font-bold text-aura-gold group-hover:text-white transition-colors">AURA DEPT OFFICIAL</p>
                     </div>
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-white/90 shadow-lg">
-    <Image 
-        src="/auradept.png" 
-        alt="Aura Dept Logo" 
-        fill 
-        sizes="40px" // <--- ADD THIS LINE (Since it's always tiny)
-        className="object-contain p-1" 
-    />
-</div>
+                        <Image 
+                            src="/auradept.png" 
+                            alt="Aura Dept Logo" 
+                            fill 
+                            sizes="40px" 
+                            className="object-contain p-1" 
+                        />
+                    </div>
                 </Link>
 
             </div>

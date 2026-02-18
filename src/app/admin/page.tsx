@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase"; 
-import { Menu, Loader2 } from "lucide-react";
+import { Menu, Loader2, Lock, ShieldAlert, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext"; 
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -21,7 +21,13 @@ export default function AdminDashboard() {
   const { isAdmin, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
-  // --- STATE ---
+  // --- SECURITY STATE ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [inputPin, setInputPin] = useState("");
+  const [error, setError] = useState("");
+  const ADMIN_PIN = "7860"; // <--- YOUR SECRET PIN
+
+  // --- DASHBOARD STATE ---
   const [activeTab, setActiveTab] = useState('inventory');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
@@ -33,8 +39,11 @@ export default function AdminDashboard() {
   const [contactMessages, setContactMessages] = useState<any[]>([]);
   const [marketingData, setMarketingData] = useState<{launch: any[], newsletter: any[]}>({ launch: [], newsletter: [] });
 
-  // --- 1. DATA FETCHING FUNCTIONS (Defined BEFORE useEffect) ---
-  
+  // Prevent hydration errors
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
+
+  // --- 1. DATA FETCHING FUNCTIONS ---
   const fetchProducts = useCallback(async () => {
       const { data } = await supabase.from('products').select('*').order('priority', { ascending: false }).order('created_at', { ascending: false });
       if (data) setProducts(data);
@@ -61,10 +70,9 @@ export default function AdminDashboard() {
       });
   }, []);
 
-  // --- 2. MASTER FETCH FUNCTION (Parallel Loading) ---
+  // --- 2. MASTER FETCH FUNCTION ---
   const loadDashboardData = useCallback(async () => {
       setDataLoading(true);
-      // Fetches everything at once rather than one-by-one
       await Promise.all([
           fetchProducts(),
           fetchOrders(),
@@ -75,20 +83,80 @@ export default function AdminDashboard() {
 
   // --- 3. INITIAL LOAD & REALTIME ---
   useEffect(() => {
-    loadDashboardData();
+    if (isAuthenticated) {
+        loadDashboardData();
 
-    const channel = supabase
-      .channel('realtime-orders')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
-          setOrders((prev) => [payload.new, ...prev]);
-          toast.success("New Order Received!", { duration: 5000, icon: '🎉' });
-      })
-      .subscribe();
+        const channel = supabase
+          .channel('realtime-orders')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+              setOrders((prev) => [payload.new, ...prev]);
+              toast.success("New Order Received!", { duration: 5000, icon: '🎉' });
+          })
+          .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [loadDashboardData]);
+        return () => { supabase.removeChannel(channel); };
+    }
+  }, [isAuthenticated, loadDashboardData]);
 
-  // --- AUTH CHECK ---
+  if (!isMounted) return null;
+
+  // --- SECURITY LOCK SCREEN ---
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputPin === ADMIN_PIN) {
+      setIsAuthenticated(true);
+    } else {
+      setError("Access Denied: Invalid Credentials");
+      setInputPin("");
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#1E1B18] flex items-center justify-center p-4 font-sans">
+        <div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-2xl text-center relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-600 to-red-900"></div>
+          
+          <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-lg">
+            <Lock size={32} />
+          </div>
+
+          <h1 className="text-2xl font-serif font-bold text-gray-900 mb-2">Restricted Access</h1>
+          <p className="text-gray-500 text-sm mb-8">This area is authorized for administrators only.</p>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="relative">
+              <input 
+                type="password" 
+                placeholder="Enter Security PIN" 
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-center font-bold text-lg tracking-[0.5em] focus:outline-none focus:border-red-500 transition-colors"
+                value={inputPin}
+                onChange={(e) => { setInputPin(e.target.value); setError(""); }}
+                autoFocus
+              />
+            </div>
+            
+            {error && (
+              <div className="flex items-center justify-center gap-2 text-red-600 text-xs font-bold animate-pulse">
+                <ShieldAlert size={14} /> {error}
+              </div>
+            )}
+
+            <button 
+              type="submit"
+              className="w-full bg-[#1E1B18] text-white py-4 rounded-xl font-bold tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+            >
+              AUTHENTICATE <ChevronRight size={16} />
+            </button>
+          </form>
+          
+          <p className="mt-8 text-[10px] text-gray-300 uppercase tracking-widest">System Secured • IP Logged</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- MAIN DASHBOARD RENDER ---
   if (authLoading) {
      return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#1E1B18] text-white gap-4">
@@ -98,7 +166,6 @@ export default function AdminDashboard() {
      );
   }
 
-  // --- RENDER ---
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-gray-800 overflow-hidden">
         
