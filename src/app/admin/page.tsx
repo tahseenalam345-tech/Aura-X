@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase"; 
-import { Menu, Loader2, Lock, ShieldAlert, ChevronRight } from "lucide-react";
+import { Menu, Loader2, Lock, ShieldAlert, ChevronRight, Mail, Key } from "lucide-react";
 import { useAuth } from "@/context/AuthContext"; 
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -18,14 +18,14 @@ import MessagesTab from "@/components/admin/MessagesTab";
 import MarketingTab from "@/components/admin/MarketingTab";
 
 export default function AdminDashboard() {
-  const { isAdmin, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth(); // Check actual Supabase User
   const router = useRouter();
 
-  // --- SECURITY STATE ---
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [inputPin, setInputPin] = useState("");
-  const [error, setError] = useState("");
-  const ADMIN_PIN = "7860"; // <--- YOUR SECRET PIN
+  // --- LOGIN STATE ---
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // --- DASHBOARD STATE ---
   const [activeTab, setActiveTab] = useState('inventory');
@@ -83,7 +83,8 @@ export default function AdminDashboard() {
 
   // --- 3. INITIAL LOAD & REALTIME ---
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
+        // Only load data if we have a real user logged in
         loadDashboardData();
 
         const channel = supabase
@@ -96,22 +97,34 @@ export default function AdminDashboard() {
 
         return () => { supabase.removeChannel(channel); };
     }
-  }, [isAuthenticated, loadDashboardData]);
+  }, [user, loadDashboardData]);
 
-  if (!isMounted) return null;
-
-  // --- SECURITY LOCK SCREEN ---
-  const handleLogin = (e: React.FormEvent) => {
+  // --- HANDLE SECURE LOGIN ---
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputPin === ADMIN_PIN) {
-      setIsAuthenticated(true);
-    } else {
-      setError("Access Denied: Invalid Credentials");
-      setInputPin("");
+    setIsLoggingIn(true);
+    setLoginError("");
+
+    try {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+
+        if (error) throw error;
+        toast.success("Welcome back, Commander");
+        // The useAuth hook will automatically detect the change and re-render with `user` set to true
+    } catch (err: any) {
+        setLoginError("Access Denied: Invalid Credentials");
+    } finally {
+        setIsLoggingIn(false);
     }
   };
 
-  if (!isAuthenticated) {
+  if (!isMounted) return null;
+
+  // --- IF NOT LOGGED IN, SHOW SECURE LOGIN SCREEN ---
+  if (!user) {
     return (
       <div className="min-h-screen bg-[#1E1B18] flex items-center justify-center p-4 font-sans">
         <div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-2xl text-center relative overflow-hidden">
@@ -122,42 +135,56 @@ export default function AdminDashboard() {
           </div>
 
           <h1 className="text-2xl font-serif font-bold text-gray-900 mb-2">Restricted Access</h1>
-          <p className="text-gray-500 text-sm mb-8">This area is authorized for administrators only.</p>
+          <p className="text-gray-500 text-sm mb-8">Authorize with Admin Credentials</p>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleAdminLogin} className="space-y-4 text-left">
             <div className="relative">
-              <input 
-                type="password" 
-                placeholder="Enter Security PIN" 
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-center font-bold text-lg tracking-[0.5em] focus:outline-none focus:border-red-500 transition-colors"
-                value={inputPin}
-                onChange={(e) => { setInputPin(e.target.value); setError(""); }}
-                autoFocus
-              />
+                <div className="absolute top-3.5 left-4 text-gray-400"><Mail size={18}/></div>
+                <input 
+                    type="email" 
+                    placeholder="Admin Email" 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-red-500 transition-colors"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                />
             </div>
             
-            {error && (
-              <div className="flex items-center justify-center gap-2 text-red-600 text-xs font-bold animate-pulse">
-                <ShieldAlert size={14} /> {error}
+            <div className="relative">
+                <div className="absolute top-3.5 left-4 text-gray-400"><Key size={18}/></div>
+                <input 
+                    type="password" 
+                    placeholder="Password" 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-red-500 transition-colors"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                />
+            </div>
+            
+            {loginError && (
+              <div className="flex items-center justify-center gap-2 text-red-600 text-xs font-bold animate-pulse pt-2">
+                <ShieldAlert size={14} /> {loginError}
               </div>
             )}
 
             <button 
               type="submit"
-              className="w-full bg-[#1E1B18] text-white py-4 rounded-xl font-bold tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+              disabled={isLoggingIn}
+              className="w-full bg-[#1E1B18] text-white py-4 rounded-xl font-bold tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2 mt-4"
             >
-              AUTHENTICATE <ChevronRight size={16} />
+              {isLoggingIn ? <Loader2 className="animate-spin" /> : <>AUTHENTICATE <ChevronRight size={16} /></>}
             </button>
           </form>
           
-          <p className="mt-8 text-[10px] text-gray-300 uppercase tracking-widest">System Secured • IP Logged</p>
+          <p className="mt-8 text-[10px] text-gray-300 uppercase tracking-widest">System Secured • Encrypted</p>
         </div>
       </div>
     );
   }
 
-  // --- MAIN DASHBOARD RENDER ---
-  if (authLoading) {
+  // --- MAIN DASHBOARD RENDER (Only visible if logged in) ---
+  if (authLoading && !products.length) {
      return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#1E1B18] text-white gap-4">
             <Loader2 className="animate-spin text-aura-gold" size={40} />
