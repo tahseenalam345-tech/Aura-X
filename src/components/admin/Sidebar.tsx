@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { 
   LayoutGrid, ShoppingCart, DollarSign, FileText, 
-  RotateCcw, MessageSquare, Users, Home, LogOut 
+  RotateCcw, MessageSquare,Calculator, Users, Home, LogOut 
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -31,6 +31,7 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSideb
     { id: 'returns', label: 'Returns', icon: RotateCcw, count: counts.returns, color: 'bg-blue-500' },
     { id: 'messages', label: 'Messages', icon: MessageSquare, count: counts.messages, color: 'bg-purple-500' },
     { id: 'marketing', label: 'Marketing', icon: Users },
+    
   ];
 
   return (
@@ -71,6 +72,13 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSideb
                             </span>
                         )}
                     </button>
+                    <button 
+    onClick={() => { setActiveTab('calculator'); setSidebarOpen(false); }}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'calculator' ? 'bg-aura-gold/20 text-aura-gold' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+>
+    <Calculator size={20} />
+    Pricing Calculator
+</button>
                 </div>
             ))}
         </nav>
