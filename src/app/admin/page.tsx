@@ -229,7 +229,7 @@ export default function AdminDashboard() {
                     {activeTab === 'returns' && <ReturnsTab returnRequests={returnRequests} refreshData={fetchSupportData} />}
                     {activeTab === 'messages' && <MessagesTab messages={contactMessages} refreshData={fetchSupportData} />}
                     {activeTab === 'marketing' && <MarketingTab data={marketingData} />}
-                    {activeTab === 'calculator' && <PricingCalculator />}
+                    {activeTab === 'calculator' && <PricingCalculator products={products} fetchProducts={fetchProducts} />}
                 </>
             )}
         </div>
