@@ -27,12 +27,7 @@ body {
 /* NEW PERFORMANCE INJECTION: 
   Handles unoptimized images to keep speed scores high 
 */
-img {
-  /* Sharpens unoptimized images on mobile/high-res screens */
-  image-rendering: -webkit-optimize-contrast;
-  /* Instructs browser to load only when in view */
-  content-visibility: auto;
-}
+
 
 /* Prevent images from flickering or jumping when they load */
 .hero-image-fix {

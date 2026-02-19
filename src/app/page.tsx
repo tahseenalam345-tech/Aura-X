@@ -140,13 +140,13 @@ export default function Home() {
       fetchProducts(nextPage, false);
   };
 
-  const getPosition = (index: number) => {
-    const diff = (index - currentIndex + watchImages.length) % watchImages.length;
-    if (diff === 0) return { x: 0, scale: 1.1, zIndex: 50, opacity: 1, blur: 0 };
-    if (diff === 1) return { x: "50%", scale: 0.8, zIndex: 30, opacity: 0.6, blur: 2 }; 
-    if (diff === watchImages.length - 1) return { x: "-50%", scale: 0.8, zIndex: 30, opacity: 0.6, blur: 2 };
-    return { x: 0, scale: 0.5, zIndex: 0, opacity: 0, blur: 10 };
-  };
+ const getPosition = (index: number) => {
+  const diff = (index - currentIndex + watchImages.length) % watchImages.length;
+  if (diff === 0) return { x: 0, scale: 1.1, zIndex: 50, opacity: 1 };
+  if (diff === 1) return { x: "50%", scale: 0.8, zIndex: 30, opacity: 0.6 }; 
+  if (diff === watchImages.length - 1) return { x: "-50%", scale: 0.8, zIndex: 30, opacity: 0.6 };
+  return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
+};
 
   return (
     <main className="min-h-screen text-aura-brown overflow-x-hidden bg-[#F2F0E9]">
@@ -174,35 +174,36 @@ export default function Home() {
           </div>
           
           <div className="relative h-[350px] md:h-[550px] w-full flex justify-center items-center">
-              {watchImages.map((src, index) => {
-               const pos = getPosition(index);
-               if (pos.opacity === 0) return null; 
-               return (
-                 <motion.div
-                   key={index}
-                   initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity, filter: `blur(${pos.blur}px)` }}
-                   animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity, filter: `blur(${pos.blur}px)` }}
-                   transition={{ duration: 0.8 }}
-                   className="absolute"
-                 >
-                    <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-                      <Image 
-                        src={src} 
-                        alt="AURA-X Premium Luxury Watch Model" 
-                        fill 
-                        className="object-contain drop-shadow-2xl"
-                        priority={index === currentIndex} 
-                        fetchPriority={index === currentIndex ? "high" : "auto"} 
-                        sizes="(max-width: 768px) 200px, 320px"
-                        quality={85} 
-                        unoptimized={true} 
-                      />
-                    </div>
-                 </motion.div>
-               );
-             })}
-             <div className="absolute -z-10 text-gray-200 font-bold text-9xl opacity-20 select-none pointer-events-none">AURA</div>
+    {watchImages.map((src, index) => {
+     const pos = getPosition(index);
+     if (pos.opacity === 0) return null; 
+     return (
+       <motion.div
+         key={index}
+         // FIXED: Removed the filter: blur() from the animation
+         initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+         animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+         transition={{ duration: 0.8 }}
+         className="absolute"
+       >
+          <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
+            <Image 
+              src={src} 
+              alt="AURA-X Premium Luxury Watch Model" 
+              fill 
+              className="object-contain drop-shadow-2xl"
+              priority={index === currentIndex} 
+              fetchPriority={index === currentIndex ? "high" : "auto"} 
+              sizes="(max-width: 768px) 200px, 320px"
+              quality={85} 
+              unoptimized={true} 
+            />
           </div>
+       </motion.div>
+     );
+   })}
+   <div className="absolute -z-10 text-gray-200 font-bold text-9xl opacity-20 select-none pointer-events-none">AURA</div>
+</div>
         </div>
       </section>
 
