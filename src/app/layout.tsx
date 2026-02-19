@@ -7,7 +7,7 @@ import { Toaster } from "react-hot-toast";
 import { Footer } from "@/components/Footer";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import Script from "next/script";
-import PopupLoader from "@/components/PopupLoader"; // <--- IMPORT THE LOADER, NOT THE POPUP
+
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair', display: 'swap' });
 const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable: '--font-lato', display: 'swap' });
@@ -91,8 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             
             <WhatsAppButton />
             
-            {/* USE THE LOADER HERE */}
-            <PopupLoader />
+            
             
             {children}
             <Footer />
