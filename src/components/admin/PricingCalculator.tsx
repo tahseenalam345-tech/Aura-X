@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Calculator, DollarSign, TrendingUp, Package, Truck, Tag, RefreshCcw, Save, History, Layers, Database, ChevronDown, CheckCircle, AlertTriangle } from "lucide-react";
+import { Calculator, DollarSign, TrendingUp, Package, Truck, Tag, RefreshCcw, Save, History, Layers, Database, ChevronDown, Sparkles, Send, Bot, User as UserIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import Image from "next/image";
@@ -12,7 +12,7 @@ interface PricingCalculatorProps {
 }
 
 export default function PricingCalculator({ products = [], fetchProducts }: PricingCalculatorProps) {
-  const [activeTab, setActiveTab] = useState<'profit' | 'target' | 'single' | 'bulk' | 'history'>('profit');
+  const [activeTab, setActiveTab] = useState<'profit' | 'target' | 'single' | 'bulk' | 'history' | 'assistant'>('profit');
 
   // ==========================================
   // 1. ORIGINAL SANDBOX STATE
@@ -30,7 +30,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
   const [targetProfit, setTargetProfit] = useState(500); 
   
   const [customerDc, setCustomerDc] = useState(250);
-  const [premiumBoxCharge, setPremiumBoxCharge] = useState(250);
+  const [premiumBoxCharge, setPremiumBoxCharge] = useState(250); 
   const [giftWrapCharge, setGiftWrapCharge] = useState(300);
 
   const [qty, setQty] = useState(1); 
@@ -52,7 +52,21 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [bulkTargetProfit, setBulkTargetProfit] = useState(500);
 
-  // Close dropdown if clicked outside
+  // ==========================================
+  // 3. AI ASSISTANT STATE
+  // ==========================================
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'bot', text: string, items?: any[]}[]>([
+      { role: 'bot', text: "Hello Boss! I am your Pricing Assistant. Ask me things like:\n• 'Show me watches in loss'\n• 'Show me ladies watches'\n• 'Watches under 2000'\n• 'Which items cost over 1500?'" }
+  ]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeTab === 'assistant' && chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatHistory, activeTab]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsDropdownOpen(false);
@@ -61,17 +75,38 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Load History on Mount
+  // ==========================================
+  // GLOBAL HISTORY FETCH (FROM SUPABASE)
+  // ==========================================
   useEffect(() => {
-    const savedHistory = localStorage.getItem('pricingHistory');
-    if (savedHistory) setHistory(JSON.parse(savedHistory));
+    const fetchHistoryFromDb = async () => {
+        const { data, error } = await supabase
+            .from('pricing_history')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(50);
+        
+        if (data && !error) setHistory(data);
+    };
+    fetchHistoryFromDb();
   }, []);
 
-  const saveHistory = (record: any) => {
-    const newHistory = [record, ...history].slice(0, 50);
-    setHistory(newHistory);
-    localStorage.setItem('pricingHistory', JSON.stringify(newHistory));
+  // SAVE TO SUPABASE DB
+  const saveHistoryToDb = async (record: any) => {
+    const { data, error } = await supabase.from('pricing_history').insert([{
+        date_string: new Date().toLocaleString(),
+        product_id: record.productId,
+        product_name: record.productName,
+        old_price: record.oldPrice,
+        new_price: record.newPrice,
+        type: record.type
+    }]).select().single();
+
+    if (data && !error) {
+        setHistory(prev => [data, ...prev].slice(0, 50));
+    }
   };
+
 
   // AUTO-FETCH: Fill Cost, Discount, and Calculate Current Profit!
   useEffect(() => {
@@ -85,7 +120,6 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
             setBuyPrice(cost);
             setDiscountPercent(disc);
 
-            // Calculate what profit they are CURRENTLY making to use as default target
             const taxDecimal = codTaxPercent / 100;
             const discDecimal = disc / 100;
             const fixed = cost + defaultBoxCost + actualDc + adCostPerItem + extraCost;
@@ -142,12 +176,11 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
   // ==========================================
   const singleFixedCosts = buyPrice + defaultBoxCost + actualDc + adCostPerItem + extraCost;
   const singleTargetCollected = (targetProfit + singleFixedCosts) / (1 - taxDecimal);
-  const singleRequiredNetSales = singleTargetCollected - customerDc; // Standard 250 DC
+  const singleRequiredNetSales = singleTargetCollected - customerDc;
   const singleRequiredSellPrice = discountDecimal === 1 ? 0 : (singleRequiredNetSales / (1 - discountDecimal));
   
   const singleMargin = singleTargetCollected > 0 ? (targetProfit / singleTargetCollected) * 100 : 0;
 
-  // Profitability Score Logic (0-100)
   let profitScore = 0;
   let profitColor = "bg-red-500";
   let profitLabel = "BAD (LOSS)";
@@ -190,8 +223,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
         toast.error("Failed to update database");
     } else {
         toast.success(`Updated ${prod.name} to Rs ${finalPrice}`);
-        saveHistory({
-            id: Date.now(), date: new Date().toLocaleString(),
+        await saveHistoryToDb({
             productId: selectedProductId, productName: prod.name,
             oldPrice: prod.price, newPrice: finalPrice, type: 'Single Update'
         });
@@ -200,18 +232,172 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
     }
   };
 
-  // Bulk and Undo logic identical to previous...
-  const handleBulkUpdate = async () => { /* ... (Same as before) ... */ };
-  const handleUndo = async (record: any) => { /* ... (Same as before) ... */ };
+  const handleBulkUpdate = async () => {
+    if (bulkSelected.length === 0) return toast.error("Select at least one product");
+    if (!confirm(`Update prices for ${bulkSelected.length} items to achieve Rs ${bulkTargetProfit} profit each?`)) return;
 
-  // Helper for dropdown selected item
+    setIsUpdating(true);
+    let successCount = 0;
+
+    for (const id of bulkSelected) {
+        const prod = products.find(p => p.id === id);
+        if (!prod) continue;
+
+        const prodCost = Number(prod.specs?.cost_price) || 1500;
+        const prodDiscount = Number(prod.discount) || 0;
+        
+        const pFixedCosts = prodCost + defaultBoxCost + actualDc + adCostPerItem + extraCost;
+        const pTargetCollected = (bulkTargetProfit + pFixedCosts) / (1 - taxDecimal);
+        const pRequiredNetSales = pTargetCollected - customerDc; 
+        
+        const pDiscDecimal = prodDiscount / 100;
+        let pFinalPrice = pDiscDecimal === 1 ? 0 : Math.ceil(pRequiredNetSales / (1 - pDiscDecimal));
+        const pOriginalPrice = pDiscDecimal === 1 ? 0 : Math.ceil(pFinalPrice / (1 - pDiscDecimal));
+
+        const { error } = await supabase.from('products').update({
+            price: pFinalPrice, original_price: pOriginalPrice
+        }).eq('id', id);
+
+        if (!error) {
+            successCount++;
+            await saveHistoryToDb({
+                productId: id, productName: prod.name,
+                oldPrice: prod.price, newPrice: pFinalPrice, type: 'Bulk Update'
+            });
+        }
+    }
+
+    setIsUpdating(false);
+    toast.success(`Updated ${successCount} items!`);
+    if (fetchProducts) fetchProducts();
+    setBulkSelected([]);
+  };
+
+  const handleUndo = async (record: any) => {
+    const prod = products.find(p => p.id === record.product_id);
+    if (!prod) return toast.error("Product no longer exists");
+
+    const pDiscDecimal = (Number(prod.discount) || 0) / 100;
+    const originalP = pDiscDecimal === 1 ? 0 : Math.ceil(record.old_price / (1 - pDiscDecimal));
+
+    const { error } = await supabase.from('products').update({
+        price: record.old_price, original_price: originalP
+    }).eq('id', record.product_id);
+
+    if (error) {
+        toast.error("Undo failed");
+    } else {
+        toast.success(`Reverted to Rs ${record.old_price}`);
+        if (fetchProducts) fetchProducts();
+        
+        // Remove from Supabase DB History
+        await supabase.from('pricing_history').delete().eq('id', record.id);
+        
+        // Update UI state
+        setHistory(prev => prev.filter(h => h.id !== record.id));
+    }
+  };
+
+  // ==========================================
+  // SMART ASSISTANT LOGIC 
+  // ==========================================
+  const handleAskAssistant = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!chatInput.trim()) return;
+
+      const userText = chatInput;
+      const lowerQ = userText.toLowerCase();
+      setChatInput("");
+      
+      setChatHistory(prev => [...prev, { role: 'user', text: userText }]);
+
+      setTimeout(() => {
+          let matchedProducts: any[] = [];
+          let botResponse = "";
+
+          // 1. INTENT: LOSS & MARGINS
+          if (lowerQ.includes("loss") || lowerQ.includes("losing") || lowerQ.includes("bad margin")) {
+              matchedProducts = products.filter(p => {
+                  const cost = Number(p.specs?.cost_price) || 0; 
+                  if (cost === 0) return false; 
+                  
+                  const price = Number(p.price) || 0;
+                  const disc = Number(p.discount) || 0;
+                  
+                  const pFixed = cost + defaultBoxCost + actualDc + adCostPerItem + extraCost;
+                  const pCollected = price * (1 - (disc/100)) + customerDc;
+                  const pTax = pCollected * (codTaxPercent / 100);
+                  
+                  const pProfit = pCollected - pFixed - pTax;
+                  return pProfit < 0;
+              });
+
+              if (matchedProducts.length > 0) {
+                  botResponse = `Boss, I analyzed the inventory. I found ${matchedProducts.length} watches that are currently resulting in a loss based on your fixed costs. You should review these immediately:`;
+              } else {
+                  botResponse = "Great news, Boss! I ran the numbers and none of your watches are currently selling at a loss.";
+              }
+          }
+          
+          // 2. INTENT: CATEGORIES (LADIES, MEN, COUPLE)
+          else if (lowerQ.includes("ladies") || lowerQ.includes("women") || lowerQ.includes("woman") || lowerQ.includes("girls")) {
+              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'women' || p.category?.toLowerCase() === 'ladies');
+              botResponse = `Here are all the Ladies/Women's watches in your inventory (${matchedProducts.length} found):`;
+          }
+          else if (lowerQ.includes("men") || lowerQ.includes("gents") || lowerQ.includes("boys")) {
+              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'men');
+              botResponse = `Here are all the Men's watches in your inventory (${matchedProducts.length} found):`;
+          }
+          else if (lowerQ.includes("couple") || lowerQ.includes("matching") || lowerQ.includes("pairs")) {
+              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'couple');
+              botResponse = `Here are all the Couple Sets in your inventory (${matchedProducts.length} found):`;
+          }
+
+          // 3. INTENT: TOTAL COUNT
+          else if (lowerQ.includes("all watches") || lowerQ.includes("how many") || lowerQ.includes("total")) {
+              botResponse = `You currently have a total of ${products.length} watches in your live inventory.`;
+          }
+
+          // 4. INTENT: COST UNDER/OVER
+          else if ((lowerQ.includes("cost") || lowerQ.includes("buy") || lowerQ.includes("bought")) && /\d+/.test(lowerQ)) {
+              const num = parseInt(lowerQ.match(/\d+/)![0], 10);
+              if (lowerQ.includes("under") || lowerQ.includes("below") || lowerQ.includes("less")) {
+                  matchedProducts = products.filter(p => (Number(p.specs?.cost_price) || 1500) < num);
+                  botResponse = `Here are the watches that cost you less than Rs ${num} to buy:`;
+              } else {
+                  matchedProducts = products.filter(p => (Number(p.specs?.cost_price) || 1500) > num);
+                  botResponse = `Here are the watches that cost you more than Rs ${num} to buy:`;
+              }
+          }
+
+          // 5. INTENT: SELL PRICE UNDER/OVER
+          else if (/\d+/.test(lowerQ)) {
+              const num = parseInt(lowerQ.match(/\d+/)![0], 10);
+              if (lowerQ.includes("under") || lowerQ.includes("below") || lowerQ.includes("less") || lowerQ.includes("cheap")) {
+                  matchedProducts = products.filter(p => Number(p.price) < num);
+                  botResponse = `Here are the watches currently selling for under Rs ${num}:`;
+              } else {
+                  matchedProducts = products.filter(p => Number(p.price) > num);
+                  botResponse = `Here are the watches selling for more than Rs ${num}:`;
+              }
+          }
+          
+          // DEFAULT FALLBACK
+          else {
+              botResponse = "I didn't quite catch that. Since I am a local assistant to save you API costs, try asking specific questions like:\n- 'Show me ladies watches'\n- 'Which watches are in loss?'\n- 'Show me watches under 2500'\n- 'Watches with cost over 1000'";
+          }
+
+          setChatHistory(prev => [...prev, { role: 'bot', text: botResponse, items: matchedProducts }]);
+      }, 500); 
+  };
+
   const selectedProductData = products.find(p => p.id === selectedProductId);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-8">
         
-        {/* ================= HEADER & 5 TABS ================= */}
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4">
+        {/* ================= HEADER & 6 TABS ================= */}
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4 border-b border-gray-100 pb-4">
             <div>
                 <h2 className="text-2xl font-serif font-bold text-aura-brown flex items-center gap-2">
                     <Calculator className="text-aura-gold" /> Pricing Engine
@@ -225,6 +411,11 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                 <button onClick={() => setActiveTab('single')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'single' ? 'bg-aura-gold/20 text-aura-brown shadow' : 'text-gray-500 hover:text-aura-brown'}`}><Database size={16}/> Single Update</button>
                 <button onClick={() => setActiveTab('bulk')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'bulk' ? 'bg-aura-gold/20 text-aura-brown shadow' : 'text-gray-500 hover:text-aura-brown'}`}><Layers size={16}/> Bulk Update</button>
                 <button onClick={() => setActiveTab('history')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'history' ? 'bg-aura-gold/20 text-aura-brown shadow' : 'text-gray-500 hover:text-aura-brown'}`}><History size={16}/> History</button>
+                
+                {/* AI ASSISTANT TAB */}
+                <button onClick={() => setActiveTab('assistant')} className={`ml-2 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'assistant' ? 'bg-purple-600 text-white shadow' : 'bg-purple-100 text-purple-600 hover:bg-purple-200'}`}>
+                    <Sparkles size={16}/> AI Assistant
+                </button>
             </div>
         </div>
 
@@ -542,14 +733,14 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
             </div>
         )}
 
-        {/* ================= PAGE 5: HISTORY ================= */}
+        {/* ================= PAGE 5: HISTORY (FROM SUPABASE) ================= */}
         {activeTab === 'history' && (
             <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm animate-in fade-in">
                 {history.length === 0 ? (
                     <div className="p-16 flex flex-col items-center justify-center text-gray-400">
                         <History size={48} className="mb-4 opacity-20"/>
-                        <p className="font-bold">No update history found.</p>
-                        <p className="text-sm">Price changes made here will appear in this log.</p>
+                        <p className="font-bold">No update history found in Database.</p>
+                        <p className="text-sm">Price changes made here will sync to the server and appear in this log.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -566,16 +757,16 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                             <tbody className="divide-y divide-gray-100">
                                 {history.map((record) => (
                                     <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="p-4 text-xs text-gray-500">{record.date}</td>
-                                        <td className="p-4 text-sm font-bold text-aura-brown">{record.productName}</td>
+                                        <td className="p-4 text-xs text-gray-500">{record.date_string}</td>
+                                        <td className="p-4 text-sm font-bold text-aura-brown">{record.product_name}</td>
                                         <td className="p-4 text-xs">
                                             <span className={`px-2 py-1 rounded-md font-bold ${record.type === 'Bulk Update' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                                                 {record.type}
                                             </span>
                                         </td>
                                         <td className="p-4 text-sm">
-                                            <span className="text-gray-400 line-through mr-2">Rs {record.oldPrice}</span>
-                                            <span className="text-green-600 font-bold">Rs {record.newPrice}</span>
+                                            <span className="text-gray-400 line-through mr-2">Rs {record.old_price}</span>
+                                            <span className="text-green-600 font-bold">Rs {record.new_price}</span>
                                         </td>
                                         <td className="p-4 text-right">
                                             <button 
@@ -591,6 +782,79 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                         </table>
                     </div>
                 )}
+            </div>
+        )}
+
+        {/* ================= PAGE 6: AI ASSISTANT ================= */}
+        {activeTab === 'assistant' && (
+            <div className="flex flex-col h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-gray-50 animate-in fade-in">
+                {/* Chat Header */}
+                <div className="bg-purple-600 text-white p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                        <Sparkles size={20} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold">AURA-X Pricing Intelligence</h3>
+                        <p className="text-xs text-purple-200">Ask me to analyze your inventory data</p>
+                    </div>
+                </div>
+
+                {/* Chat Body */}
+                <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
+                    {chatHistory.map((msg, i) => (
+                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[85%] flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                                
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-gray-200 text-gray-500' : 'bg-purple-100 text-purple-600'}`}>
+                                    {msg.role === 'user' ? <UserIcon size={16}/> : <Bot size={16}/>}
+                                </div>
+                                
+                                <div>
+                                    <div className={`p-4 rounded-2xl whitespace-pre-wrap text-sm ${msg.role === 'user' ? 'bg-aura-brown text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none shadow-sm'}`}>
+                                        {msg.text}
+                                    </div>
+                                    
+                                    {/* Render Products if Assistant found any */}
+                                    {msg.items && msg.items.length > 0 && (
+                                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {msg.items.map(p => (
+                                                <div key={p.id} className="bg-white border border-gray-200 p-2 rounded-lg flex items-center gap-3 shadow-sm">
+                                                    <div className="w-10 h-10 relative bg-gray-100 rounded overflow-hidden">
+                                                        {p.main_image && <Image src={p.main_image} alt="" fill className="object-cover" unoptimized/>}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-gray-800 truncate">{p.name}</p>
+                                                        <p className="text-[10px] text-gray-500">Sell: Rs {p.price} | Cost: Rs {p.specs?.cost_price || 'N/A'}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Chat Input */}
+                <div className="p-4 bg-white border-t border-gray-200">
+                    <form onSubmit={handleAskAssistant} className="flex gap-2">
+                        <input 
+                            type="text" 
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            placeholder="e.g. Show me watches in loss..."
+                            className="flex-1 bg-gray-100 border-none rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-400 text-sm"
+                        />
+                        <button 
+                            type="submit" 
+                            disabled={!chatInput.trim()}
+                            className="bg-purple-600 text-white p-3 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50"
+                        >
+                            <Send size={20} />
+                        </button>
+                    </form>
+                </div>
             </div>
         )}
 
