@@ -16,7 +16,7 @@ import NotebookTab from "@/components/admin/NotebookTab";
 import ReturnsTab from "@/components/admin/ReturnsTab";
 import MessagesTab from "@/components/admin/MessagesTab";
 import MarketingTab from "@/components/admin/MarketingTab";
-
+import PricingCalculator from "@/components/admin/PricingCalculator";
 export default function AdminDashboard() {
   const { user, isLoading: authLoading } = useAuth(); 
   const router = useRouter();
@@ -229,6 +229,7 @@ export default function AdminDashboard() {
                     {activeTab === 'returns' && <ReturnsTab returnRequests={returnRequests} refreshData={fetchSupportData} />}
                     {activeTab === 'messages' && <MessagesTab messages={contactMessages} refreshData={fetchSupportData} />}
                     {activeTab === 'marketing' && <MarketingTab data={marketingData} />}
+                    {activeTab === 'calculator' && <PricingCalculator />}
                 </>
             )}
         </div>
