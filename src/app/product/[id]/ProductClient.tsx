@@ -281,7 +281,7 @@ export default function ProductClient() {
           <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center shadow-lg">
             <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
               <ShieldCheck size={16} className="text-aura-gold"/> 
-              OFFICIAL POLICY: Open Parcel Before Payment Allowed
+               THE EIDI READY: Free Premium Gift Packaging + Eidi Card with every order.
             </p>
           </div>
       </div>

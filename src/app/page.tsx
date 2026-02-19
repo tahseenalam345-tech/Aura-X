@@ -8,7 +8,6 @@ import { ProductCard } from "@/components/ProductCard";
 import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, X, ChevronDown, Filter, User, Users, Heart, ShieldCheck } from "lucide-react"; 
-import TrustPopup from "@/components/TrustPopup"; 
 
 // --- CONFIGURATION ---
 const FILTER_TAGS = ["All", "Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"];
@@ -21,13 +20,12 @@ const fadeInUp: Variants = {
 };
 
 // --- STATIC DATA ---
-// TIP: Convert these to .webp in your public folder for instant 100% speed score!
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
 const categories = [
-  { id: "men", title: "Gents' Heritage", subtitle: "EXPLORE MEN'S", image: "/mens.webp", link: "/men" },
-  { id: "women", title: "Ladies' Precision", subtitle: "EXPLORE WOMEN'S", image: "/ladies.webp", link: "/women" },
-  { id: "couple", title: "Timeless Bond", subtitle: "FOR COUPLES", image: "/couples.webp", link: "/couple" }
+  { id: "men", title: "Gents' Heritage", subtitle: "EXPLORE MEN'S", image: "/mens.jpg", link: "/men" },
+  { id: "women", title: "Ladies' Precision", subtitle: "EXPLORE WOMEN'S", image: "/ladies.png", link: "/women" },
+  { id: "couple", title: "Timeless Bond", subtitle: "FOR COUPLES", image: "/couples.png", link: "/couple" }
 ];
 
 const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
@@ -39,7 +37,7 @@ const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
             className="object-cover transition-transform duration-1000 group-hover:scale-110" 
             sizes="(max-width: 768px) 100vw, 50vw" 
             quality={75} 
-            unoptimized={true} // Add this to save quota on category images too
+            unoptimized={true} 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         <div className="absolute bottom-6 left-6 text-white">
@@ -90,7 +88,6 @@ export default function Home() {
   const fetchProducts = async (pageNumber: number, reset: boolean = false) => {
       setLoadingMore(true); 
 
-      // If Category is "All" and Tag is "All", we perform the "Mix Logic"
       if (activeCategory === "All" && activeTag === "All") {
           const from = (pageNumber - 1) * 3; 
           const to = from + 2;
@@ -154,7 +151,7 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown overflow-x-hidden bg-[#F2F0E9]">
       <Navbar />
-      <TrustPopup />
+      {/* TrustPopup Component Removed from here */}
 
       {/* --- HERO SECTION --- */}
       <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden">
@@ -189,13 +186,12 @@ export default function Home() {
                    className="absolute"
                  >
                     <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-                      {/* FIXED: Priority and Unoptimized Logic */}
                       <Image 
                         src={src} 
                         alt="AURA-X Premium Luxury Watch Model" 
                         fill 
                         className="object-contain drop-shadow-2xl"
-                        priority={true} 
+                        priority={index === currentIndex} 
                         fetchPriority={index === currentIndex ? "high" : "auto"} 
                         sizes="(max-width: 768px) 200px, 320px"
                         quality={85} 
@@ -214,7 +210,7 @@ export default function Home() {
       <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center relative z-20 shadow-lg">
         <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
           <ShieldCheck size={16} className="text-aura-gold"/> 
-          OFFICIAL POLICY: Open Parcel Before Payment Allowed
+          THE EIDI READY: Free Premium Gift Packaging + Eidi Card with every order.
         </p>
       </div>
 
@@ -320,7 +316,6 @@ export default function Home() {
 
       {/* --- COLLECTION SELECTION MODAL --- */}
       {showCategoryModal && (
-        // FIXED: Removed 'backdrop-blur-md'
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-300"> 
             <div className="bg-white p-6 md:p-8 rounded-[2rem] w-full max-w-5xl relative shadow-2xl">
                 <button onClick={() => setShowCategoryModal(false)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-500 hover:text-red-500 transition-colors z-50">
@@ -333,7 +328,7 @@ export default function Home() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {categories.map((cat) => (
                         <Link key={cat.id} href={cat.link} className="group relative h-64 md:h-80 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-                            <Image src={cat.image} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" quality={75} unoptimized={true} />
+                            <Image src={cat.image} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" quality={75} />
                             <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center text-white">
                                 <h3 className="text-2xl font-serif font-bold mb-2 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">{cat.title}</h3>
                                 <span className="text-xs tracking-widest uppercase border-b border-white pb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">Shop Now</span>
