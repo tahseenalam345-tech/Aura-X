@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { 
   LayoutGrid, ShoppingCart, DollarSign, FileText, 
-  RotateCcw, MessageSquare,Calculator, Users, Home, LogOut 
+  RotateCcw, MessageSquare, Calculator, Users, Home, LogOut 
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -22,16 +22,17 @@ interface SidebarProps {
 export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen, counts }: SidebarProps) {
   const { logout } = useAuth();
 
+  // ADDED 'calculator' TO THE ARRAY INSTEAD OF A HARDCODED BUTTON
   const menuItems = [
     { id: 'inventory', label: 'Inventory', icon: LayoutGrid },
     { id: 'orders', label: 'Orders', icon: ShoppingCart, count: counts.orders, color: 'bg-red-500' },
     { id: 'finance', label: 'Finance', icon: DollarSign },
+    { id: 'calculator', label: 'Pricing Calculator', icon: Calculator }, // <--- ADDED HERE
     { id: 'notes', label: 'Notebook & Data', icon: FileText },
-    // Divider here in logic
+    // Divider logic applies before Returns (Index 5 now)
     { id: 'returns', label: 'Returns', icon: RotateCcw, count: counts.returns, color: 'bg-blue-500' },
     { id: 'messages', label: 'Messages', icon: MessageSquare, count: counts.messages, color: 'bg-purple-500' },
     { id: 'marketing', label: 'Marketing', icon: Users },
-    
   ];
 
   return (
@@ -57,8 +58,8 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSideb
         <nav className="flex-1 p-4 space-y-1 mt-16 md:mt-0 overflow-y-auto">
             {menuItems.map((item, index) => (
                 <div key={item.id}>
-                    {/* Add Divider before Returns (Index 4) */}
-                    {index === 4 && <div className="h-[1px] bg-white/10 my-4"></div>}
+                    {/* Updated index to 5 because we added Calculator before it */}
+                    {index === 5 && <div className="h-[1px] bg-white/10 my-4"></div>}
                     
                     <button 
                         onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }} 
@@ -66,19 +67,12 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSideb
                     >
                         <item.icon size={20} /> 
                         <span>{item.label}</span>
-                        {item.count && item.count > 0 && (
+                        {item.count !== undefined && item.count > 0 && (
                             <span className={`ml-auto ${item.color} text-white text-[10px] px-2 py-0.5 rounded-full`}>
                                 {item.count}
                             </span>
                         )}
                     </button>
-                    <button 
-    onClick={() => { setActiveTab('calculator'); setSidebarOpen(false); }}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'calculator' ? 'bg-aura-gold/20 text-aura-gold' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
->
-    <Calculator size={20} />
-    Pricing Calculator
-</button>
                 </div>
             ))}
         </nav>
