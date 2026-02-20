@@ -7,7 +7,7 @@ import { Toaster } from "react-hot-toast";
 import { Footer } from "@/components/Footer";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import Script from "next/script";
-
+import StyleQuizTrigger from "@/components/StyleQuizTrigger";
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair', display: 'swap' });
 const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable: '--font-lato', display: 'swap' });
@@ -94,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             
             
             {children}
+            <StyleQuizTrigger />
             <Footer />
           </CartProvider>
         </AuthProvider>
