@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   X, Sparkles, Loader2, ArrowRight, ArrowLeft, Watch, 
   User, Users, Briefcase, Coffee, Shirt, Sun, Snowflake, 
@@ -10,12 +11,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-interface StyleQuizProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
+export default function StyleQuizPage() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [isCalculating, setIsCalculating] = useState(false);
   const [calcText, setCalcText] = useState("Decoding your vibe...");
@@ -25,18 +22,6 @@ export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
   const [answers, setAnswers] = useState({
     category: "", age: "", occasion: "", wardrobe: "", skinTone: "", wrist: "", personality: ""
   });
-
-  useEffect(() => {
-    if (isOpen) {
-      setStep(0);
-      setAnswers({ category: "", age: "", occasion: "", wardrobe: "", skinTone: "", wrist: "", personality: "" });
-      setRecommendedWatches([]);
-      document.body.style.overflow = 'hidden'; 
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-    return () => { document.body.style.overflow = 'auto'; }
-  }, [isOpen]);
 
   const handleAnswer = (key: string, value: string) => {
     const newAnswers = { ...answers, [key]: value };
@@ -131,8 +116,6 @@ export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
     }, 3200); 
   };
 
-  if (!isOpen) return null;
-
   const progressPercent = step > 0 && step < 8 ? (step / 7) * 100 : 0;
 
   const OptionCard = ({ opt, answerKey }: { opt: any, answerKey: string }) => (
@@ -156,10 +139,10 @@ export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
   );
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#050505] text-white overflow-hidden w-full h-full flex flex-col animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#050505] text-white overflow-hidden w-full flex flex-col relative animate-in fade-in duration-500">
       
       {/* --- LIVE 3D AMBIENT BACKGROUND --- */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none fixed">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-aura-gold/20 rounded-full blur-[120px] animate-[pulse_8s_ease-in-out_infinite]"></div>
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-[#2a251a] rounded-full blur-[150px] animate-[pulse_12s_ease-in-out_infinite_alternate]"></div>
         <div className="absolute top-[40%] right-[20%] w-[30%] h-[30%] bg-yellow-900/20 rounded-full blur-[100px] animate-[pulse_10s_ease-in-out_infinite]"></div>
@@ -171,8 +154,8 @@ export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
             <Sparkles className="text-aura-gold animate-pulse" size={18} />
             <span className="font-serif font-bold text-white tracking-widest uppercase text-sm md:text-base">The Stylist</span>
         </div>
-        <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-gray-300">
-          <X size={20} />
+        <button onClick={() => router.push('/')} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-xs font-bold tracking-widest uppercase text-gray-300 flex items-center gap-2">
+          <X size={14} /> Exit
         </button>
       </div>
 
@@ -188,13 +171,11 @@ export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 overflow-y-auto flex flex-col items-center p-4 pb-12 relative z-10 scroll-smooth">
         
-        {/* DYNAMIC FILLING WATCH (Visible on Mobile & Desktop!) */}
+        {/* DYNAMIC FILLING WATCH */}
         {step > 0 && step < 8 && (
             <div className="flex flex-col items-center justify-center mb-6 mt-2 animate-in zoom-in duration-500">
                 <div className="relative w-16 h-16 md:w-20 md:h-20">
-                    {/* Empty Watch Outline */}
                     <Watch size={64} className="text-white/10 absolute inset-0 w-full h-full" strokeWidth={1} />
-                    {/* Filled Gold Watch (Fills from bottom to top using clip-path) */}
                     <Watch 
                         size={64} 
                         className="text-aura-gold absolute inset-0 w-full h-full transition-all duration-1000 ease-out drop-shadow-[0_0_15px_rgba(212,175,55,0.6)]" 
@@ -229,7 +210,6 @@ export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
           {/* Shared Header Logic for Steps 1-7 */}
           {step > 0 && step < 8 && (
              <div className="w-full mb-6">
-                 {/* DEDICATED BACK BUTTON */}
                  <button onClick={handleBack} className="flex items-center gap-2 text-gray-400 hover:text-aura-gold transition-colors text-[10px] font-bold uppercase tracking-widest mb-4 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 active:scale-95">
                     <ArrowLeft size={12} /> Go Back
                  </button>
@@ -388,7 +368,7 @@ export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
                               <p className="text-[10px] text-gray-500 line-through">Rs {watch.original_price}</p>
                               <p className="text-xl font-bold text-aura-gold">Rs {watch.price}</p>
                           </div>
-                          <Link href={`/product/${watch.id}`} onClick={onClose} className={`text-xs font-bold px-6 py-3 rounded-xl transition-all ${index === 0 ? 'bg-aura-gold text-black hover:bg-white shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                          <Link href={`/product/${watch.id}`} className={`text-xs font-bold px-6 py-3 rounded-xl transition-all ${index === 0 ? 'bg-aura-gold text-black hover:bg-white shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-white/10 text-white hover:bg-white/20'}`}>
                             VIEW SPECS
                           </Link>
                         </div>
@@ -399,7 +379,7 @@ export default function StyleQuiz({ isOpen, onClose }: StyleQuizProps) {
               ) : (
                 <div className="text-center p-8 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10">
                   <p className="text-gray-400 text-sm mb-6">We couldn't find an exact mathematical match for your specific parameters, but the Masterpiece collection awaits.</p>
-                  <Link href={`/${answers.category || 'men'}`} onClick={onClose} className="inline-block bg-aura-gold text-black text-xs px-8 py-4 rounded-xl font-bold tracking-widest hover:bg-white transition-colors">BROWSE VAULT</Link>
+                  <Link href={`/${answers.category || 'men'}`} className="inline-block bg-aura-gold text-black text-xs px-8 py-4 rounded-xl font-bold tracking-widest hover:bg-white transition-colors">BROWSE VAULT</Link>
                 </div>
               )}
               
