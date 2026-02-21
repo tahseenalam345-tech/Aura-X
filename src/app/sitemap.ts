@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // ⚠️ REAL DOMAIN SET
-  const baseUrl = 'https://aura-x-three.vercel.app'; 
+  const baseUrl = 'https://aurax-watches.com'; 
 
   const { data: products } = await supabase
     .from('products')

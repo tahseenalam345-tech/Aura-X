@@ -13,7 +13,7 @@ const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfa
 const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable: '--font-lato', display: 'swap' });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://aura-x-three.vercel.app'),
+  metadataBase: new URL('https://aurax-watches.com'),
   title: {
     default: "AURA-X | Luxury Timepieces",
     template: "%s | AURA-X"
@@ -22,11 +22,14 @@ export const metadata: Metadata = {
   keywords: ["luxury watches", "watches pakistan", "men watches", "women watches", "aura-x", "gift watches", "couple watches", "gold watches"],
   verification: {
     google: '73OSZgKuDAA1E1m_rcm4CUyCYboI3yXk87hB_jp2-qo',
+    other: {
+      'facebook-domain-verification': ['w76jut9we3xkj7njchqemt4lvb79a8'],
+    },
   },
   openGraph: {
     title: "AURA-X | Luxury Timepieces",
     description: "Swiss Precision, Timeless Elegance.",
-    url: 'https://aura-x-three.vercel.app',
+    url: 'https://aurax-watches.com',
     siteName: 'AURA-X',
     images: [
       {
@@ -48,8 +51,8 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "AURA-X",
-  "url": "https://aura-x-three.vercel.app",
-  "logo": "https://aura-x-three.vercel.app/logo.png",
+  "url": "https://aurax-watches.com",
+  "logo": "https://aurax-watches.com/logo.png",
   "description": "Luxury Watch Brand in Pakistan",
   "contactPoint": {
     "@type": "ContactPoint",
@@ -90,8 +93,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster position="top-center" /> 
             
             <WhatsAppButton />
-            
-            
             
             {children}
             <StyleQuizTrigger />

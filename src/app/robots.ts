@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = 'https://aura-x-three.vercel.app'; 
+  const baseUrl = 'https://aurax-watches.com'; 
 
   return {
     rules: {
@@ -16,6 +16,6 @@ export default function robots(): MetadataRoute.Robots {
         '/api/',
       ],
     },
-    sitemap: `${baseUrl}/sitemap.xml`, // <--- This must match your real domain
+    sitemap: `${baseUrl}/sitemap.xml`, // <--- Matches your real domain now
   };
 }
