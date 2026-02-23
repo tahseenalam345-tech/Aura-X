@@ -16,13 +16,6 @@ const fadeInUp: Variants = {
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// 🚀 CRITICAL FIX: Removed ALL snap classes. This ensures 100% native, unbreakable free-scrolling.
-const TrainProductCard = ({ product }: { product: any }) => (
-    <div className="w-[140px] md:w-[200px] lg:w-[230px] flex-shrink-0 h-full">
-        <ProductCard product={product} priority={false} />
-    </div>
-);
-
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   
@@ -112,7 +105,8 @@ export default function Home() {
   }, [activeMasterCategory]);
 
   return (
-    <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full">
+    // 🚀 FIX 1: max-w-[100vw] overflow-x-hidden absolutely prevents the whole page from sliding sideways
+    <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
       
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
@@ -141,10 +135,10 @@ export default function Home() {
           </div>
       </div>
 
-      <div className="relative z-10 flex flex-col min-h-screen">
+      <div className="relative z-10 flex flex-col min-h-screen w-full">
           <Navbar />
 
-          <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden bg-[#F2F0E9] shadow-xl">
+          <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden bg-[#F2F0E9] shadow-xl w-full">
             <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-gradient-radial from-aura-gold/20 to-transparent opacity-50 -z-10" />
             
             <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -186,7 +180,7 @@ export default function Home() {
             </div>
           </section>
 
-          <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden">
+          <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden w-full">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
             <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 text-[9px] md:text-sm font-bold tracking-widest uppercase text-white leading-tight">
               <span className="bg-red-600 text-white px-2 py-0.5 rounded-[3px] shadow-[0_0_12px_rgba(220,38,38,0.8)] flex items-center gap-1 animate-pulse">
@@ -198,7 +192,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-3 md:py-5 shadow-sm border-b border-aura-gold/10">
+          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-3 md:py-5 shadow-sm border-b border-aura-gold/10 w-full">
               <div className="max-w-7xl mx-auto px-4 flex justify-center gap-2 md:gap-6">
                   {[
                       { id: "men", label: "Gents Collection" },
@@ -220,7 +214,7 @@ export default function Home() {
               </div>
           </div>
 
-          <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-24 flex-1">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-24 w-full">
               
               <div className="text-center mt-6 md:mt-12 mb-6 md:mb-10">
                   <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
@@ -230,15 +224,16 @@ export default function Home() {
               </div>
 
               {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-32 opacity-50">
+                  // 🚀 FIX 2: Added min-h-[50vh] so the screen doesn't collapse and jump to the top when switching categories
+                  <div className="flex flex-col items-center justify-center py-32 opacity-50 min-h-[50vh]">
                       <div className="w-12 h-12 border-4 border-aura-brown border-t-transparent rounded-full animate-spin mb-4"></div>
                       <p className="font-serif text-aura-brown text-xl animate-pulse">Accessing Vault...</p>
                   </div>
               ) : (
-                  <>
+                  <div className="flex flex-col gap-6 md:gap-12 w-full">
                       {/* --- ROW 1: PINNED / BEST SELLERS --- */}
                       {pinnedProducts.length > 0 && (
-                          <div className="mb-8 md:mb-14">
+                          <div className="w-full">
                               <div className="flex justify-between items-end mb-3 md:mb-6 pl-1 md:pl-0">
                                   <div>
                                       <p className="text-aura-brown text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
@@ -248,19 +243,20 @@ export default function Home() {
                                   </div>
                               </div>
                               
-                              <div className="relative">
-                                  {/* 🚀 CRITICAL FIX: Pure standard horizontal flex. No snaps. No negative margin hacks. It will NEVER lock up. */}
-                                  <div 
-                                      className="flex w-full overflow-x-auto gap-4 md:gap-6 pb-6 pt-2 scrollbar-hide items-stretch"
-                                      style={{ WebkitOverflowScrolling: 'touch' }}
-                                  >
+                              <div className="relative w-full">
+                                  {/* 🚀 FIX 3: Clean, native flex-overflow. No crazy hacks. Works perfectly on all devices. */}
+                                  <div className="flex overflow-x-auto gap-4 md:gap-6 pb-6 pt-2 scrollbar-hide snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
                                       {pinnedProducts.map(product => (
-                                          <TrainProductCard key={product.id} product={product} />
+                                          <div key={product.id} className="flex-none snap-start w-[140px] md:w-[200px] lg:w-[230px] h-full">
+                                              <ProductCard product={product} priority={false} />
+                                          </div>
                                       ))}
                                   </div>
                                   
-                                  <div className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 -mt-3 z-30 pointer-events-none bg-aura-gold/40 backdrop-blur-md border border-aura-gold/60 text-white w-8 h-16 rounded-l-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.5)] animate-[pulse_2s_ease-in-out_infinite]">
-                                      <ChevronRight size={20} className="ml-1 opacity-80" />
+                                  <div className="md:hidden absolute right-0 top-[40%] -translate-y-1/2 z-20 pointer-events-none bg-gradient-to-l from-[#D5C6AA] via-[#D5C6AA]/80 to-transparent w-16 h-24 flex items-center justify-end pr-1">
+                                      <div className="bg-aura-gold text-white rounded-full p-1 shadow-lg animate-[pulse_2s_ease-in-out_infinite]">
+                                          <ChevronRight size={20} />
+                                      </div>
                                   </div>
                               </div>
                           </div>
@@ -268,46 +264,38 @@ export default function Home() {
 
                       {/* --- DYNAMIC BRAND ROWS --- */}
                       {brandGroups.map((group, index) => (
-                          // 🚀 CRITICAL FIX: Removed overflow-hidden from the root container. This caused the Safari lockup.
-                          <div key={group.brand} className="mb-6 md:mb-12 bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50">
+                          <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] p-4 md:p-6 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full">
                               
-                              {/* Background Text moved into an absolute locked container so it doesn't break the layout */}
                               <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] pointer-events-none z-0">
                                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] whitespace-nowrap animate-pulse tracking-[0.1em]">
                                       {group.brand}
                                   </div>
                               </div>
 
-                              {/* Header Area (Padding applied here instead of root) */}
-                              <div className="relative z-10 flex flex-row justify-between items-end mb-4 pt-5 px-5 md:pt-8 md:px-8">
+                              <div className="relative z-10 flex flex-row justify-between items-end mb-5">
                                   <div>
                                       <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">Brand Showcase</p>
                                       <h2 className="text-2xl md:text-4xl font-serif italic tracking-wider text-white leading-tight drop-shadow-md animate-[pulse_4s_ease-in-out_infinite]">{group.brand}</h2>
                                   </div>
                                   
-                                  <div className="flex flex-col items-end gap-2">
-                                      <Link 
-                                        href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} 
-                                        className="group flex items-center gap-1 text-[10px] md:text-xs font-bold text-aura-gold uppercase tracking-widest pb-1 border-b border-transparent hover:border-aura-gold transition-all"
-                                      >
-                                          View All <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform"/>
-                                      </Link>
-                                  </div>
+                                  <Link 
+                                    href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} 
+                                    className="relative z-20 bg-aura-gold/10 border border-aura-gold/30 text-aura-gold px-3 py-1.5 md:px-5 md:py-2 rounded-full text-[9px] md:text-xs font-bold uppercase tracking-widest flex items-center gap-1 hover:bg-aura-gold hover:text-black transition-colors"
+                                  >
+                                      View All <ChevronRight size={14} />
+                                  </Link>
                               </div>
 
-                              {/* Slider Area */}
-                              <div className="relative z-10 w-full pb-5 md:pb-8">
-                                  {/* 🚀 CRITICAL FIX: Pure standard horizontal scroll. Clean padding. */}
-                                  <div 
-                                      className="flex w-full overflow-x-auto gap-4 md:gap-6 px-5 md:px-8 pb-4 scrollbar-hide items-stretch"
-                                      style={{ WebkitOverflowScrolling: 'touch' }}
-                                  >
+                              <div className="relative z-10 w-full">
+                                  <div className="flex overflow-x-auto gap-4 md:gap-6 pb-4 md:pb-6 scrollbar-hide snap-x snap-mandatory pr-6 md:pr-10" style={{ WebkitOverflowScrolling: 'touch' }}>
                                       {group.products.map(product => (
-                                          <TrainProductCard key={product.id} product={product} />
+                                          <div key={product.id} className="flex-none snap-start w-[140px] md:w-[200px] lg:w-[230px] h-full">
+                                              <ProductCard product={product} priority={false} />
+                                          </div>
                                       ))}
                                       
                                       {/* END CARD */}
-                                      <div className="w-[140px] md:w-[200px] lg:w-[230px] flex-shrink-0 h-full flex items-center justify-center">
+                                      <div className="flex-none snap-start w-[140px] md:w-[200px] lg:w-[230px] h-full flex items-center justify-center pb-2">
                                           <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
                                               <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
                                                   <ArrowRight size={18} className="md:w-5 md:h-5" />
@@ -318,8 +306,10 @@ export default function Home() {
                                       </div>
                                   </div>
 
-                                  <div className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 -mt-3 z-30 pointer-events-none bg-aura-gold/40 backdrop-blur-md border border-aura-gold/60 text-white w-8 h-16 rounded-l-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.5)] animate-[pulse_2s_ease-in-out_infinite]">
-                                      <ChevronRight size={20} className="ml-1 opacity-80" />
+                                  <div className="md:hidden absolute right-0 top-[40%] -translate-y-1/2 z-20 pointer-events-none bg-gradient-to-l from-[#0A0908] via-[#0A0908]/90 to-transparent w-16 h-24 flex items-center justify-end pr-1 rounded-l-2xl">
+                                      <div className="bg-aura-gold/20 border border-aura-gold/50 text-aura-gold rounded-full p-1 shadow-lg animate-[pulse_2s_ease-in-out_infinite]">
+                                          <ChevronRight size={20} />
+                                      </div>
                                   </div>
                               </div>
                           </div>
@@ -331,12 +321,12 @@ export default function Home() {
                               <p className="text-gray-400 text-sm">We are currently restocking this collection.</p>
                           </div>
                       )}
-                  </>
+                  </div>
               )}
           </div>
 
           {!isLoading && allReviews.length > 0 && (
-              <div className="py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12">
+              <div className="w-full py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12">
                  <div className="text-center mb-10 px-4">
                      <p className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex justify-center items-center gap-2">
                         <Quote size={14} className="text-aura-gold/50" /> Word on the Street <Quote size={14} className="text-aura-gold/50" />
