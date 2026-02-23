@@ -18,9 +18,9 @@ const fadeInUp: Variants = {
 // --- STATIC DATA ---
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// --- FIXED: Removed 'snap-start' to allow completely free and smooth native scrolling ---
+// --- FIXED: Restored 'snap-start' for perfect horizontal swiping ---
 const TrainProductCard = ({ product }: { product: any }) => (
-    <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 h-full">
+    <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full">
         <ProductCard product={product} priority={false} />
     </div>
 );
@@ -28,14 +28,12 @@ const TrainProductCard = ({ product }: { product: any }) => (
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   
-  // --- STATE FOR TRAIN UI ---
   const [activeMasterCategory, setActiveCategory] = useState<"men" | "women" | "couple">("men");
   const [pinnedProducts, setPinnedProducts] = useState<any[]>([]);
   const [brandGroups, setBrandGroups] = useState<{ brand: string; products: any[]; sortOrder: number }[]>([]);
   const [allReviews, setAllReviews] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Hero Animation Logic
   useEffect(() => {
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
@@ -52,7 +50,6 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
   };
 
-  // --- ENGINE: FETCH & GROUP PRODUCTS + EXTRACT REVIEWS ---
   useEffect(() => {
     const fetchAndGroupProducts = async () => {
       setIsLoading(true);
@@ -119,7 +116,6 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown overflow-x-hidden bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative">
       
-      {/* CUSTOM CSS FOR AUTO-SCROLLING REVIEWS */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -135,7 +131,6 @@ export default function Home() {
         }
       `}} />
 
-      {/* GLOBAL BREATHING BACKGROUND WATERMARKS */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.06] select-none mix-blend-color-burn">
           <div className="whitespace-nowrap animate-[pulse_5s_ease-in-out_infinite] text-[120px] md:text-[200px] font-serif font-black tracking-[0.2em] -ml-20 text-[#3A2A18]">
               AURA-X • ROLEX • RADO • PATEK PHILIPPE • AUDEMARS PIGUET
@@ -151,7 +146,6 @@ export default function Home() {
       <div className="relative z-10 flex flex-col min-h-screen">
           <Navbar />
 
-          {/* --- HERO SECTION --- */}
           <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden bg-[#F2F0E9] shadow-xl">
             <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-gradient-radial from-aura-gold/20 to-transparent opacity-50 -z-10" />
             
@@ -194,10 +188,8 @@ export default function Home() {
             </div>
           </section>
 
-          {/* --- TRUST STRIP (BREAKING NEWS ALERT) --- */}
           <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
-            
             <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 text-[9px] md:text-sm font-bold tracking-widest uppercase text-white leading-tight">
               <span className="bg-red-600 text-white px-2 py-0.5 rounded-[3px] shadow-[0_0_12px_rgba(220,38,38,0.8)] flex items-center gap-1 animate-pulse">
                 <Flame size={12} className="hidden md:block"/> BREAKING
@@ -208,7 +200,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* --- MASTER CATEGORY TOGGLE (PILL BUTTONS) --- */}
           <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-3 md:py-5 shadow-sm border-b border-aura-gold/10">
               <div className="max-w-7xl mx-auto px-4 flex justify-center gap-2 md:gap-6">
                   {[
@@ -233,7 +224,6 @@ export default function Home() {
 
           <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-24 flex-1">
               
-              {/* --- MAIN TITLE --- */}
               <div className="text-center mt-6 md:mt-12 mb-6 md:mb-10">
                   <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
                       <Sparkles size={14} className="text-aura-gold" /> The Vault <Sparkles size={14} className="text-aura-gold" />
@@ -248,7 +238,6 @@ export default function Home() {
                   </div>
               ) : (
                   <>
-                      {/* --- ROW 1: PINNED / BEST SELLERS --- */}
                       {pinnedProducts.length > 0 && (
                           <div className="mb-8 md:mb-14">
                               <div className="flex justify-between items-end mb-3 md:mb-6 pl-1 md:pl-0">
@@ -261,14 +250,13 @@ export default function Home() {
                               </div>
                               
                               <div className="relative">
-                                  {/* 🚀 SUPER SMOOTH SCROLL FIX: Removed snap, removed touch-pan-x. Pure native horizontal flow. */}
-                                  <div className="flex overflow-x-auto overflow-y-hidden gap-3 md:gap-5 pb-6 pt-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 relative">
+                                  {/* FIXED: Restored snap-x and snap-mandatory so it smoothly snaps to the next card perfectly without getting stuck vertically! */}
+                                  <div className="flex w-full overflow-x-auto snap-x snap-mandatory gap-3 md:gap-5 pb-6 pt-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 relative">
                                       {pinnedProducts.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
                                   </div>
                                   
-                                  {/* TRANSLUCENT GOLD SWIPE INDICATOR */}
                                   <div className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 -mt-3 z-30 pointer-events-none bg-aura-gold/40 backdrop-blur-md border border-aura-gold/60 text-white w-8 h-16 rounded-l-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.5)] animate-[pulse_2s_ease-in-out_infinite]">
                                       <ChevronRight size={20} className="ml-1 opacity-80" />
                                   </div>
@@ -276,11 +264,9 @@ export default function Home() {
                           </div>
                       )}
 
-                      {/* --- DYNAMIC BRAND ROWS (DARK 3D THEME) --- */}
                       {brandGroups.map((group, index) => (
                           <div key={group.brand} className="mb-6 md:mb-12 bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] p-4 md:p-6 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative overflow-hidden ring-1 ring-black/50">
                               
-                              {/* Breathing Full Brand Name in the Background */}
                               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] pointer-events-none select-none z-0 whitespace-nowrap animate-pulse tracking-[0.1em]">
                                   {group.brand}
                               </div>
@@ -302,14 +288,14 @@ export default function Home() {
                               </div>
 
                               <div className="relative z-10 w-full">
-                                  {/* 🚀 SUPER SMOOTH SCROLL FIX: Removed snap, removed touch-pan-x. Pure native horizontal flow. */}
-                                  <div className="flex overflow-x-auto overflow-y-hidden gap-3 md:gap-5 pb-4 md:pb-6 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                                  {/* FIXED: Restored snap-x and snap-mandatory */}
+                                  <div className="flex w-full overflow-x-auto snap-x snap-mandatory gap-3 md:gap-5 pb-4 md:pb-6 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
                                       {group.products.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
                                       
-                                      {/* FIXED: Removed snap-start from Discover card too */}
-                                      <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 h-full flex items-center justify-center py-1 pr-4 md:py-0 md:pr-0">
+                                      {/* FIXED: Restored snap-start here so they can safely swipe to the Discover Card */}
+                                      <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full flex items-center justify-center py-1 pr-4 md:py-0 md:pr-0">
                                           <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
                                               <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
                                                   <ArrowRight size={18} className="md:w-5 md:h-5" />
@@ -337,9 +323,6 @@ export default function Home() {
               )}
           </div>
 
-          {/* =========================================
-              NEW: GLOBAL AUTO-PLAYING REVIEWS SECTION
-          ========================================= */}
           {!isLoading && allReviews.length > 0 && (
               <div className="py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12">
                  <div className="text-center mb-10 px-4">
