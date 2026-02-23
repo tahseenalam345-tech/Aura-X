@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter } from "lucide-react";
 import Image from "next/image";
@@ -25,7 +25,7 @@ const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-const compressImage = (file: File): Promise<Blob> => {
+const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -34,26 +34,30 @@ const compressImage = (file: File): Promise<Blob> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 1000; 
+        // Reviews don't need to be massive. 600px is perfect and saves huge space.
+        const MAX_WIDTH = isReview ? 600 : 1000; 
         let width = img.width;
         let height = img.height;
         if (width > MAX_WIDTH) { height = height * (MAX_WIDTH / width); width = MAX_WIDTH; }
         canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error("Compression failed")); }, "image/webp", 0.8); 
+        
+        // Aggressive compression for reviews (60% quality WebP is tiny but looks great)
+        const quality = isReview ? 0.6 : 0.8;
+        canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error("Compression failed")); }, "image/webp", quality); 
       };
     };
     reader.onerror = (error) => reject(error);
   });
 };
 
-const processFileUpload = async (file: File) => {
+const processFileUpload = async (file: File, isReview: boolean = false) => {
     const isVideo = file.type.startsWith('video/');
     let fileToUpload: File | Blob = file;
 
     if (!isVideo) { 
-        try { fileToUpload = await compressImage(file); } 
+        try { fileToUpload = await compressImage(file, isReview); } 
         catch (e) { console.error("Compression failed:", e); return null; } 
     }
 
@@ -74,6 +78,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [editId, setEditId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('grid');
   
+  // --- BRAND MANAGEMENT STATES ---
+  const [showBrandModal, setShowBrandModal] = useState(false);
+  const [brandSettings, setBrandSettings] = useState<{ brand_name: string; sort_order: number }[]>([]);
+
   // --- FILTER STATES ---
   const [searchQuery, setSearchQuery] = useState(""); 
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -84,7 +92,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", stock: 1, category: "", 
     price: 0, originalPrice: 0, discount: 0, costPrice: 0,
-    tags: "" as string, priority: 100, viewCount: 0, isEidExclusive: false, 
+    tags: "" as string, priority: 100, viewCount: 0, 
+    isEidExclusive: false, isPinned: false, // ADDED: isPinned
     movement: "Quartz (Battery)", waterResistance: "0ATM (No Resistance)", 
     glass: "", caseMaterial: "", caseColor: "Silver", caseShape: "Round", 
     caseDiameter: "40mm", caseThickness: "10mm", 
@@ -98,16 +107,48 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
   const [formData, setFormData] = useState(initialFormState);
 
+  // --- FETCH & MANAGE BRAND ORDERS ---
+  const handleManageBrands = async () => {
+      const loadingToast = toast.loading("Loading brands...");
+      
+      // 1. Get unique brands from current inventory
+      const { data: prods } = await supabase.from('products').select('brand');
+      const uniqueBrands = Array.from(new Set(prods?.map(p => p.brand || "AURA-X").filter(Boolean)));
+
+      // 2. Get saved settings from database
+      const { data: settings } = await supabase.from('brand_settings').select('*');
+      const settingsMap = new Map(settings?.map(s => [s.brand_name, s.sort_order]));
+
+      // 3. Merge them
+      const mergedBrands = uniqueBrands.map(brand => ({
+          brand_name: brand as string,
+          sort_order: settingsMap.get(brand as string) ?? 99
+      })).sort((a, b) => a.sort_order - b.sort_order);
+
+      setBrandSettings(mergedBrands);
+      toast.dismiss(loadingToast);
+      setShowBrandModal(true);
+  };
+
+  const saveBrandOrder = async () => {
+      const loadingToast = toast.loading("Saving order...");
+      const { error } = await supabase.from('brand_settings').upsert(brandSettings);
+      
+      if (error) {
+          toast.error("Failed to save brand order!");
+      } else {
+          toast.success("Brand order updated successfully!");
+          setShowBrandModal(false);
+      }
+      toast.dismiss(loadingToast);
+  };
+
   // --- FILTERING LOGIC ---
   const filteredProducts = products.filter(item => {
-    // 1. Search Query
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (item.specs?.sku || "").toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // 2. Category Filter
     const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
 
-    // 3. Date Range Filter
     let matchesDate = true;
     if (dateFilter.start && dateFilter.end) {
         const itemDate = new Date(item.created_at).setHours(0,0,0,0);
@@ -146,6 +187,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         tags: singleTag,
         priority: item.priority || 100,
         isEidExclusive: item.is_eid_exclusive || false,
+        isPinned: item.is_pinned || false, // ADDED: Pull pinned status
         colors: item.colors?.slice(1) || [], 
         manualReviews: item.manual_reviews || [],
         sku: specs.sku || item.sku || "",
@@ -231,7 +273,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           price: formData.price, original_price: formData.originalPrice, discount: formData.discount, 
           description: formData.description, main_image: formData.mainImage, tags: tagsArray, 
           rating: formData.priority, is_sale: formData.discount > 0, 
-          priority: formData.priority, is_eid_exclusive: formData.isEidExclusive, 
+          priority: formData.priority, 
+          is_eid_exclusive: formData.isEidExclusive, 
+          is_pinned: formData.isPinned, // ADDED: Send pinned status to DB
           colors: allColors, manual_reviews: formData.manualReviews, 
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
@@ -310,12 +354,14 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         <div className="flex flex-col gap-6 mb-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
-                <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base w-full md:w-auto justify-center"><Plus size={18} /> Add New</button>
+                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                    {/* NEW BRAND MANAGEMENT BUTTON */}
+                    <button onClick={handleManageBrands} className="bg-white border border-gray-200 text-aura-brown px-5 py-3 rounded-full font-bold flex items-center gap-2 hover:border-aura-gold hover:shadow-md transition-all text-sm md:text-base justify-center"><List size={18} /> Manage Brands</button>
+                    <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base w-full md:w-auto justify-center"><Plus size={18} /> Add New</button>
+                </div>
             </div>
 
             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-                
-                {/* 1. SEARCH */}
                 <div className="relative w-full md:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input 
@@ -328,8 +374,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto items-center">
-                    
-                    {/* 2. CATEGORY FILTER */}
                     <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-xl border border-gray-200">
                         <Filter size={14} className="text-gray-400"/>
                         <select 
@@ -344,7 +388,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                         </select>
                     </div>
 
-                    {/* 3. DATE RANGE FILTER */}
                     <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-xl border border-gray-200">
                         <Calendar size={14} className="text-gray-400"/>
                         <input 
@@ -365,7 +408,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                         )}
                     </div>
 
-                    {/* VIEW SWITCHER */}
                     <div className="flex bg-gray-100 p-1 rounded-lg flex-shrink-0">
                         <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Grid View"><LayoutGrid size={18}/></button>
                         <button onClick={() => setViewMode('list')} className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="List View"><List size={18}/></button>
@@ -375,25 +417,24 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         </div>
 
-        {/* --- GRID VIEW (CLICKABLE CARDS) --- */}
+        {/* --- GRID VIEW --- */}
         {viewMode === 'grid' && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-20">
                 {filteredProducts.map((item) => (
                     <div 
                         key={item.id} 
-                        onClick={() => handleEditClick(item)} // WHOLE CARD CLICKABLE
+                        onClick={() => handleEditClick(item)}
                         className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col group cursor-pointer hover:border-aura-gold hover:shadow-md transition-all relative"
                     >
                         <div className="relative aspect-square w-full bg-gray-50">
                             {item.main_image && (isVideoFile(item.main_image) ? <video src={item.main_image} className="w-full h-full object-cover" muted /> : <Image src={item.main_image} alt="" fill sizes="(max-width: 768px) 50vw, 300px" className="object-cover" unoptimized={true} />)}
                             
-                            {/* STATUS BADGES */}
                             <div className="absolute top-2 left-2 flex flex-col gap-1">
+                                {item.is_pinned && <span className="text-[9px] bg-aura-gold text-black px-2 py-0.5 rounded shadow font-bold flex items-center gap-1"><Star size={8} fill="currentColor"/> PINNED</span>}
                                 {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded shadow font-bold">EID</span>}
                                 {item.specs?.stock <= 0 && <span className="text-[9px] bg-red-600 text-white px-2 py-0.5 rounded shadow font-bold">OUT OF STOCK</span>}
                             </div>
 
-                            {/* DELETE BUTTON */}
                             <button 
                                 onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} 
                                 className="absolute top-2 right-2 bg-white/80 p-1.5 rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
@@ -408,7 +449,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <p className="text-aura-gold font-bold text-xs">Rs {item.price.toLocaleString()}</p>
                                 <span className="text-[10px] text-gray-400">Stock: {item.specs?.stock}</span>
                             </div>
-                            {/* UPLOAD DATE DISPLAY */}
                             <div className="flex items-center gap-1 text-[9px] text-gray-400 border-t pt-1.5">
                                 <Calendar size={10} /> 
                                 <span>{formatDate(item.created_at)}</span>
@@ -419,20 +459,23 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
-        {/* --- LIST VIEW (CLICKABLE ROWS) --- */}
+        {/* --- LIST VIEW --- */}
         {viewMode === 'list' && (
             <div className="space-y-3 pb-20">
                 {filteredProducts.map((item) => (
                     <div 
                         key={item.id} 
-                        onClick={() => handleEditClick(item)} // WHOLE ROW CLICKABLE
+                        onClick={() => handleEditClick(item)}
                         className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-aura-gold hover:bg-gray-50 transition-all group relative"
                     >
                         <div className="w-16 h-16 bg-gray-50 rounded-lg relative overflow-hidden flex-shrink-0 border">
                              {item.main_image && (isVideoFile(item.main_image) ? <video src={item.main_image} className="w-full h-full object-cover" muted /> : <Image src={item.main_image} alt="" fill sizes="100px" className="object-cover" unoptimized={true} />)}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-aura-brown truncate text-sm md:text-base">{item.name}</h3>
+                            <h3 className="font-bold text-aura-brown truncate text-sm md:text-base flex items-center gap-2">
+                                {item.name} 
+                                {item.is_pinned && <Star size={12} className="text-aura-gold" fill="currentColor"/>}
+                            </h3>
                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mt-0.5">
                                 <span>SKU: {item.specs?.sku}</span>
                                 <span className={item.specs?.stock > 0 ? "text-green-600 font-bold" : "text-red-600 font-bold"}>Stock: {item.specs?.stock}</span>
@@ -457,7 +500,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
-        {/* --- TABLE VIEW (CLICKABLE ROWS) --- */}
+        {/* --- TABLE VIEW --- */}
         {viewMode === 'table' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto pb-20">
                 <table className="w-full text-left min-w-[600px]">
@@ -466,7 +509,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                         {filteredProducts.map((item) => (
                             <tr 
                                 key={item.id} 
-                                onClick={() => handleEditClick(item)} // WHOLE ROW CLICKABLE
+                                onClick={() => handleEditClick(item)}
                                 className="hover:bg-aura-gold/5 cursor-pointer transition-colors group"
                             >
                                 <td className="p-4 flex items-center gap-3">
@@ -474,7 +517,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         {item.main_image && (isVideoFile(item.main_image) ? <video src={item.main_image} className="w-full h-full object-cover" muted /> : <Image src={item.main_image} alt="" fill sizes="40px" className="object-cover" unoptimized={true} />)}
                                     </div>
                                     <div className="truncate max-w-[200px]">
-                                        <p className="font-bold text-aura-brown text-sm group-hover:text-aura-gold transition-colors">{item.name}</p>
+                                        <p className="font-bold text-aura-brown text-sm group-hover:text-aura-gold transition-colors flex items-center gap-1">
+                                            {item.name} {item.is_pinned && <Star size={10} className="text-aura-gold" fill="currentColor"/>}
+                                        </p>
                                         {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID</span>}
                                     </div>
                                 </td>
@@ -496,6 +541,48 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
+        {/* --- BRAND ORDERING MODAL --- */}
+        {showBrandModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                    <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                        <div>
+                            <h2 className="text-2xl font-bold font-serif text-aura-brown">Brand Ordering</h2>
+                            <p className="text-xs text-gray-500 mt-1">Lower numbers show up first (1 = Top).</p>
+                        </div>
+                        <button onClick={() => setShowBrandModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><X size={20}/></button>
+                    </div>
+                    <div className="p-6 overflow-y-auto flex-1 space-y-3 bg-gray-50/50">
+                        {brandSettings.length === 0 ? (
+                            <p className="text-center text-gray-400 text-sm">No brands found in inventory.</p>
+                        ) : (
+                            brandSettings.map((brand, index) => (
+                                <div key={brand.brand_name} className="flex justify-between items-center p-3 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-aura-gold transition-colors">
+                                    <span className="font-bold text-gray-700">{brand.brand_name}</span>
+                                    <input 
+                                        type="number" 
+                                        className="w-20 p-2 bg-gray-50 border border-gray-200 rounded-lg text-center font-bold outline-none focus:border-aura-gold focus:bg-white transition-colors"
+                                        value={brand.sort_order}
+                                        onChange={(e) => {
+                                            const newSettings = [...brandSettings];
+                                            newSettings[index].sort_order = Number(e.target.value);
+                                            setBrandSettings(newSettings);
+                                        }}
+                                    />
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className="p-4 border-t border-gray-100 bg-white">
+                        <button onClick={saveBrandOrder} className="w-full py-3 bg-aura-brown text-white rounded-xl font-bold tracking-widest uppercase text-sm hover:bg-aura-gold transition-colors shadow-lg flex justify-center items-center gap-2">
+                            <Save size={16}/> Save Ordering
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- ADD / EDIT PRODUCT MODAL --- */}
         {showForm && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-none md:rounded-[2rem] w-full max-w-6xl h-[100dvh] md:h-[90vh] flex flex-col shadow-2xl relative overflow-hidden">
@@ -506,7 +593,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                     
                     <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50">
                         <form id="productForm" onSubmit={handlePublish} className="space-y-12">
-                            {/* ... (Existing Form Logic - No Changes Needed here, using formData) ... */}
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Tag size={16}/> Identity</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -532,7 +618,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </section>
 
                             <section className="space-y-6">
-                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Flame size={16}/> Marketing</h3>
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Flame size={16}/> Marketing & Visibility</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="text-xs font-bold text-gray-500">Tags</label>
@@ -546,7 +632,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <div><label className="text-xs font-bold text-gray-500">Priority</label><input type="number" className="w-full p-3 border rounded-xl bg-white" value={formData.priority} onChange={e => setFormData({...formData, priority: Number(e.target.value)})} /></div>
                                         <div><label className="text-xs font-bold text-gray-500">Fake Views</label><input type="number" className="w-full p-3 border rounded-xl bg-white" value={formData.viewCount || 0} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
                                     </div>
-                                    <div className="col-span-2">
+
+                                    {/* --- THE NEW TOGGLES FOR VISIBILITY --- */}
+                                    <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-white border-gray-200'}`}>
                                             <input type="checkbox" className="hidden" checked={formData.isEidExclusive} onChange={e => setFormData({...formData, isEidExclusive: e.target.checked})} />
                                             <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.isEidExclusive ? 'bg-aura-gold border-aura-gold text-black' : 'bg-white border-gray-300'}`}>
@@ -554,7 +642,19 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             </div>
                                             <div>
                                                 <p className={`font-bold text-sm ${formData.isEidExclusive ? 'text-aura-gold' : 'text-gray-600'}`}>Mark as Eid Exclusive</p>
-                                                <p className="text-xs text-gray-400">Hidden from normal shop, only on Locked Eid Page.</p>
+                                                <p className="text-xs text-gray-400">Hidden from normal shop, only on Locked Page.</p>
+                                            </div>
+                                        </label>
+
+                                        {/* NEW PIN TO TOP TOGGLE */}
+                                        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isPinned ? 'bg-aura-gold/10 border-aura-gold' : 'bg-white border-gray-200'}`}>
+                                            <input type="checkbox" className="hidden" checked={formData.isPinned} onChange={e => setFormData({...formData, isPinned: e.target.checked})} />
+                                            <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.isPinned ? 'bg-aura-gold border-aura-gold text-black' : 'bg-white border-gray-300'}`}>
+                                                {formData.isPinned && <Check size={14} strokeWidth={4} />}
+                                            </div>
+                                            <div>
+                                                <p className={`font-bold text-sm flex items-center gap-1 ${formData.isPinned ? 'text-aura-brown' : 'text-gray-600'}`}><Star size={14} fill={formData.isPinned ? "currentColor" : "none"}/> Pin to Top (Best Seller)</p>
+                                                <p className="text-xs text-gray-400">Shows in the top exclusive row on the home page.</p>
                                             </div>
                                         </label>
                                     </div>

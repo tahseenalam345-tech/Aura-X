@@ -7,11 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, X, ChevronDown, Filter, User, Users, Heart, ShieldCheck } from "lucide-react"; 
-
-// --- CONFIGURATION ---
-const FILTER_TAGS = ["All", "Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"];
-const ITEMS_PER_PAGE = 9; 
+import { ArrowRight, ChevronRight, ShieldCheck, Sparkles, Star, Flame, Quote } from "lucide-react"; 
 
 // --- ANIMATIONS ---
 const fadeInUp: Variants = {
@@ -22,56 +18,24 @@ const fadeInUp: Variants = {
 // --- STATIC DATA ---
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-const categories = [
-  { id: "men", title: "Gents' Heritage", subtitle: "EXPLORE MEN'S", image: "/mens.webp", link: "/men" },
-  { id: "women", title: "Ladies' Precision", subtitle: "EXPLORE WOMEN'S", image: "/ladies.webp", link: "/women" },
-  { id: "couple", title: "Timeless Bond", subtitle: "FOR COUPLES", image: "/couples.webp", link: "/couple" }
-];
-
-const CategoryCard = ({ cat, className }: { cat: any, className?: string }) => (
-    <Link href={cat.link} className={`relative group overflow-hidden rounded-3xl shadow-lg h-[280px] md:h-[450px] w-full block ${className}`}>
-        <Image 
-            src={cat.image} 
-            alt={`${cat.title} Collection`} 
-            fill 
-            className="object-cover transition-transform duration-1000 group-hover:scale-110" 
-            sizes="(max-width: 768px) 100vw, 50vw" 
-            quality={75} 
-            unoptimized={true} 
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-        <div className="absolute bottom-6 left-6 text-white">
-          <p className="text-[10px] font-bold tracking-widest uppercase mb-1 text-aura-gold">{cat.subtitle}</p>
-          <h3 className="text-2xl md:text-3xl font-serif">{cat.title}</h3>
-        </div>
-    </Link>
+// --- SHRINKED CARDS FOR DESKTOP AND MOBILE ELEGANCE ---
+const TrainProductCard = ({ product }: { product: any }) => (
+    <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full">
+        <ProductCard product={product} priority={false} />
+    </div>
 );
 
 export default function Home() {
-  const [products, setProducts] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isEidLive, setIsEidLive] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   
-  // --- FILTER STATE ---
-  const [activeTag, setActiveTag] = useState("All");
-  const [activeCategory, setActiveCategory] = useState("All"); 
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  // --- STATE FOR TRAIN UI ---
+  const [activeMasterCategory, setActiveCategory] = useState<"men" | "women" | "couple">("men");
+  const [pinnedProducts, setPinnedProducts] = useState<any[]>([]);
+  const [brandGroups, setBrandGroups] = useState<{ brand: string; products: any[]; sortOrder: number }[]>([]);
+  const [allReviews, setAllReviews] = useState<any[]>([]); // New state for global reviews
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const checkTime = async () => {
-      const { data } = await supabase.from('admin_settings').select('eid_reveal_date').single();
-      if (data?.eid_reveal_date) {
-        setIsEidLive(new Date().getTime() >= new Date(data.eid_reveal_date).getTime());
-      }
-    };
-    checkTime();
-    const interval = setInterval(checkTime, 60000); 
-    return () => clearInterval(interval);
-  }, []);
-
+  // Hero Animation Logic
   useEffect(() => {
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
@@ -80,267 +44,352 @@ export default function Home() {
     return () => clearTimeout(idleTimer);
   }, []);
 
-  // --- FETCH PRODUCTS (Initial & Filter Change) ---
+  const getPosition = (index: number) => {
+    const diff = (index - currentIndex + watchImages.length) % watchImages.length;
+    if (diff === 0) return { x: 0, scale: 1.1, zIndex: 50, opacity: 1 };
+    if (diff === 1) return { x: "50%", scale: 0.8, zIndex: 30, opacity: 0.6 }; 
+    if (diff === watchImages.length - 1) return { x: "-50%", scale: 0.8, zIndex: 30, opacity: 0.6 };
+    return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
+  };
+
+  // --- ENGINE: FETCH & GROUP PRODUCTS + EXTRACT REVIEWS ---
   useEffect(() => {
-    fetchProducts(1, true);
-  }, [activeTag, activeCategory]);
+    const fetchAndGroupProducts = async () => {
+      setIsLoading(true);
 
-  const fetchProducts = async (pageNumber: number, reset: boolean = false) => {
-      setLoadingMore(true); 
+      const { data: brandSettingsData } = await supabase.from('brand_settings').select('*');
+      const brandSettingsMap = new Map(brandSettingsData?.map(b => [b.brand_name, b.sort_order]) || []);
 
-      if (activeCategory === "All" && activeTag === "All") {
-          const from = (pageNumber - 1) * 3; 
-          const to = from + 2;
+      const { data: products } = await supabase
+        .from('products')
+        .select('*')
+        .eq('category', activeMasterCategory)
+        .eq('is_eid_exclusive', false) 
+        .order('priority', { ascending: false });
 
-          const [men, women, couple] = await Promise.all([
-              supabase.from('products').select('*').eq('category', 'men').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to),
-              supabase.from('products').select('*').eq('category', 'women').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to),
-              supabase.from('products').select('*').eq('category', 'couple').eq('is_eid_exclusive', false).order('priority', { ascending: false }).range(from, to)
-          ]);
-
-          const mixed: any[] = [];
-          for (let i = 0; i < 3; i++) {
-              if (men.data?.[i]) mixed.push(men.data[i]);
-              if (women.data?.[i]) mixed.push(women.data[i]);
-              if (couple.data?.[i]) mixed.push(couple.data[i]);
-          }
-
-          if (reset) setProducts(mixed);
-          else setProducts(prev => [...prev, ...mixed]);
-          
-          setHasMore(mixed.length > 0);
-      } 
-      else {
-          const from = (pageNumber - 1) * ITEMS_PER_PAGE;
-          const to = from + ITEMS_PER_PAGE - 1;
-
-          let query = supabase.from('products').select('*').eq('is_eid_exclusive', false);
-
-          if (activeCategory !== "All") query = query.eq('category', activeCategory);
-
-          if (activeTag === "Under2000") query = query.lt('price', 2000);
-          else if (activeTag !== "All") query = query.contains('tags', [activeTag]);
-
-          query = query.order('priority', { ascending: false }).range(from, to);
-
-          const { data } = await query;
-
-          if (data) {
-              if (reset) setProducts(data);
-              else setProducts(prev => [...prev, ...data]);
-              setHasMore(data.length === ITEMS_PER_PAGE);
-          }
+      if (!products) {
+          setIsLoading(false);
+          return;
       }
-      setLoadingMore(false);
-  };
 
-  const loadMore = () => {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchProducts(nextPage, false);
-  };
+      let extractedReviews: any[] = [];
+      const pinned = products.filter(p => p.is_pinned === true);
+      setPinnedProducts(pinned);
 
- const getPosition = (index: number) => {
-  const diff = (index - currentIndex + watchImages.length) % watchImages.length;
-  if (diff === 0) return { x: 0, scale: 1.1, zIndex: 50, opacity: 1 };
-  if (diff === 1) return { x: "50%", scale: 0.8, zIndex: 30, opacity: 0.6 }; 
-  if (diff === watchImages.length - 1) return { x: "-50%", scale: 0.8, zIndex: 30, opacity: 0.6 };
-  return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
-};
+      const unpinned = products.filter(p => p.is_pinned !== true);
+      const grouped = unpinned.reduce((acc, product) => {
+          const brandName = product.brand || "Other Masterpieces";
+          if (!acc[brandName]) acc[brandName] = [];
+          acc[brandName].push(product);
+
+          // Extract reviews for global slider
+          if (product.manual_reviews && product.manual_reviews.length > 0) {
+              const productReviews = product.manual_reviews.map((r: any) => ({
+                  ...r,
+                  productName: product.name,
+                  productImage: product.main_image
+              }));
+              extractedReviews = [...extractedReviews, ...productReviews];
+          }
+
+          return acc;
+      }, {} as Record<string, any[]>);
+
+      const groupedArray = Object.entries(grouped).map(([brand, prods]: [string, any]) => ({
+          brand,
+          products: prods as any[],
+          sortOrder: Number(brandSettingsMap.get(brand) ?? 99) 
+      }));
+
+      groupedArray.sort((a, b) => {
+          if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+          return a.brand.localeCompare(b.brand);
+      });
+
+      // Shuffle reviews and take top 15 to keep slider performant
+      const shuffledReviews = extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15);
+      setAllReviews(shuffledReviews);
+      
+      setBrandGroups(groupedArray);
+      setIsLoading(false);
+    };
+
+    fetchAndGroupProducts();
+  }, [activeMasterCategory]);
 
   return (
-    <main className="min-h-screen text-aura-brown overflow-x-hidden bg-[#F2F0E9]">
-      <Navbar />
-      {/* TrustPopup Component Removed from here */}
+    // UPGRADE: Richer Creamy-Golden-Brown Background!
+    <main className="min-h-screen text-aura-brown overflow-x-hidden bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative">
+      
+      {/* CUSTOM CSS FOR AUTO-SCROLLING REVIEWS */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-scroll {
+          display: flex;
+          width: max-content;
+          animation: scroll 40s linear infinite;
+        }
+        .animate-scroll:hover {
+          animation-play-state: paused;
+        }
+      `}} />
 
-      {/* --- HERO SECTION --- */}
-      <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden">
-        <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-gradient-radial from-aura-gold/20 to-transparent opacity-50 -z-10" />
-        
-        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="text-center lg:text-left z-20">
-            <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
-               <p className="text-xs font-bold text-aura-gold tracking-[0.3em] uppercase mb-4">The Art of Timing</p>
-               <h1 className="text-5xl sm:text-7xl font-serif font-bold leading-tight mb-6">
-                 Legacy in <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-aura-gold to-yellow-600 italic">Every Tick</span>
-               </h1>
-               <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto lg:mx-0">
-                 Experience the pinnacle of Swiss precision. Designed for those who command their own time.
-               </p>
-               <Link href="/men" className="bg-aura-brown text-white px-10 py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold transition-all shadow-xl">
-                 SHOP NOW
-               </Link>
-            </motion.div>
+      {/* GLOBAL BREATHING BACKGROUND WATERMARKS - Darkened for visibility */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.06] select-none mix-blend-color-burn">
+          <div className="whitespace-nowrap animate-[pulse_5s_ease-in-out_infinite] text-[120px] md:text-[200px] font-serif font-black tracking-[0.2em] -ml-20 text-[#3A2A18]">
+              AURA-X • ROLEX • RADO • PATEK PHILIPPE • AUDEMARS PIGUET
           </div>
-          
-          <div className="relative h-[350px] md:h-[550px] w-full flex justify-center items-center">
-    {watchImages.map((src, index) => {
-     const pos = getPosition(index);
-     if (pos.opacity === 0) return null; 
-     return (
-       <motion.div
-         key={index}
-         // FIXED: Removed the filter: blur() from the animation
-         initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-         animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-         transition={{ duration: 0.8 }}
-         className="absolute"
-       >
-          <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-            <Image 
-              src={src} 
-              alt="AURA-X Premium Luxury Watch Model" 
-              fill 
-              className="object-contain drop-shadow-2xl"
-              priority={index === currentIndex} 
-              fetchPriority={index === currentIndex ? "high" : "auto"} 
-              sizes="(max-width: 768px) 200px, 320px"
-              quality={85} 
-              unoptimized={true} 
-            />
+          <div className="whitespace-nowrap animate-[pulse_6s_ease-in-out_infinite] text-[140px] md:text-[220px] font-serif italic -ml-60 text-[#3A2A18]">
+              ARMANI • CARTIER • OMEGA • TISSOT • SEIKO
           </div>
-       </motion.div>
-     );
-   })}
-   <div className="absolute -z-10 text-gray-200 font-bold text-9xl opacity-20 select-none pointer-events-none">AURA</div>
-</div>
-        </div>
-      </section>
-
-      {/* --- TRUST STRIP --- */}
-      <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center relative z-20 shadow-lg">
-        <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
-          <ShieldCheck size={16} className="text-aura-gold"/> 
-          THE EIDI READY: Free Premium Gift Packaging + Eidi Card with every order.
-        </p>
+          <div className="whitespace-nowrap animate-[pulse_7s_ease-in-out_infinite] text-[100px] md:text-[180px] font-serif font-black tracking-[0.3em] ml-[-10%] text-[#3A2A18]">
+              RICHARD MILLE • BREITLING • TAG HEUER • AURA-X
+          </div>
       </div>
 
-      {/* --- Masterpiece Series Section --- */}
-      <section className="py-20 px-4 bg-white rounded-t-[3rem] shadow-inner relative z-10 -mt-2">
-        <div className="max-w-7xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-serif text-center mb-12">Masterpiece Series</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <CategoryCard cat={categories[0]} />
-                <CategoryCard cat={categories[1]} />
+      <div className="relative z-10 flex flex-col min-h-screen">
+          <Navbar />
+
+          {/* --- HERO SECTION --- */}
+          <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden bg-[#F2F0E9] shadow-xl">
+            <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-gradient-radial from-aura-gold/20 to-transparent opacity-50 -z-10" />
+            
+            <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="text-center lg:text-left z-20">
+                <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
+                   <p className="text-xs font-bold text-aura-gold tracking-[0.3em] uppercase mb-4">The Art of Timing</p>
+                   <h1 className="text-5xl sm:text-7xl font-serif font-bold leading-tight mb-6">
+                     Legacy in <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-aura-gold to-yellow-600 italic">Every Tick</span>
+                   </h1>
+                   <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto lg:mx-0">
+                     Experience the pinnacle of Swiss precision. Designed for those who command their own time.
+                   </p>
+                   <button onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })} className="bg-aura-brown text-white px-10 py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold transition-all shadow-xl">
+                     SHOP THE VAULT
+                   </button>
+                </motion.div>
+              </div>
+              
+              <div className="relative h-[350px] md:h-[550px] w-full flex justify-center items-center">
+                 {watchImages.map((src, index) => {
+                  const pos = getPosition(index);
+                  if (pos.opacity === 0) return null; 
+                  return (
+                    <motion.div
+                      key={index}
+                      initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+                      animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+                      transition={{ duration: 0.8 }}
+                      className="absolute"
+                    >
+                      <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
+                        <Image src={src} alt="AURA-X Premium Watch" fill className="object-contain drop-shadow-2xl" priority={index === currentIndex} unoptimized={true} />
+                      </div>
+                    </motion.div>
+                  );
+                })}
+                <div className="absolute -z-10 text-gray-200 font-bold text-9xl opacity-20 select-none pointer-events-none">AURA</div>
+              </div>
             </div>
-            <div className="flex justify-center">
-                <CategoryCard cat={categories[2]} className="md:max-w-4xl" />
+          </section>
+
+          {/* --- TRUST STRIP (BREAKING NEWS ALERT) --- */}
+          <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
+            
+            <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 text-[9px] md:text-sm font-bold tracking-widest uppercase text-white leading-tight">
+              <span className="bg-red-600 text-white px-2 py-0.5 rounded-[3px] shadow-[0_0_12px_rgba(220,38,38,0.8)] flex items-center gap-1 animate-pulse">
+                <Flame size={12} className="hidden md:block"/> BREAKING
+              </span>
+              <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
+              <span>Up to 30% OFF + Free Delivery.</span>
+              <span className="text-aura-gold hidden sm:inline">Stay Tuned 🌙</span>
             </div>
-        </div>
-      </section>
-
-      {/* --- PRODUCTS SECTION --- */}
-      <section className="py-20 px-4 bg-[#F9F8F6]">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-end mb-6">
-             <h2 className="text-3xl md:text-4xl font-serif">Curated Pieces</h2>
-             <button onClick={() => setShowCategoryModal(true)} className="text-aura-gold text-xs font-bold uppercase tracking-widest border-b border-aura-gold pb-1 hover:text-aura-brown transition-colors">View All</button>
           </div>
 
-          {/* 1. TAG FILTERS */}
-          <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
-             {FILTER_TAGS.map(tag => (
-                 <button 
-                    key={tag}
-                    onClick={() => setActiveTag(tag)}
-                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${activeTag === tag ? 'bg-aura-brown text-white border-aura-brown shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
-                 >
-                    {tag === "Fire" ? "🔥 Trending" : tag}
-                 </button>
-             ))}
+          {/* --- MASTER CATEGORY TOGGLE (PILL BUTTONS) --- */}
+          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-4 md:py-5 shadow-sm border-b border-aura-gold/10">
+              <div className="max-w-7xl mx-auto px-4 flex justify-center gap-2 md:gap-6">
+                  {[
+                      { id: "men", label: "Gents Collection" },
+                      { id: "women", label: "Ladies Precision" },
+                      { id: "couple", label: "Timeless Bonds" }
+                  ].map((cat) => (
+                      <button 
+                          key={cat.id}
+                          onClick={() => setActiveCategory(cat.id as any)}
+                          className={`text-[9px] md:text-sm font-bold tracking-widest uppercase transition-all px-4 py-2 md:px-8 md:py-3 rounded-full border ${
+                              activeMasterCategory === cat.id 
+                              ? 'bg-aura-brown text-white border-aura-brown shadow-[0_4px_15px_rgba(74,59,50,0.3)] scale-105' 
+                              : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold hover:text-aura-brown'
+                          }`}
+                      >
+                          {cat.label}
+                      </button>
+                  ))}
+              </div>
           </div>
 
-          {/* 2. CATEGORY SELECTOR BUTTONS */}
-          <div className="grid grid-cols-3 gap-2 md:gap-4 max-w-2xl mx-auto mb-8">
-              <button 
-                onClick={() => setActiveCategory(activeCategory === 'men' ? 'All' : 'men')}
-                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${activeCategory === 'men' ? 'bg-[#1E1B18] text-aura-gold border-[#1E1B18]' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
-              >
-                  <User size={20} className="mb-1"/>
-                  <span className="text-xs font-bold uppercase tracking-wider">For Him</span>
-              </button>
-              <button 
-                onClick={() => setActiveCategory(activeCategory === 'women' ? 'All' : 'women')}
-                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${activeCategory === 'women' ? 'bg-[#1E1B18] text-aura-gold border-[#1E1B18]' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
-              >
-                  <Heart size={20} className="mb-1"/>
-                  <span className="text-xs font-bold uppercase tracking-wider">For Her</span>
-              </button>
-              <button 
-                onClick={() => setActiveCategory(activeCategory === 'couple' ? 'All' : 'couple')}
-                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${activeCategory === 'couple' ? 'bg-[#1E1B18] text-aura-gold border-[#1E1B18]' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
-              >
-                  <Users size={20} className="mb-1"/>
-                  <span className="text-xs font-bold uppercase tracking-wider">Couples</span>
-              </button>
+          <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-12 flex-1">
+              
+              {/* --- MAIN TITLE --- */}
+              <div className="text-center mt-12 md:mt-16 mb-8 md:mb-12">
+                  <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center gap-2">
+                      <Sparkles size={14} className="text-aura-gold" /> The Vault <Sparkles size={14} className="text-aura-gold" />
+                  </p>
+                  <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
+              </div>
+
+              {isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-32 opacity-50">
+                      <div className="w-12 h-12 border-4 border-aura-brown border-t-transparent rounded-full animate-spin mb-4"></div>
+                      <p className="font-serif text-aura-brown text-xl animate-pulse">Accessing Vault...</p>
+                  </div>
+              ) : (
+                  <>
+                      {/* --- ROW 1: PINNED / BEST SELLERS --- */}
+                      {pinnedProducts.length > 0 && (
+                          <div className="mb-10 md:mb-14">
+                              <div className="flex justify-between items-end mb-4 md:mb-6 pl-1 md:pl-0">
+                                  <div>
+                                      <p className="text-aura-brown text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
+                                          <Star size={12} fill="#D4AF37" className="text-aura-gold"/> Highly Coveted
+                                      </p>
+                                      <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">Aura Exclusives</h2>
+                                  </div>
+                              </div>
+                              
+                              <div className="relative">
+                                  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 relative">
+                                      {pinnedProducts.map(product => (
+                                          <TrainProductCard key={product.id} product={product} />
+                                      ))}
+                                  </div>
+                                  
+                                  {/* TRANSLUCENT GOLD SWIPE INDICATOR */}
+                                  <div className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 -mt-3 z-30 pointer-events-none bg-aura-gold/40 backdrop-blur-md border border-aura-gold/60 text-white w-8 h-16 rounded-l-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.5)] animate-[pulse_2s_ease-in-out_infinite]">
+                                      <ChevronRight size={20} className="ml-1 opacity-80" />
+                                  </div>
+                              </div>
+                          </div>
+                      )}
+
+                      {/* --- DYNAMIC BRAND ROWS (DARK 3D THEME - SHRINKED HEIGHT) --- */}
+                      {brandGroups.map((group, index) => (
+                          // UPGRADE: Reduced padding (p-4 md:p-6) to shrink height
+                          <div key={group.brand} className="mb-8 md:mb-12 bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] p-4 md:p-6 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative overflow-hidden ring-1 ring-black/50">
+                              
+                              {/* Breathing Full Brand Name in the Background */}
+                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] pointer-events-none select-none z-0 whitespace-nowrap animate-pulse tracking-[0.1em]">
+                                  {group.brand}
+                              </div>
+
+                              {/* Adjusted margin to keep it compact */}
+                              <div className="relative z-10 flex flex-row justify-between items-end mb-4 md:mb-5">
+                                  <div>
+                                      <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">Brand Showcase</p>
+                                      {/* UPGRADED BRAND TITLE: Elegant, Italic, Breathing */}
+                                      <h2 className="text-2xl md:text-4xl font-serif italic tracking-wider text-white leading-tight drop-shadow-md animate-[pulse_4s_ease-in-out_infinite]">{group.brand}</h2>
+                                  </div>
+                                  
+                                  <div className="flex flex-col items-end gap-2">
+                                      <Link 
+                                        href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} 
+                                        className="group flex items-center gap-1 text-[10px] md:text-xs font-bold text-aura-gold uppercase tracking-widest pb-1 border-b border-transparent hover:border-aura-gold transition-all"
+                                      >
+                                          View All <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform"/>
+                                      </Link>
+                                  </div>
+                              </div>
+
+                              {/* Horizontal Scrolling Train - Adjusted gaps for tighter cards */}
+                              <div className="relative z-10 w-full">
+                                  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-4 md:pb-6 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                                      {group.products.map(product => (
+                                          <TrainProductCard key={product.id} product={product} />
+                                      ))}
+                                      
+                                      {/* "See More" End Card - Heights match new shrunken cards */}
+                                      <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full flex items-center justify-center py-1 pr-4 md:py-0 md:pr-0">
+                                          <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
+                                              <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
+                                                  <ArrowRight size={18} className="md:w-5 md:h-5" />
+                                              </div>
+                                              <p className="font-serif font-bold text-base md:text-xl mb-1 text-white drop-shadow-md">Discover</p>
+                                              <p className="text-[8px] md:text-[10px] text-aura-gold/80 uppercase tracking-widest">{group.brand}</p>
+                                          </Link>
+                                      </div>
+                                  </div>
+
+                                  {/* TRANSLUCENT GOLD SWIPE INDICATOR - Right over the last card */}
+                                  <div className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 -mt-3 z-30 pointer-events-none bg-aura-gold/40 backdrop-blur-md border border-aura-gold/60 text-white w-8 h-16 rounded-l-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.5)] animate-[pulse_2s_ease-in-out_infinite]">
+                                      <ChevronRight size={20} className="ml-1 opacity-80" />
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+
+                      {brandGroups.length === 0 && pinnedProducts.length === 0 && (
+                          <div className="text-center py-20 bg-white/50 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 shadow-sm">
+                              <p className="font-serif text-2xl text-gray-400 mb-2">The Vault is empty.</p>
+                              <p className="text-gray-400 text-sm">We are currently restocking this collection.</p>
+                          </div>
+                      )}
+                  </>
+              )}
           </div>
 
-          {/* 3. UNDER 2000 FILTER */}
-          <div className="flex justify-center mb-10">
-             <button 
-                onClick={() => setActiveTag("Under2000")}
-                className={`relative px-8 py-3 rounded-full shadow-sm flex items-center gap-3 transition-all transform hover:scale-105 ${
-                    activeTag === "Under2000" 
-                    ? "bg-aura-brown text-white border border-aura-brown shadow-md" 
-                    : "bg-white border border-aura-gold/30 text-aura-brown hover:border-aura-gold hover:shadow-md"
-                }`}
-             >
-                 <div className={`w-2 h-2 rounded-full animate-pulse ${activeTag === "Under2000" ? "bg-aura-gold" : "bg-green-500"}`}></div>
-                 <p className="text-sm font-bold tracking-wide">Picks Under <span className={`font-serif text-lg ${activeTag === "Under2000" ? "text-aura-gold" : "text-aura-gold"}`}>Rs 2,000</span></p>
-                 {activeTag === "Under2000" && <X size={14} className="ml-1 text-white/50 hover:text-white" onClick={(e) => { e.stopPropagation(); setActiveTag("All"); }} />}
-             </button>
-          </div>
+          {/* =========================================
+              NEW: GLOBAL AUTO-PLAYING REVIEWS SECTION
+          ========================================= */}
+          {!isLoading && allReviews.length > 0 && (
+              <div className="py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12">
+                 <div className="text-center mb-10 px-4">
+                     <p className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex justify-center items-center gap-2">
+                        <Quote size={14} className="text-aura-gold/50" /> Word on the Street <Quote size={14} className="text-aura-gold/50" />
+                     </p>
+                     <h2 className="text-3xl md:text-5xl font-serif text-white drop-shadow-lg">Client Testimonials</h2>
+                 </div>
+                 
+                 {/* Auto-Scrolling Marquee Container */}
+                 <div className="relative w-full overflow-hidden flex py-4">
+                    {/* Dark gradient fades on edges for smooth entry/exit */}
+                    <div className="absolute left-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-r from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
+                    <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
 
-          {/* PRODUCT GRID */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8 mb-12">
-            {products.length > 0 ? products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            )) : (
-              loadingMore ? [1,2,3,4].map(i => <div key={i} className="h-64 bg-gray-200 rounded-2xl animate-pulse"></div>) : <p className="col-span-full text-center text-gray-400 py-10 italic">No items found in this collection.</p>
-            )}
-          </div>
-
-          {/* LOAD MORE BUTTON */}
-          {hasMore && products.length > 0 && (
-              <div className="flex justify-center">
-                  <button 
-                    onClick={loadMore} 
-                    disabled={loadingMore}
-                    className="flex items-center gap-2 bg-white border border-gray-200 text-aura-brown px-8 py-3 rounded-full font-bold text-xs tracking-widest hover:border-aura-gold hover:shadow-lg transition-all disabled:opacity-50"
-                  >
-                      {loadingMore ? "Loading..." : "LOAD MORE"} <ChevronDown size={14}/>
-                  </button>
+                    {/* The Scrolling Track (Uses the injected CSS keyframes) */}
+                    <div className="animate-scroll gap-4 md:gap-6 px-4">
+                        {/* Render array TWICE so it loops infinitely without visual breaks */}
+                        {[...allReviews, ...allReviews].map((review, i) => (
+                            <div key={i} className="w-[260px] md:w-[350px] p-5 md:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col gap-3 flex-shrink-0 hover:bg-white/10 transition-colors shadow-lg">
+                               <div className="flex justify-between items-start mb-1">
+                                  <div className="flex items-center gap-3">
+                                      {/* Tiny product thumbnail if available */}
+                                      {review.productImage && (
+                                          <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 border border-white/20 flex-shrink-0 relative">
+                                              <Image src={review.productImage} alt="product" fill className="object-cover" unoptimized={true} />
+                                          </div>
+                                      )}
+                                      <div>
+                                          <p className="font-bold text-sm text-white">{review.user}</p>
+                                          <p className="text-[9px] text-aura-gold/80 uppercase tracking-widest line-clamp-1">{review.productName}</p>
+                                      </div>
+                                  </div>
+                                  <div className="flex text-aura-gold mt-1">
+                                      {[...Array(5)].map((_, starIdx) => <Star key={starIdx} size={10} fill={starIdx < (review.rating || 5) ? "currentColor" : "none"} />)}
+                                  </div>
+                               </div>
+                               <p className="text-xs md:text-sm text-gray-300 italic line-clamp-4 leading-relaxed">"{review.comment}"</p>
+                            </div>
+                        ))}
+                    </div>
+                 </div>
               </div>
           )}
-        </div>
-      </section>
-
-      {/* --- COLLECTION SELECTION MODAL --- */}
-      {showCategoryModal && (
-        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-300"> 
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] w-full max-w-5xl relative shadow-2xl">
-                <button onClick={() => setShowCategoryModal(false)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-500 hover:text-red-500 transition-colors z-50">
-                    <X size={20}/>
-                </button>
-                <div className="text-center mb-8">
-                    <p className="text-aura-gold text-xs font-bold tracking-widest uppercase mb-2">Discover Our World</p>
-                    <h2 className="text-3xl md:text-4xl font-serif text-aura-brown">Select Collection</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {categories.map((cat) => (
-                        <Link key={cat.id} href={cat.link} className="group relative h-64 md:h-80 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-                            <Image src={cat.image} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" quality={75} />
-                            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center text-white">
-                                <h3 className="text-2xl font-serif font-bold mb-2 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">{cat.title}</h3>
-                                <span className="text-xs tracking-widest uppercase border-b border-white pb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">Shop Now</span>
-                            </div>
-                        </Link>
-                    ))}
-                </div>
-            </div>
-        </div>
-      )}
-
+      </div>
     </main>
   );
 }

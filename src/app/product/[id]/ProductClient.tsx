@@ -11,17 +11,40 @@ import { useCart } from "@/context/CartContext";
 import { 
   Star, Truck, ShieldCheck, 
   Minus, Plus, ShoppingBag, Heart, Share2, 
-  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package, Sun, Calendar, Filter, Image as ImageIcon, Video
+  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package, Sun, Calendar, Filter, Image as ImageIcon, Video, Quote, Flame
 } from "lucide-react";
 import toast from "react-hot-toast"; 
 
 const isVideoFile = (url: string) => url?.toLowerCase().includes('.mp4') || url?.toLowerCase().includes('.webm');
 
-// Helper for random avatar colors
-const getAvatarColor = (name: string) => {
-    const colors = ['bg-red-100 text-red-600', 'bg-blue-100 text-blue-600', 'bg-green-100 text-green-600', 'bg-purple-100 text-purple-600', 'bg-orange-100 text-orange-600', 'bg-pink-100 text-pink-600'];
-    const index = name.length % colors.length;
-    return colors[index];
+// --- AGGRESSIVE CLIENT-SIDE IMAGE COMPRESSOR ---
+const compressClientImage = (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = document.createElement("img");
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 600; // Forces review images to be small
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_WIDTH) { height = height * (MAX_WIDTH / width); width = MAX_WIDTH; }
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        // Compress to 60% WebP (Ensures < 50KB files)
+        canvas.toBlob((blob) => {
+          if (blob) {
+             const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", { type: "image/webp" });
+             resolve(newFile);
+          } else reject(new Error("Compression failed"));
+        }, "image/webp", 0.6); 
+      };
+    };
+    reader.onerror = (error) => reject(error);
+  });
 };
 
 export default function ProductClient() {
@@ -50,10 +73,9 @@ export default function ProductClient() {
   const [reviewText, setReviewText] = useState("");
   const [reviewImage, setReviewImage] = useState<string | null>(null);
   const [productReviews, setProductReviews] = useState<any[]>([]);
-  const [reviewSort, setReviewSort] = useState("all"); // NEW: Sort State
+  const [reviewSort, setReviewSort] = useState("all"); 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // UPDATED PRICES
   const GIFT_COST = 300;
   const BOX_COST = 200;
 
@@ -62,11 +84,7 @@ export default function ProductClient() {
        if (!id) return;
        setLoading(true);
 
-       const { data: currentProduct } = await supabase
-         .from('products')
-         .select('*')
-         .eq('id', id)
-         .single();
+       const { data: currentProduct } = await supabase.from('products').select('*').eq('id', id).single();
 
        if (currentProduct) {
            setProduct(currentProduct);
@@ -77,16 +95,10 @@ export default function ProductClient() {
            const exists = wishlist.some((w: any) => w.id === currentProduct.id);
            setIsLiked(exists);
 
-           const { data: related } = await supabase
-             .from('products')
-             .select('*')
-             .eq('category', currentProduct.category)
-             .neq('id', id)
-             .limit(4);
-           
+           const { data: related } = await supabase.from('products').select('*').eq('category', currentProduct.category).neq('id', id).limit(4);
            if (related) setRelatedProducts(related);
-           const dbViews = currentProduct.specs?.view_count || 0;
-           setViewCount(dbViews);
+           
+           setViewCount(currentProduct.specs?.view_count || 0);
        }
        setLoading(false);
     };
@@ -144,13 +156,8 @@ export default function ProductClient() {
           toast.success("Removed from Wishlist");
       } else {
           const newItem = {
-              id: product.id,
-              name: product.name,
-              price: product.price,
-              main_image: product.main_image,
-              category: product.category,
-              original_price: product.original_price,
-              discount: product.discount
+              id: product.id, name: product.name, price: product.price, main_image: product.main_image,
+              category: product.category, original_price: product.original_price, discount: product.discount
           };
           localStorage.setItem('wishlist', JSON.stringify([...wishlist, newItem]));
           setIsLiked(true);
@@ -159,47 +166,44 @@ export default function ProductClient() {
   };
 
   const handleAddToCart = () => {
-    if (specs.stock <= 0) {
-        return toast.error("Sorry, this item is currently out of stock.");
-    }
+    if (specs.stock <= 0) return toast.error("Sorry, this item is currently out of stock.");
 
     addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: selectedColor?.image || activeImage,
-      color: selectedColor?.name || "Standard", 
-      quantity: quantity,
-      isGift: isGift,
-      addBox: addBox
+      id: product.id, name: product.name, price: product.price,
+      image: selectedColor?.image || activeImage, color: selectedColor?.name || "Standard", 
+      quantity: quantity, isGift: isGift, addBox: addBox
     });
 
     toast.success(`${product.name} added to bag!`, {
         style: { border: '1px solid #D4AF37', padding: '16px', color: '#4A3B32' },
         iconTheme: { primary: '#D4AF37', secondary: '#FFFAEE' },
     });
-
     setTimeout(() => { router.push("/cart"); }, 800);
   };
-
-  const handleNotifyMe = () => {
+const handleNotifyMe = () => {
       toast.success("We'll notify you when it's back!", {
           icon: '🔔',
           style: { background: '#1E1B18', color: '#fff' }
       });
   };
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) setReviewImage(URL.createObjectURL(file));
   };
 
+  // UPDATED UPLOAD LOGIC WITH AUTO COMPRESSION
   const uploadReviewImage = async (file: File) => {
-    const fileName = `review-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    const { error } = await supabase.storage.from('product-images').upload(fileName, file);
-    if (error) return null;
-    const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
-    return publicUrl;
+    try {
+        const compressedFile = await compressClientImage(file);
+        const fileName = `review-${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+        const { error } = await supabase.storage.from('product-images').upload(fileName, compressedFile);
+        if (error) throw error;
+        const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
+        return publicUrl;
+    } catch (e) {
+        console.error("Compression/Upload Failed", e);
+        return null;
+    }
   };
 
   const handleSubmitReview = async () => {
@@ -207,7 +211,7 @@ export default function ProductClient() {
     if (!reviewName.trim()) return toast.error("Please enter your name!"); 
     if (!reviewText.trim()) return toast.error("Please write a comment!");
 
-    const loadingToast = toast.loading("Posting review...");
+    const loadingToast = toast.loading("Compressing & Posting review...");
     try {
         let finalImageUrl = null;
         if (fileInputRef.current?.files?.[0]) {
@@ -215,22 +219,20 @@ export default function ProductClient() {
             if (!finalImageUrl) throw new Error("Image upload failed");
         }
         const newReview = {
-            id: Date.now(),
-            user: reviewName, 
-            rating: reviewRating,
+            id: Date.now(), user: reviewName, rating: reviewRating,
             date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            comment: reviewText,
-            image: finalImageUrl, // Keep backward compatibility
-            images: finalImageUrl ? [finalImageUrl] : [] // New multi-image support
+            comment: reviewText, image: finalImageUrl, images: finalImageUrl ? [finalImageUrl] : [] 
         };
         const { data: freshProduct } = await supabase.from('products').select('manual_reviews').eq('id', product.id).single();
         const currentReviews = freshProduct?.manual_reviews || [];
         const updatedReviews = [newReview, ...currentReviews];
-        const { error } = await supabase.from('products').update({ manual_reviews: updatedReviews }).eq('id', product.id);
+        
+        const { error } = await supabase.rpc('update_product_reviews', { p_id: product.id, new_reviews: updatedReviews });
         if (error) throw error;
+
         setProductReviews(updatedReviews);
         toast.dismiss(loadingToast);
-        toast.success("Review Posted!");
+        toast.success("Review Posted Successfully!");
         setReviewRating(0); setReviewName(""); setReviewText(""); setReviewImage(null); setShowReviewForm(false);
     } catch (error) {
         toast.dismiss(loadingToast);
@@ -253,12 +255,6 @@ export default function ProductClient() {
     </div>
   );
 
-  const formatSpecValue = (val: any) => {
-      if (val === true || val === "true") return "Yes";
-      if (val === false || val === "false") return "No";
-      return val;
-  };
-
   return (
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32 md:pb-24">
       <Navbar />
@@ -276,13 +272,17 @@ export default function ProductClient() {
         </div>
       )}
 
-      {/* --- TRUST STRIP (Fixed Padding to Avoid Cut-off) --- */}
+      {/* --- TRUST STRIP --- */}
       <div className="pt-24 md:pt-32"> 
-          <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center shadow-lg">
-            <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
-              <ShieldCheck size={16} className="text-aura-gold"/> 
-               THE EIDI READY: Free Premium Gift Packaging + Eidi Card with every order.
-            </p>
+          <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
+            <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 text-[9px] md:text-sm font-bold tracking-widest uppercase text-white leading-tight">
+              <span className="bg-red-600 text-white px-2 py-0.5 rounded-[3px] shadow-[0_0_12px_rgba(220,38,38,0.8)] flex items-center gap-1 animate-pulse">
+                <Flame size={12} className="hidden md:block"/> BREAKING
+              </span>
+              <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
+              <span>Up to 30% OFF + Free Delivery.</span>
+            </div>
           </div>
       </div>
 
@@ -296,6 +296,7 @@ export default function ProductClient() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12 md:mb-24">
+          {/* ... [IMAGE GALLERY & PRODUCT DETAILS (Unchanged)] ... */}
           <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start">
             <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10">
               <div className="absolute top-4 right-4 z-20 flex flex-col gap-3">
@@ -392,7 +393,7 @@ export default function ProductClient() {
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select Finish</p>
                         <div className="flex gap-4 flex-wrap">
                           {product.colors.map((color: any, index: number) => (
-                             <button 
+                              <button 
                                 key={index} 
                                 onClick={() => { 
                                   setSelectedColorIndex(index); 
@@ -442,7 +443,6 @@ export default function ProductClient() {
                             </div>
                             <button onClick={handleAddToCart} className="w-full h-12 border border-aura-gold/50 text-aura-brown rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold hover:text-white transition-all">BUY NOW</button>
                             
-                            {/* --- UPDATED: BOLD & LARGE PACKING VIDEO NOTE --- */}
                             <p className="text-sm font-bold text-center text-aura-brown flex items-center justify-center gap-2 mt-4 p-2 bg-aura-gold/10 rounded-lg border border-aura-gold/20 shadow-sm">
                                 <Video size={18} className="text-aura-brown"/> 
                                 We share packing video before dispatch.
@@ -463,7 +463,7 @@ export default function ProductClient() {
                            {specs && Object.entries(specs).filter(([key]) => !['gallery', 'stock', 'view_count', 'warranty', 'cost_price', 'shipping_text', 'return_policy', 'box_included', 'luminous', 'date_display', 'adjustable', 'type', 'style', 'video'].includes(key)).map(([key, value]) => (
                              <li key={key} className="flex flex-col pb-1 border-b border-dashed border-gray-100">
                                  <span className="font-bold text-aura-gold uppercase text-[10px]">{key.replace(/_/g, " ")}</span>
-                                 <span className="text-gray-600 truncate">{formatSpecValue(value)}</span>
+                                 <span className="text-gray-600 truncate">{value === true ? "Yes" : value === false ? "No" : String(value)}</span>
                              </li>
                            ))}
                         </ul>
@@ -480,93 +480,113 @@ export default function ProductClient() {
           </div>
         </div>
 
-        {/* TESTIMONIALS SECTION */}
-        <div className="mb-12 md:mb-24 border-t border-gray-200 pt-10">
+        {/* ==============================================================
+            PREMIUM TESTIMONIALS SECTION
+        ============================================================== */}
+        <div className="mb-12 md:mb-24 border-t border-aura-gold/20 pt-16">
             <div className="max-w-6xl mx-auto">
-                <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-                   <h2 className="text-2xl md:text-3xl font-serif text-aura-brown">Testimonials</h2>
-                   <button onClick={() => setShowReviewForm(!showReviewForm)} className="bg-aura-brown text-white px-6 py-2 rounded-full text-xs font-bold hover:bg-aura-gold transition-colors">{showReviewForm ? "Cancel Review" : "Write a Review"}</button>
+                {/* Header & Write Review Button */}
+                <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+                   <div className="flex flex-col items-center md:items-start">
+                       <p className="text-aura-gold text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2"><Quote size={12}/> Word on the Street</p>
+                       <h2 className="text-3xl md:text-4xl font-serif text-aura-brown">Client Testimonials</h2>
+                   </div>
+                   <button onClick={() => setShowReviewForm(!showReviewForm)} className="bg-aura-brown text-white px-8 py-3 rounded-full text-xs font-bold tracking-widest uppercase hover:bg-aura-gold transition-colors shadow-lg">
+                       {showReviewForm ? "Cancel Review" : "Write a Review"}
+                   </button>
                 </div>
 
-                {/* SORTING CONTROLS */}
-                <div className="flex flex-wrap gap-2 mb-8 justify-center md:justify-start">
+                {/* Filter Pills */}
+                <div className="flex flex-wrap gap-2 mb-10 justify-center md:justify-start">
                     {["all", "5", "4", "3", "with_images"].map((type) => (
                         <button 
                             key={type} 
                             onClick={() => setReviewSort(type)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${reviewSort === type ? 'bg-aura-brown text-white border-aura-brown' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
+                            className={`px-5 py-2 rounded-full text-xs font-bold border transition-all ${reviewSort === type ? 'bg-aura-brown text-white border-aura-brown shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold'}`}
                         >
                             {type === "with_images" ? <span className="flex items-center gap-1"><ImageIcon size={12}/> With Photos</span> : type === "all" ? "All Reviews" : `${type} Stars`}
                         </button>
                     ))}
                 </div>
 
+                {/* Review Submission Form */}
                 {showReviewForm && (
-                   <div className="bg-[#FAF9F6] p-6 rounded-2xl shadow-inner mb-8 border border-aura-gold/20 max-w-2xl mx-auto">
-                      <div className="space-y-4">
-                          <p className="font-bold text-center text-aura-brown mb-2">How would you rate this product?</p>
-                          <div className="flex justify-center gap-3 text-gray-300 pb-4 border-b border-gray-200">
-                             {[1,2,3,4,5].map(star => <Star key={star} size={32} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className={`cursor-pointer transition-transform hover:scale-110 ${star <= reviewRating ? "text-aura-gold" : "text-gray-300"}`} />)}
+                   <div className="bg-gradient-to-br from-white to-[#FDFBF7] p-8 rounded-[2rem] shadow-[0_10px_40px_rgba(212,175,55,0.1)] mb-12 border border-aura-gold/20 max-w-2xl mx-auto relative overflow-hidden">
+                      <div className="absolute -top-10 -right-10 text-[150px] text-aura-gold/5 font-serif font-black pointer-events-none select-none z-0"><Quote/></div>
+                      <div className="relative z-10 space-y-5">
+                          <p className="font-bold text-center text-aura-brown mb-2 text-lg font-serif">How was your experience?</p>
+                          <div className="flex justify-center gap-3 text-gray-300 pb-5 border-b border-aura-gold/10">
+                             {[1,2,3,4,5].map(star => <Star key={star} size={36} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className={`cursor-pointer transition-transform hover:scale-110 ${star <= reviewRating ? "text-aura-gold drop-shadow-md" : "text-gray-300"}`} />)}
                           </div>
-                          <input type="text" value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Your Name" className="w-full border border-gray-200 p-3 rounded-xl bg-white text-sm focus:border-aura-gold outline-none" />
-                          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Tell us what you think..." className="w-full border border-gray-200 p-3 rounded-xl bg-white h-24 text-sm focus:border-aura-gold outline-none"></textarea>
-                          <div className="flex justify-between items-center pt-2">
+                          <input type="text" value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Your Name" className="w-full border border-gray-200 p-4 rounded-xl bg-white text-sm focus:border-aura-gold outline-none shadow-sm" />
+                          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Share your thoughts on this timepiece..." className="w-full border border-gray-200 p-4 rounded-xl bg-white h-28 text-sm focus:border-aura-gold outline-none shadow-sm resize-none"></textarea>
+                          <div className="flex flex-col md:flex-row justify-between items-center pt-2 gap-4">
                               <input type="file" id="review-image-upload" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-                              <div className="flex items-center gap-3">
-                                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-aura-brown transition-colors"><Camera size={16} /> {reviewImage ? "Change Photo" : "Add Photo"}</button>
-                                 {reviewImage && <div className="relative w-10 h-10 rounded border border-aura-gold overflow-hidden"><Image src={reviewImage} alt="Preview" fill className="object-cover" /><button onClick={() => setReviewImage(null)} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white"><X size={12}/></button></div>}
+                              <div className="flex items-center gap-3 w-full md:w-auto">
+                                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-xs font-bold text-aura-brown bg-aura-gold/10 px-4 py-2.5 rounded-lg hover:bg-aura-gold hover:text-white transition-colors border border-aura-gold/20"><Camera size={16} /> {reviewImage ? "Change Photo" : "Upload Photo"}</button>
+                                 {reviewImage && <div className="relative w-12 h-12 rounded-lg border border-aura-gold overflow-hidden shadow-md"><Image src={reviewImage} alt="Preview" fill className="object-cover" /><button onClick={() => setReviewImage(null)} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white backdrop-blur-sm"><X size={14}/></button></div>}
                               </div>
-                              <button onClick={handleSubmitReview} className="bg-aura-brown text-white px-8 py-2.5 rounded-full text-xs font-bold hover:shadow-lg hover:bg-aura-gold transition-all">Post Review</button>
+                              <button onClick={handleSubmitReview} className="bg-aura-brown text-white w-full md:w-auto px-10 py-3 rounded-full text-xs font-bold uppercase tracking-widest hover:shadow-xl hover:bg-aura-gold transition-all">Submit</button>
                           </div>
                       </div>
                    </div>
                 )}
 
-                {/* REVIEWS GRID (Masonry-like feel) */}
+                {/* --- PREMIUM REVIEW CARDS GRID --- */}
                 <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
                    {sortedReviews.length > 0 ? sortedReviews.map((review: any, index: number) => (
-                      <div key={review.id || index} className="break-inside-avoid bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="flex justify-between items-start mb-4">
+                      <div key={review.id || index} className="break-inside-avoid bg-gradient-to-br from-[#FFFFFF] to-[#FDFBF7] p-6 rounded-[1.5rem] border border-aura-gold/20 shadow-[0_8px_20px_rgba(212,175,55,0.05)] hover:shadow-[0_12px_30px_rgba(212,175,55,0.15)] transition-all relative overflow-hidden group">
+                          
+                          {/* Background Quote Watermark */}
+                          <div className="absolute -top-4 -right-2 text-aura-gold/5 z-0 pointer-events-none group-hover:scale-110 transition-transform">
+                              <Quote size={80} fill="currentColor"/>
+                          </div>
+
+                          <div className="relative z-10 flex justify-between items-start mb-5">
                              <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${getAvatarColor(review.user || "A")}`}>
+                                {/* Golden Avatar */}
+                                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-serif font-bold text-lg shadow-inner bg-gradient-to-br from-aura-gold to-yellow-600 ring-2 ring-offset-2 ring-aura-gold/20">
                                     {(review.user || "A").charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                    <p className="font-bold text-sm text-gray-800">{review.user}</p>
-                                    <span className="text-[10px] text-gray-400 block">{review.date}</span>
+                                    <p className="font-bold text-sm text-aura-brown tracking-wide">{review.user}</p>
+                                    <span className="text-[9px] text-aura-gold font-bold uppercase tracking-widest block mt-0.5">{review.date}</span>
                                 </div>
                              </div>
-                             <div className="flex text-aura-gold bg-aura-gold/5 px-2 py-1 rounded-lg">
-                                {[...Array(5)].map((_, i) => (<Star key={i} size={10} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "text-aura-gold" : "text-gray-200"}/>))}
+                             <div className="flex text-aura-gold bg-aura-gold/5 px-2 py-1 rounded-lg border border-aura-gold/10">
+                                {[...Array(5)].map((_, i) => (<Star key={i} size={10} fill={i < (review.rating || 5) ? "currentColor" : "none"} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-300"}/>))}
                              </div>
                           </div>
                           
-                          <p className="text-gray-600 text-sm mb-4 leading-relaxed">"{review.comment}"</p>
+                          {/* Elegant Italic Quote */}
+                          <p className="text-gray-600 text-sm md:text-base mb-5 leading-relaxed italic font-serif relative z-10">"{review.comment}"</p>
                           
+                          {/* Images Grid */}
                           {(review.images?.length > 0 || review.image) && (
-                              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide relative z-10">
                                   {review.images ? (
                                       review.images.map((img: string, i: number) => (
-                                          <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-zoom-in" onClick={() => setLightboxImage(img)}>
-                                              <Image src={img} alt="Review" fill className="object-cover hover:scale-110 transition-transform" />
+                                          <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-aura-gold/30 shadow-sm flex-shrink-0 cursor-zoom-in group/img" onClick={() => setLightboxImage(img)}>
+                                              <Image src={img} alt="Review" fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" />
                                           </div>
                                       ))
                                   ) : (
                                       review.image && (
-                                          <div className="relative w-full h-40 rounded-lg overflow-hidden border border-gray-200 cursor-zoom-in" onClick={() => setLightboxImage(review.image)}>
-                                              <Image src={review.image} alt="Review" fill className="object-cover hover:scale-105 transition-transform" />
+                                          <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-aura-gold/30 shadow-sm cursor-zoom-in group/img" onClick={() => setLightboxImage(review.image)}>
+                                              <Image src={review.image} alt="Review" fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" />
                                           </div>
                                       )
                                   )}
                               </div>
                           )}
                       </div>
-                   )) : <div className="col-span-full py-12 text-center text-gray-400 italic bg-gray-50 rounded-2xl border border-dashed border-gray-200">No reviews found matching your filter.</div>}
+                   )) : <div className="col-span-full py-16 text-center text-gray-400 italic bg-white/50 backdrop-blur-md rounded-[2rem] border border-dashed border-aura-gold/30">No reviews found matching your filter.</div>}
                 </div>
             </div>
         </div>
 
-        <div className="border-t border-gray-200 pt-10 mb-12">
+        {/* ... [SIMILAR WATCHES SECTION (Unchanged)] ... */}
+        <div className="border-t border-aura-gold/20 pt-10 mb-12">
              <div className="flex justify-between items-center mb-6">
                  <h2 className="text-xl md:text-3xl font-serif text-aura-brown">Similar Watches</h2>
                  {relatedProducts.length > 0 && (
@@ -579,7 +599,8 @@ export default function ProductClient() {
         </div>
       </div>
       
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 z-50 flex items-center justify-between safe-area-bottom shadow-lg">
+      {/* --- STICKY MOBILE CHECKOUT BAR --- */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 z-[60] flex items-center justify-between pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
          <div className="flex flex-col">
             <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Total</span>
             <div className="flex items-baseline gap-1"><span className="font-serif font-bold text-aura-brown text-xl">Rs {totalPrice.toLocaleString()}</span></div>

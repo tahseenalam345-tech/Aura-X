@@ -21,7 +21,7 @@ export default function StyleQuizTrigger() {
   }, []);
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 flex flex-col items-start">
+    <div className="fixed bottom-[95px] md:bottom-6 left-4 md:left-6 z-50 flex flex-col items-start">
       {/* Animated Chat Bubble */}
       <div 
         className={`mb-3 ml-2 bg-white text-aura-brown px-4 py-3 rounded-2xl rounded-bl-none shadow-2xl border border-gray-100 font-bold text-xs tracking-wide transition-all duration-500 origin-bottom-left max-w-[200px] ${showMessage ? 'scale-100 opacity-100 translate-y-0' : 'scale-0 opacity-0 translate-y-4 pointer-events-none'}`}

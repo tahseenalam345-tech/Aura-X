@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard"; 
 import { motion, AnimatePresence, Variants } from "framer-motion";
@@ -16,25 +16,37 @@ const fadeInUp: Variants = {
 export default function CategoryPage() {
   const params = useParams();
   const categorySlug = params.category as string; 
-  const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection'];
+  const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection', 'style-quiz'];
 
   // --- ALL HOOKS MUST BE AT THE TOP ---
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(8);
+  
+  // --- FILTERS ---
+  const [selectedBrand, setSelectedBrand] = useState("All"); // NEW: Brand Filter
   const [priceRange, setPriceRange] = useState(500000); 
   const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
   const [selectedStraps, setSelectedStraps] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("featured");
+  
   const [sortOpen, setSortOpen] = useState(false); 
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
+  // Read URL params safely on mount (to see if they clicked "View All Rolex" from Home Page)
+  useEffect(() => {
+      if (typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const brandFromUrl = urlParams.get('brand');
+          if (brandFromUrl) setSelectedBrand(brandFromUrl);
+      }
+  }, []);
+
   useEffect(() => {
     const fetchProducts = async () => {
-      // Don't fetch if the route is a static page like 'admin'
       if (reservedRoutes.includes(categorySlug)) {
         setLoading(false);
         return;
@@ -51,24 +63,35 @@ export default function CategoryPage() {
       setLoading(false);
     };
 
-    if (categorySlug) {
-        fetchProducts();
-    }
+    if (categorySlug) fetchProducts();
   }, [categorySlug]);
 
   useEffect(() => {
     setVisibleCount(8);
-  }, [priceRange, selectedMovements, selectedStraps, sortBy]);
+  }, [priceRange, selectedMovements, selectedStraps, sortBy, selectedBrand]);
 
   // --- DERIVED DATA & LOGIC ---
+  
+  // Extract all unique brands available in this specific category
+  const availableBrands = useMemo(() => {
+      const brands = products.map(p => p.brand || "AURA-X").filter(Boolean);
+      return ["All", ...Array.from(new Set(brands))].sort();
+  }, [products]);
+
   const filteredProducts = products.filter((product) => {
+    // 1. Brand Filter
+    if (selectedBrand !== "All" && (product.brand || "AURA-X") !== selectedBrand) return false;
+
+    // 2. Price Filter
     if (product.price > priceRange) return false;
     
+    // 3. Movement Filter
     if (selectedMovements.length > 0) {
         const move = product.specs?.movement || "Quartz";
         if (!selectedMovements.includes(move)) return false;
     }
 
+    // 4. Strap Filter
     if (selectedStraps.length > 0) {
         const strap = product.specs?.strap || "Leather";
         const hasStrap = selectedStraps.some(s => strap.includes(s));
@@ -93,7 +116,6 @@ export default function CategoryPage() {
     else setState([...state, item]);
   };
 
-  // --- EARLY RETURN CHECK (Moved after all hooks) ---
   if (reservedRoutes.includes(categorySlug)) return null;
 
   const FilterContent = () => (
@@ -143,7 +165,7 @@ export default function CategoryPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#F2F0E9] text-aura-brown">
+    <main className="min-h-screen bg-[#FDFBF7] text-aura-brown">
       <Navbar />
 
       <AnimatePresence>
@@ -156,7 +178,7 @@ export default function CategoryPage() {
             />
             <motion.div 
               initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }}
-              className="fixed inset-y-0 left-0 w-[80%] max-w-xs bg-[#F2F0E9] z-[101] p-8 shadow-2xl lg:hidden overflow-y-auto"
+              className="fixed inset-y-0 left-0 w-[80%] max-w-xs bg-[#FDFBF7] z-[101] p-8 shadow-2xl lg:hidden overflow-y-auto"
             >
               <div className="flex justify-between items-center mb-10 pb-4 border-b border-aura-brown/10">
                 <span className="text-2xl font-serif font-bold">Filters</span>
@@ -168,17 +190,42 @@ export default function CategoryPage() {
         )}
       </AnimatePresence>
 
-      <div className="pt-32 md:pt-44 pb-12 text-center bg-gradient-to-b from-white to-[#F2F0E9]">
+      {/* HEADER SECTION */}
+      <div className="pt-32 md:pt-40 pb-8 text-center bg-gradient-to-b from-white to-[#FDFBF7]">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <span className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase block mb-3">Collection</span>
+          <span className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase block mb-3">
+            {selectedBrand !== "All" ? 'Brand Showcase' : 'Collection'}
+          </span>
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-aura-brown capitalize px-4">
-            {categorySlug === 'couple' ? "Couple's Timepieces" : `${categorySlug}'s Collection`}
+            {selectedBrand !== "All" ? `${selectedBrand} Masterpieces` : (categorySlug === 'couple' ? "Couple's Timepieces" : `${categorySlug}'s Collection`)}
           </h1>
         </motion.div>
       </div>
 
+      {/* QUICK BRAND SLIDER */}
+      {!loading && availableBrands.length > 2 && (
+          <div className="max-w-[1600px] mx-auto px-4 md:px-12 mb-8">
+              <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide items-center justify-start md:justify-center">
+                  {availableBrands.map(brand => (
+                      <button
+                          key={brand}
+                          onClick={() => setSelectedBrand(brand)}
+                          className={`px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                              selectedBrand === brand
+                              ? 'bg-aura-brown text-white border-aura-brown shadow-lg scale-105'
+                              : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold hover:text-aura-brown'
+                          }`}
+                      >
+                          {brand}
+                      </button>
+                  ))}
+              </div>
+          </div>
+      )}
+
       <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex flex-col lg:flex-row gap-8 lg:gap-16 pb-20">
         
+        {/* DESKTOP SIDEBAR FILTERS */}
         <aside className="hidden lg:block w-64 flex-shrink-0 lg:sticky lg:top-32 h-fit">
             <div className="flex items-center gap-2 pb-4 border-b border-aura-brown/10 mb-8">
                 <Filter size={20} className="text-aura-gold" />
@@ -188,6 +235,7 @@ export default function CategoryPage() {
         </aside>
 
         <div className="flex-1">
+            {/* UTILITY BAR (Sort & Mobile Filter Trigger) */}
             <div className="flex justify-between items-center mb-8 pb-4 border-b border-aura-brown/10">
                 <button 
                   onClick={() => setMobileFilterOpen(true)}
@@ -237,9 +285,10 @@ export default function CategoryPage() {
                 </div>
             </div>
 
+            {/* PRODUCT GRID */}
             {loading ? (
                 <div className="h-64 flex items-center justify-center text-aura-brown">
-                    <Loader2 className="animate-spin mr-2" /> Loading Collection...
+                    <Loader2 className="animate-spin mr-2" /> Loading Vault...
                 </div>
             ) : (
                 <div className="flex flex-col gap-12">
@@ -271,10 +320,11 @@ export default function CategoryPage() {
                 </div>
             )}
             
+            {/* EMPTY STATE */}
             {!loading && filteredProducts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-6">No pieces match these criteria.</p>
-                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]); setSortBy("featured");}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs">
+                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]); setSortBy("featured"); setSelectedBrand("All");}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs hover:bg-aura-gold transition-colors">
                       CLEAR ALL FILTERS
                     </button>
                 </div>
