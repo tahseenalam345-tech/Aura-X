@@ -9,16 +9,14 @@ import { motion, Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, ShieldCheck, Sparkles, Star, Flame, Quote } from "lucide-react"; 
 
-// --- ANIMATIONS ---
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };
 
-// --- STATIC DATA ---
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// --- FIXED: Restored 'snap-start' for perfect horizontal swiping ---
+// --- HORIZONTAL SCROLL CARD ---
 const TrainProductCard = ({ product }: { product: any }) => (
     <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full">
         <ProductCard product={product} priority={false} />
@@ -114,7 +112,8 @@ export default function Home() {
   }, [activeMasterCategory]);
 
   return (
-    <main className="min-h-screen text-aura-brown overflow-x-hidden bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative">
+    // 🚀 SCROLL LOCK FIX 1: Removed overflow-x-hidden from main wrapper. This was killing Safari.
+    <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full">
       
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
@@ -131,6 +130,7 @@ export default function Home() {
         }
       `}} />
 
+      {/* GLOBAL BREATHING BACKGROUND WATERMARKS */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.06] select-none mix-blend-color-burn">
           <div className="whitespace-nowrap animate-[pulse_5s_ease-in-out_infinite] text-[120px] md:text-[200px] font-serif font-black tracking-[0.2em] -ml-20 text-[#3A2A18]">
               AURA-X • ROLEX • RADO • PATEK PHILIPPE • AUDEMARS PIGUET
@@ -238,6 +238,7 @@ export default function Home() {
                   </div>
               ) : (
                   <>
+                      {/* --- ROW 1: PINNED / BEST SELLERS --- */}
                       {pinnedProducts.length > 0 && (
                           <div className="mb-8 md:mb-14">
                               <div className="flex justify-between items-end mb-3 md:mb-6 pl-1 md:pl-0">
@@ -250,8 +251,11 @@ export default function Home() {
                               </div>
                               
                               <div className="relative">
-                                  {/* FIXED: Restored snap-x and snap-mandatory so it smoothly snaps to the next card perfectly without getting stuck vertically! */}
-                                  <div className="flex w-full overflow-x-auto snap-x snap-mandatory gap-3 md:gap-5 pb-6 pt-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 relative">
+                                  {/* 🚀 SCROLL LOCK FIX 2: Added WebkitOverflowScrolling directly to the div. Removed negative margins (-mx-4). Forced flex-nowrap. */}
+                                  <div 
+                                      className="flex flex-nowrap overflow-x-auto overflow-y-hidden gap-3 md:gap-5 pb-6 pt-2 scrollbar-hide snap-x snap-mandatory overscroll-x-contain w-full"
+                                      style={{ WebkitOverflowScrolling: 'touch' }}
+                                  >
                                       {pinnedProducts.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
@@ -264,6 +268,7 @@ export default function Home() {
                           </div>
                       )}
 
+                      {/* --- DYNAMIC BRAND ROWS --- */}
                       {brandGroups.map((group, index) => (
                           <div key={group.brand} className="mb-6 md:mb-12 bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] p-4 md:p-6 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative overflow-hidden ring-1 ring-black/50">
                               
@@ -288,14 +293,17 @@ export default function Home() {
                               </div>
 
                               <div className="relative z-10 w-full">
-                                  {/* FIXED: Restored snap-x and snap-mandatory */}
-                                  <div className="flex w-full overflow-x-auto snap-x snap-mandatory gap-3 md:gap-5 pb-4 md:pb-6 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                                  {/* 🚀 SCROLL LOCK FIX 3: Same fix as above. Butter smooth sliding returned. */}
+                                  <div 
+                                      className="flex flex-nowrap overflow-x-auto overflow-y-hidden gap-3 md:gap-5 pb-4 md:pb-6 scrollbar-hide snap-x snap-mandatory overscroll-x-contain w-full"
+                                      style={{ WebkitOverflowScrolling: 'touch' }}
+                                  >
                                       {group.products.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
                                       
-                                      {/* FIXED: Restored snap-start here so they can safely swipe to the Discover Card */}
-                                      <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full flex items-center justify-center py-1 pr-4 md:py-0 md:pr-0">
+                                      {/* END CARD */}
+                                      <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full flex items-center justify-center pb-2">
                                           <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
                                               <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
                                                   <ArrowRight size={18} className="md:w-5 md:h-5" />
