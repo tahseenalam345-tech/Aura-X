@@ -18,9 +18,9 @@ const fadeInUp: Variants = {
 // --- STATIC DATA ---
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// --- SHRINKED CARDS FOR DESKTOP AND MOBILE ELEGANCE ---
+// --- FIXED: Removed 'snap-start' to allow completely free and smooth native scrolling ---
 const TrainProductCard = ({ product }: { product: any }) => (
-    <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full">
+    <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 h-full">
         <ProductCard product={product} priority={false} />
     </div>
 );
@@ -74,7 +74,6 @@ export default function Home() {
 
       let extractedReviews: any[] = [];
       
-      // 🚀 PERFORMANCE FIX: Limit to max 8 pinned items
       const pinned = products.filter(p => p.is_pinned === true).slice(0, 8);
       setPinnedProducts(pinned);
 
@@ -98,7 +97,6 @@ export default function Home() {
 
       const groupedArray = Object.entries(grouped).map(([brand, prods]: [string, any]) => ({
           brand,
-          // 🚀 PERFORMANCE FIX: Only load the first 8 watches per brand to stop lag
           products: (prods as any[]).slice(0, 8), 
           sortOrder: Number(brandSettingsMap.get(brand) ?? 99) 
       }));
@@ -235,7 +233,7 @@ export default function Home() {
 
           <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-24 flex-1">
               
-              {/* --- MAIN TITLE (REDUCED MARGINS FOR MOBILE) --- */}
+              {/* --- MAIN TITLE --- */}
               <div className="text-center mt-6 md:mt-12 mb-6 md:mb-10">
                   <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
                       <Sparkles size={14} className="text-aura-gold" /> The Vault <Sparkles size={14} className="text-aura-gold" />
@@ -263,8 +261,8 @@ export default function Home() {
                               </div>
                               
                               <div className="relative">
-                                  {/* 🚀 SCROLL FIX: Changed to snap-proximity and added touch-pan-x for buttery smooth scrolling */}
-                                  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-6 pt-2 snap-x snap-proximity touch-pan-x scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 relative">
+                                  {/* 🚀 SUPER SMOOTH SCROLL FIX: Removed snap, removed touch-pan-x. Pure native horizontal flow. */}
+                                  <div className="flex overflow-x-auto overflow-y-hidden gap-3 md:gap-5 pb-6 pt-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 relative">
                                       {pinnedProducts.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
@@ -304,13 +302,14 @@ export default function Home() {
                               </div>
 
                               <div className="relative z-10 w-full">
-                                  {/* 🚀 SCROLL FIX: Changed to snap-proximity and added touch-pan-x */}
-                                  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-4 md:pb-6 snap-x snap-proximity touch-pan-x scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                                  {/* 🚀 SUPER SMOOTH SCROLL FIX: Removed snap, removed touch-pan-x. Pure native horizontal flow. */}
+                                  <div className="flex overflow-x-auto overflow-y-hidden gap-3 md:gap-5 pb-4 md:pb-6 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
                                       {group.products.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
                                       
-                                      <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full flex items-center justify-center py-1 pr-4 md:py-0 md:pr-0">
+                                      {/* FIXED: Removed snap-start from Discover card too */}
+                                      <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 h-full flex items-center justify-center py-1 pr-4 md:py-0 md:pr-0">
                                           <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
                                               <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
                                                   <ArrowRight size={18} className="md:w-5 md:h-5" />
