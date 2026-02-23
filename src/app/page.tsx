@@ -16,9 +16,9 @@ const fadeInUp: Variants = {
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// --- HORIZONTAL SCROLL CARD ---
+// 🚀 CRITICAL FIX: Removed ALL snap classes. This ensures 100% native, unbreakable free-scrolling.
 const TrainProductCard = ({ product }: { product: any }) => (
-    <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full">
+    <div className="w-[140px] md:w-[200px] lg:w-[230px] flex-shrink-0 h-full">
         <ProductCard product={product} priority={false} />
     </div>
 );
@@ -112,7 +112,6 @@ export default function Home() {
   }, [activeMasterCategory]);
 
   return (
-    // 🚀 SCROLL LOCK FIX 1: Removed overflow-x-hidden from main wrapper. This was killing Safari.
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full">
       
       <style dangerouslySetInnerHTML={{__html: `
@@ -130,7 +129,6 @@ export default function Home() {
         }
       `}} />
 
-      {/* GLOBAL BREATHING BACKGROUND WATERMARKS */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.06] select-none mix-blend-color-burn">
           <div className="whitespace-nowrap animate-[pulse_5s_ease-in-out_infinite] text-[120px] md:text-[200px] font-serif font-black tracking-[0.2em] -ml-20 text-[#3A2A18]">
               AURA-X • ROLEX • RADO • PATEK PHILIPPE • AUDEMARS PIGUET
@@ -251,9 +249,9 @@ export default function Home() {
                               </div>
                               
                               <div className="relative">
-                                  {/* 🚀 SCROLL LOCK FIX 2: Added WebkitOverflowScrolling directly to the div. Removed negative margins (-mx-4). Forced flex-nowrap. */}
+                                  {/* 🚀 CRITICAL FIX: Pure standard horizontal flex. No snaps. No negative margin hacks. It will NEVER lock up. */}
                                   <div 
-                                      className="flex flex-nowrap overflow-x-auto overflow-y-hidden gap-3 md:gap-5 pb-6 pt-2 scrollbar-hide snap-x snap-mandatory overscroll-x-contain w-full"
+                                      className="flex w-full overflow-x-auto gap-4 md:gap-6 pb-6 pt-2 scrollbar-hide items-stretch"
                                       style={{ WebkitOverflowScrolling: 'touch' }}
                                   >
                                       {pinnedProducts.map(product => (
@@ -270,13 +268,18 @@ export default function Home() {
 
                       {/* --- DYNAMIC BRAND ROWS --- */}
                       {brandGroups.map((group, index) => (
-                          <div key={group.brand} className="mb-6 md:mb-12 bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] p-4 md:p-6 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative overflow-hidden ring-1 ring-black/50">
+                          // 🚀 CRITICAL FIX: Removed overflow-hidden from the root container. This caused the Safari lockup.
+                          <div key={group.brand} className="mb-6 md:mb-12 bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50">
                               
-                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] pointer-events-none select-none z-0 whitespace-nowrap animate-pulse tracking-[0.1em]">
-                                  {group.brand}
+                              {/* Background Text moved into an absolute locked container so it doesn't break the layout */}
+                              <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] pointer-events-none z-0">
+                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] whitespace-nowrap animate-pulse tracking-[0.1em]">
+                                      {group.brand}
+                                  </div>
                               </div>
 
-                              <div className="relative z-10 flex flex-row justify-between items-end mb-4 md:mb-5">
+                              {/* Header Area (Padding applied here instead of root) */}
+                              <div className="relative z-10 flex flex-row justify-between items-end mb-4 pt-5 px-5 md:pt-8 md:px-8">
                                   <div>
                                       <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">Brand Showcase</p>
                                       <h2 className="text-2xl md:text-4xl font-serif italic tracking-wider text-white leading-tight drop-shadow-md animate-[pulse_4s_ease-in-out_infinite]">{group.brand}</h2>
@@ -292,10 +295,11 @@ export default function Home() {
                                   </div>
                               </div>
 
-                              <div className="relative z-10 w-full">
-                                  {/* 🚀 SCROLL LOCK FIX 3: Same fix as above. Butter smooth sliding returned. */}
+                              {/* Slider Area */}
+                              <div className="relative z-10 w-full pb-5 md:pb-8">
+                                  {/* 🚀 CRITICAL FIX: Pure standard horizontal scroll. Clean padding. */}
                                   <div 
-                                      className="flex flex-nowrap overflow-x-auto overflow-y-hidden gap-3 md:gap-5 pb-4 md:pb-6 scrollbar-hide snap-x snap-mandatory overscroll-x-contain w-full"
+                                      className="flex w-full overflow-x-auto gap-4 md:gap-6 px-5 md:px-8 pb-4 scrollbar-hide items-stretch"
                                       style={{ WebkitOverflowScrolling: 'touch' }}
                                   >
                                       {group.products.map(product => (
@@ -303,7 +307,7 @@ export default function Home() {
                                       ))}
                                       
                                       {/* END CARD */}
-                                      <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full flex items-center justify-center pb-2">
+                                      <div className="w-[140px] md:w-[200px] lg:w-[230px] flex-shrink-0 h-full flex items-center justify-center">
                                           <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
                                               <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
                                                   <ArrowRight size={18} className="md:w-5 md:h-5" />
