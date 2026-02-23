@@ -32,7 +32,7 @@ export default function Home() {
   const [activeMasterCategory, setActiveCategory] = useState<"men" | "women" | "couple">("men");
   const [pinnedProducts, setPinnedProducts] = useState<any[]>([]);
   const [brandGroups, setBrandGroups] = useState<{ brand: string; products: any[]; sortOrder: number }[]>([]);
-  const [allReviews, setAllReviews] = useState<any[]>([]); // New state for global reviews
+  const [allReviews, setAllReviews] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
 
   // Hero Animation Logic
@@ -73,7 +73,9 @@ export default function Home() {
       }
 
       let extractedReviews: any[] = [];
-      const pinned = products.filter(p => p.is_pinned === true);
+      
+      // 🚀 PERFORMANCE FIX: Limit to max 8 pinned items
+      const pinned = products.filter(p => p.is_pinned === true).slice(0, 8);
       setPinnedProducts(pinned);
 
       const unpinned = products.filter(p => p.is_pinned !== true);
@@ -82,7 +84,6 @@ export default function Home() {
           if (!acc[brandName]) acc[brandName] = [];
           acc[brandName].push(product);
 
-          // Extract reviews for global slider
           if (product.manual_reviews && product.manual_reviews.length > 0) {
               const productReviews = product.manual_reviews.map((r: any) => ({
                   ...r,
@@ -97,7 +98,8 @@ export default function Home() {
 
       const groupedArray = Object.entries(grouped).map(([brand, prods]: [string, any]) => ({
           brand,
-          products: prods as any[],
+          // 🚀 PERFORMANCE FIX: Only load the first 8 watches per brand to stop lag
+          products: (prods as any[]).slice(0, 8), 
           sortOrder: Number(brandSettingsMap.get(brand) ?? 99) 
       }));
 
@@ -106,7 +108,6 @@ export default function Home() {
           return a.brand.localeCompare(b.brand);
       });
 
-      // Shuffle reviews and take top 15 to keep slider performant
       const shuffledReviews = extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15);
       setAllReviews(shuffledReviews);
       
@@ -118,7 +119,6 @@ export default function Home() {
   }, [activeMasterCategory]);
 
   return (
-    // UPGRADE: Richer Creamy-Golden-Brown Background!
     <main className="min-h-screen text-aura-brown overflow-x-hidden bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative">
       
       {/* CUSTOM CSS FOR AUTO-SCROLLING REVIEWS */}
@@ -137,7 +137,7 @@ export default function Home() {
         }
       `}} />
 
-      {/* GLOBAL BREATHING BACKGROUND WATERMARKS - Darkened for visibility */}
+      {/* GLOBAL BREATHING BACKGROUND WATERMARKS */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.06] select-none mix-blend-color-burn">
           <div className="whitespace-nowrap animate-[pulse_5s_ease-in-out_infinite] text-[120px] md:text-[200px] font-serif font-black tracking-[0.2em] -ml-20 text-[#3A2A18]">
               AURA-X • ROLEX • RADO • PATEK PHILIPPE • AUDEMARS PIGUET
@@ -211,7 +211,7 @@ export default function Home() {
           </div>
 
           {/* --- MASTER CATEGORY TOGGLE (PILL BUTTONS) --- */}
-          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-4 md:py-5 shadow-sm border-b border-aura-gold/10">
+          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-3 md:py-5 shadow-sm border-b border-aura-gold/10">
               <div className="max-w-7xl mx-auto px-4 flex justify-center gap-2 md:gap-6">
                   {[
                       { id: "men", label: "Gents Collection" },
@@ -233,11 +233,11 @@ export default function Home() {
               </div>
           </div>
 
-          <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-12 flex-1">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-24 flex-1">
               
-              {/* --- MAIN TITLE --- */}
-              <div className="text-center mt-12 md:mt-16 mb-8 md:mb-12">
-                  <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center gap-2">
+              {/* --- MAIN TITLE (REDUCED MARGINS FOR MOBILE) --- */}
+              <div className="text-center mt-6 md:mt-12 mb-6 md:mb-10">
+                  <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
                       <Sparkles size={14} className="text-aura-gold" /> The Vault <Sparkles size={14} className="text-aura-gold" />
                   </p>
                   <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
@@ -252,8 +252,8 @@ export default function Home() {
                   <>
                       {/* --- ROW 1: PINNED / BEST SELLERS --- */}
                       {pinnedProducts.length > 0 && (
-                          <div className="mb-10 md:mb-14">
-                              <div className="flex justify-between items-end mb-4 md:mb-6 pl-1 md:pl-0">
+                          <div className="mb-8 md:mb-14">
+                              <div className="flex justify-between items-end mb-3 md:mb-6 pl-1 md:pl-0">
                                   <div>
                                       <p className="text-aura-brown text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
                                           <Star size={12} fill="#D4AF37" className="text-aura-gold"/> Highly Coveted
@@ -263,7 +263,8 @@ export default function Home() {
                               </div>
                               
                               <div className="relative">
-                                  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 relative">
+                                  {/* 🚀 SCROLL FIX: Changed to snap-proximity and added touch-pan-x for buttery smooth scrolling */}
+                                  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-6 pt-2 snap-x snap-proximity touch-pan-x scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 relative">
                                       {pinnedProducts.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
@@ -277,21 +278,18 @@ export default function Home() {
                           </div>
                       )}
 
-                      {/* --- DYNAMIC BRAND ROWS (DARK 3D THEME - SHRINKED HEIGHT) --- */}
+                      {/* --- DYNAMIC BRAND ROWS (DARK 3D THEME) --- */}
                       {brandGroups.map((group, index) => (
-                          // UPGRADE: Reduced padding (p-4 md:p-6) to shrink height
-                          <div key={group.brand} className="mb-8 md:mb-12 bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] p-4 md:p-6 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative overflow-hidden ring-1 ring-black/50">
+                          <div key={group.brand} className="mb-6 md:mb-12 bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] p-4 md:p-6 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative overflow-hidden ring-1 ring-black/50">
                               
                               {/* Breathing Full Brand Name in the Background */}
                               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] pointer-events-none select-none z-0 whitespace-nowrap animate-pulse tracking-[0.1em]">
                                   {group.brand}
                               </div>
 
-                              {/* Adjusted margin to keep it compact */}
                               <div className="relative z-10 flex flex-row justify-between items-end mb-4 md:mb-5">
                                   <div>
                                       <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">Brand Showcase</p>
-                                      {/* UPGRADED BRAND TITLE: Elegant, Italic, Breathing */}
                                       <h2 className="text-2xl md:text-4xl font-serif italic tracking-wider text-white leading-tight drop-shadow-md animate-[pulse_4s_ease-in-out_infinite]">{group.brand}</h2>
                                   </div>
                                   
@@ -305,14 +303,13 @@ export default function Home() {
                                   </div>
                               </div>
 
-                              {/* Horizontal Scrolling Train - Adjusted gaps for tighter cards */}
                               <div className="relative z-10 w-full">
-                                  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-4 md:pb-6 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                                  {/* 🚀 SCROLL FIX: Changed to snap-proximity and added touch-pan-x */}
+                                  <div className="flex overflow-x-auto gap-3 md:gap-5 pb-4 md:pb-6 snap-x snap-proximity touch-pan-x scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
                                       {group.products.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
                                       
-                                      {/* "See More" End Card - Heights match new shrunken cards */}
                                       <div className="w-[135px] md:w-[200px] lg:w-[230px] flex-shrink-0 snap-start h-full flex items-center justify-center py-1 pr-4 md:py-0 md:pr-0">
                                           <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
                                               <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
@@ -324,7 +321,6 @@ export default function Home() {
                                       </div>
                                   </div>
 
-                                  {/* TRANSLUCENT GOLD SWIPE INDICATOR - Right over the last card */}
                                   <div className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 -mt-3 z-30 pointer-events-none bg-aura-gold/40 backdrop-blur-md border border-aura-gold/60 text-white w-8 h-16 rounded-l-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.5)] animate-[pulse_2s_ease-in-out_infinite]">
                                       <ChevronRight size={20} className="ml-1 opacity-80" />
                                   </div>
@@ -354,20 +350,15 @@ export default function Home() {
                      <h2 className="text-3xl md:text-5xl font-serif text-white drop-shadow-lg">Client Testimonials</h2>
                  </div>
                  
-                 {/* Auto-Scrolling Marquee Container */}
                  <div className="relative w-full overflow-hidden flex py-4">
-                    {/* Dark gradient fades on edges for smooth entry/exit */}
                     <div className="absolute left-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-r from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
                     <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
 
-                    {/* The Scrolling Track (Uses the injected CSS keyframes) */}
                     <div className="animate-scroll gap-4 md:gap-6 px-4">
-                        {/* Render array TWICE so it loops infinitely without visual breaks */}
                         {[...allReviews, ...allReviews].map((review, i) => (
                             <div key={i} className="w-[260px] md:w-[350px] p-5 md:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col gap-3 flex-shrink-0 hover:bg-white/10 transition-colors shadow-lg">
                                <div className="flex justify-between items-start mb-1">
                                   <div className="flex items-center gap-3">
-                                      {/* Tiny product thumbnail if available */}
                                       {review.productImage && (
                                           <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 border border-white/20 flex-shrink-0 relative">
                                               <Image src={review.productImage} alt="product" fill className="object-cover" unoptimized={true} />
