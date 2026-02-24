@@ -5,9 +5,9 @@ import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "react-hot-toast";
 import { Footer } from "@/components/Footer";
-import { WhatsAppButton } from "@/components/WhatsAppButton";
+
 import Script from "next/script";
-import StyleQuizTrigger from "@/components/StyleQuizTrigger";
+import { FloatingAction } from "@/components/FloatingAction";
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair', display: 'swap' });
 const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable: '--font-lato', display: 'swap' });
@@ -92,14 +92,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <CartProvider>
             <Toaster position="top-center" /> 
             
-            <WhatsAppButton />
+            
             
             {children}
-            <StyleQuizTrigger />
+            
             <Footer />
           </CartProvider>
         </AuthProvider>
-
+<FloatingAction />
       </body>
     </html>
   );
