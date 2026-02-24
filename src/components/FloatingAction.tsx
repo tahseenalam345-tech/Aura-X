@@ -19,7 +19,7 @@ export function FloatingAction() {
   const handleClick = () => {
     if (mode === 'whatsapp') {
       // 🚀 Action for WhatsApp: Replace with your actual number
-      window.open("https://wa.me/923000000000", "_blank");
+      window.open("https://wa.me/923369871278", "_blank");
     } else {
       // 🚀 Action for Style Finder: Replace this with however your style page opens
       // router.push("/style-finder"); 
