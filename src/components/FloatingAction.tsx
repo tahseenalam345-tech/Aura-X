@@ -22,10 +22,7 @@ export function FloatingAction() {
       window.open("https://wa.me/923000000000", "_blank");
     } else {
       // 🚀 Action for Style Finder: Replace this with however your style page opens
-      // If it's a page route, uncomment the line below:
       // router.push("/style-finder"); 
-      
-      // If it triggers a modal, put your modal trigger logic here.
       console.log("Style Finder Triggered!");
     }
   };
@@ -35,8 +32,8 @@ export function FloatingAction() {
       onClick={handleClick}
       className={`fixed bottom-6 right-6 md:bottom-8 md:right-8 z-[100] w-14 h-14 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.3)] flex items-center justify-center transition-all duration-700 ease-in-out hover:scale-110 overflow-hidden ${
         mode === 'whatsapp' 
-          ? 'bg-[#25D366] text-white border-2 border-transparent' 
-          : 'bg-[#1E1B18] text-[#D4AF37] border-2 border-[#D4AF37]/50'
+          ? 'bg-[#D4AF37] text-[#1E1B18] border-2 border-[#D4AF37]' // 🚀 RESTORED LUXURY GOLD THEME
+          : 'bg-[#1E1B18] text-[#D4AF37] border-2 border-[#D4AF37]/50' // DARK THEME FOR STYLE
       }`}
       aria-label={mode === 'whatsapp' ? "Contact on WhatsApp" : "Find Your Style"}
     >
