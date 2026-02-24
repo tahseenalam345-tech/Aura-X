@@ -50,6 +50,10 @@ export function ProductCard({ product, priority = false }: { product: Product; p
     ? (realReviews.reduce((acc, r) => acc + r.rating, 0) / realReviews.length).toFixed(1)
     : (product.rating && product.rating <= 5 ? product.rating : 5.0); 
 
+  // 🚀 MASSIVE SEO UPGRADE: Dynamic Alt Text Generator
+  const seoCategory = product.category?.toLowerCase() === 'women' ? "Women's" : product.category?.toLowerCase() === 'couple' ? "Couple" : "Men's";
+  const seoAltText = `${product.name} - Premium Luxury ${seoCategory} Watch in Pakistan | AURA-X`;
+
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); 
     e.stopPropagation(); 
@@ -90,7 +94,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
             <div className="relative w-full h-full mix-blend-multiply bg-white/20">
                 <Image
                     src={activeImage}
-                    alt={`Luxury watch: ${product.name}`}
+                    alt={seoAltText} // 🚀 SEO INJECTED HERE
                     fill
                     quality={100} 
                     className={`object-cover transition-transform duration-500 ease-out ${isOutOfStock ? 'grayscale opacity-75' : 'group-hover:scale-105'}`}
@@ -105,13 +109,11 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
         <div className="p-3 md:p-4 flex flex-col justify-between flex-1 bg-white/30 backdrop-blur-sm">
             <div>
-                {/* 🚀 FIX: Added min-h-[22px] so the layout doesn't break when the star pill hides */}
                 <div className="flex justify-between items-start mb-1 min-h-[22px]">
                   <p className="text-[10px] text-[#1E1B18] font-black tracking-widest uppercase truncate max-w-[150px] opacity-80 pt-0.5">
                       {product.brand || "AURA-X"}
                   </p>
                   
-                  {/* 🚀 FIX: Stars ONLY render if reviewCount > 0. The weird '100' bug is dead. */}
                   {reviewCount > 0 && (
                       <div className="flex items-center gap-1 bg-white/60 px-1.5 py-0.5 rounded border border-black/5">
                           <Star size={10} className="text-[#D4AF37]" fill="currentColor" />

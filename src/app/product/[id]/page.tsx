@@ -16,9 +16,10 @@ export async function generateMetadata(
   // Await the params before using them
   const { id } = await params;
 
+  // 🚀 SEO FIX: Added 'category' to the select query so we can make the SEO tag smart
   const { data: product } = await supabase
     .from('products')
-    .select('name, description, main_image, price')
+    .select('name, description, main_image, price, category')
     .eq('id', id)
     .single();
 
@@ -26,15 +27,21 @@ export async function generateMetadata(
     return { title: 'Product Not Found | AURA-X' }
   }
 
+  // 🚀 SEO MAGIC: Dynamically generate the perfect SEO tag
+  const seoCategory = product.category?.toLowerCase() === 'women' ? "Women's" : product.category?.toLowerCase() === 'couple' ? "Couple" : "Men's";
+  const seoAltText = `${product.name} - Premium Luxury ${seoCategory} Watch in Pakistan | AURA-X`;
+
   const title = `${product.name} | Luxury Watches Pakistan`;
   const description = product.description?.slice(0, 160) || `Buy ${product.name} online at AURA-X. Discover Swiss precision and timeless elegance.`;
-  const productImageUrl = product.main_image || 'https://aura-x-three.vercel.app/og-image.jpg';
+  
+  // 🚀 OFFICIAL DOMAIN UPDATE: Now pointing to your custom URL
+  const productImageUrl = product.main_image || 'https://www.aurax-watches.com/og-image.jpg';
 
   return {
     title: title,
     description: description,
-    // Base URL is required for absolute image paths in OG tags
-    metadataBase: new URL('https://aura-x-three.vercel.app'),
+    // 🚀 OFFICIAL DOMAIN UPDATE
+    metadataBase: new URL('https://www.aurax-watches.com'),
     openGraph: {
       title: title,
       description: `Rs. ${product.price?.toLocaleString()} - Shop ${product.name} at AURA-X. Swiss Precision, Timeless Elegance.`,
@@ -45,7 +52,7 @@ export async function generateMetadata(
           url: productImageUrl,
           width: 1200,
           height: 630,
-          alt: product.name,
+          alt: seoAltText, // 🚀 SEO INJECTED HERE FOR SOCIAL MEDIA & GOOGLE BOTS
         }
       ],
       type: 'website',

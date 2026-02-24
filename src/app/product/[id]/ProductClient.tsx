@@ -180,7 +180,7 @@ export default function ProductClient() {
     });
     setTimeout(() => { router.push("/cart"); }, 800);
   };
-const handleNotifyMe = () => {
+  const handleNotifyMe = () => {
       toast.success("We'll notify you when it's back!", {
           icon: '🔔',
           style: { background: '#1E1B18', color: '#fff' }
@@ -191,7 +191,6 @@ const handleNotifyMe = () => {
     if (file) setReviewImage(URL.createObjectURL(file));
   };
 
-  // UPDATED UPLOAD LOGIC WITH AUTO COMPRESSION
   const uploadReviewImage = async (file: File) => {
     try {
         const compressedFile = await compressClientImage(file);
@@ -255,6 +254,10 @@ const handleNotifyMe = () => {
     </div>
   );
 
+  // 🚀 MASSIVE SEO UPGRADE: Dynamic Alt Text Generator configured specifically for this product
+  const seoCategory = product?.category?.toLowerCase() === 'women' ? "Women's" : product?.category?.toLowerCase() === 'couple' ? "Couple" : "Men's";
+  const seoAltText = product ? `${product.name} - Premium Luxury ${seoCategory} Watch in Pakistan | AURA-X` : "Luxury Watch | AURA-X";
+
   return (
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32 md:pb-24">
       <Navbar />
@@ -266,7 +269,8 @@ const handleNotifyMe = () => {
              {isVideoFile(lightboxImage) ? (
                  <video src={lightboxImage} controls autoPlay className="w-full h-full object-contain" />
              ) : (
-                 <Image src={lightboxImage} alt="Zoomed view" fill className="object-contain" quality={90} />
+                 // 🚀 SEO INJECTED: Lightbox Image
+                 <Image src={lightboxImage} alt={`Zoomed view of ${seoAltText}`} fill className="object-contain" quality={90} />
              )}
            </div>
         </div>
@@ -296,7 +300,6 @@ const handleNotifyMe = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12 md:mb-24">
-          {/* ... [IMAGE GALLERY & PRODUCT DETAILS (Unchanged)] ... */}
           <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start">
             <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10">
               <div className="absolute top-4 right-4 z-20 flex flex-col gap-3">
@@ -309,7 +312,8 @@ const handleNotifyMe = () => {
                 isVideoFile(activeImage) ? (
                     <video src={activeImage} autoPlay muted loop playsInline className="object-cover w-full h-full cursor-pointer" onClick={() => setLightboxImage(activeImage)} />
                 ) : (
-                    <Image src={activeImage} alt={product.name} fill priority sizes="(max-width: 768px) 100vw, 60vw" className="object-cover cursor-zoom-in" onClick={() => setLightboxImage(activeImage)} />
+                    // 🚀 SEO INJECTED: Main Product Image
+                    <Image src={activeImage} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 60vw" className="object-cover cursor-zoom-in" onClick={() => setLightboxImage(activeImage)} />
                 )
               )}
             </div>
@@ -324,7 +328,8 @@ const handleNotifyMe = () => {
                              <Play size={20} className="relative z-10 text-aura-brown" fill="currentColor"/>
                          </div>
                      ) : (
-                         <Image src={img} alt="Thumbnail" fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
+                         // 🚀 SEO INJECTED: Thumbnail Gallery Images (added "View X" to keep tags unique)
+                         <Image src={img} alt={`${seoAltText} - View ${i + 1}`} fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
                      )}
                    </button>
                  )
@@ -485,7 +490,6 @@ const handleNotifyMe = () => {
         ============================================================== */}
         <div className="mb-12 md:mb-24 border-t border-aura-gold/20 pt-16">
             <div className="max-w-6xl mx-auto">
-                {/* Header & Write Review Button */}
                 <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
                    <div className="flex flex-col items-center md:items-start">
                        <p className="text-aura-gold text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2"><Quote size={12}/> Word on the Street</p>
@@ -496,7 +500,6 @@ const handleNotifyMe = () => {
                    </button>
                 </div>
 
-                {/* Filter Pills */}
                 <div className="flex flex-wrap gap-2 mb-10 justify-center md:justify-start">
                     {["all", "5", "4", "3", "with_images"].map((type) => (
                         <button 
@@ -509,7 +512,6 @@ const handleNotifyMe = () => {
                     ))}
                 </div>
 
-                {/* Review Submission Form */}
                 {showReviewForm && (
                    <div className="bg-gradient-to-br from-white to-[#FDFBF7] p-8 rounded-[2rem] shadow-[0_10px_40px_rgba(212,175,55,0.1)] mb-12 border border-aura-gold/20 max-w-2xl mx-auto relative overflow-hidden">
                       <div className="absolute -top-10 -right-10 text-[150px] text-aura-gold/5 font-serif font-black pointer-events-none select-none z-0"><Quote/></div>
@@ -532,19 +534,16 @@ const handleNotifyMe = () => {
                    </div>
                 )}
 
-                {/* --- PREMIUM REVIEW CARDS GRID --- */}
                 <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
                    {sortedReviews.length > 0 ? sortedReviews.map((review: any, index: number) => (
                       <div key={review.id || index} className="break-inside-avoid bg-gradient-to-br from-[#FFFFFF] to-[#FDFBF7] p-6 rounded-[1.5rem] border border-aura-gold/20 shadow-[0_8px_20px_rgba(212,175,55,0.05)] hover:shadow-[0_12px_30px_rgba(212,175,55,0.15)] transition-all relative overflow-hidden group">
                           
-                          {/* Background Quote Watermark */}
                           <div className="absolute -top-4 -right-2 text-aura-gold/5 z-0 pointer-events-none group-hover:scale-110 transition-transform">
                               <Quote size={80} fill="currentColor"/>
                           </div>
 
                           <div className="relative z-10 flex justify-between items-start mb-5">
                              <div className="flex items-center gap-3">
-                                {/* Golden Avatar */}
                                 <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-serif font-bold text-lg shadow-inner bg-gradient-to-br from-aura-gold to-yellow-600 ring-2 ring-offset-2 ring-aura-gold/20">
                                     {(review.user || "A").charAt(0).toUpperCase()}
                                 </div>
@@ -558,22 +557,22 @@ const handleNotifyMe = () => {
                              </div>
                           </div>
                           
-                          {/* Elegant Italic Quote */}
                           <p className="text-gray-600 text-sm md:text-base mb-5 leading-relaxed italic font-serif relative z-10">"{review.comment}"</p>
                           
-                          {/* Images Grid */}
                           {(review.images?.length > 0 || review.image) && (
                               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide relative z-10">
                                   {review.images ? (
                                       review.images.map((img: string, i: number) => (
                                           <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-aura-gold/30 shadow-sm flex-shrink-0 cursor-zoom-in group/img" onClick={() => setLightboxImage(img)}>
-                                              <Image src={img} alt="Review" fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" />
+                                              {/* 🚀 SEO INJECTED: Review Images Array */}
+                                              <Image src={img} alt={`${seoAltText} - Customer Review ${i + 1}`} fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" />
                                           </div>
                                       ))
                                   ) : (
                                       review.image && (
                                           <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-aura-gold/30 shadow-sm cursor-zoom-in group/img" onClick={() => setLightboxImage(review.image)}>
-                                              <Image src={review.image} alt="Review" fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" />
+                                              {/* 🚀 SEO INJECTED: Single Review Image fallback */}
+                                              <Image src={review.image} alt={`${seoAltText} - Customer Review`} fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" />
                                           </div>
                                       )
                                   )}
@@ -585,7 +584,6 @@ const handleNotifyMe = () => {
             </div>
         </div>
 
-        {/* ... [SIMILAR WATCHES SECTION (Unchanged)] ... */}
         <div className="border-t border-aura-gold/20 pt-10 mb-12">
              <div className="flex justify-between items-center mb-6">
                  <h2 className="text-xl md:text-3xl font-serif text-aura-brown">Similar Watches</h2>
@@ -599,7 +597,6 @@ const handleNotifyMe = () => {
         </div>
       </div>
       
-      {/* --- STICKY MOBILE CHECKOUT BAR --- */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 z-[60] flex items-center justify-between pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
          <div className="flex flex-col">
             <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Total</span>
