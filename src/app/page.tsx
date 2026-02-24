@@ -16,6 +16,13 @@ const fadeInUp: Variants = {
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
+// 🚀 MASSIVE CARD FIX: w-[75vw] combined with snap-center perfectly achieves the 1-center + side-peeking view on mobile. Desktop naturally fits 3 in a row.
+const TrainProductCard = ({ product }: { product: any }) => (
+    <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full">
+        <ProductCard product={product} priority={false} />
+    </div>
+);
+
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   
@@ -61,13 +68,12 @@ export default function Home() {
       }
 
       let extractedReviews: any[] = [];
-      
       const pinned = products.filter(p => p.is_pinned === true).slice(0, 8);
       setPinnedProducts(pinned);
 
       const unpinned = products.filter(p => p.is_pinned !== true);
       const grouped = unpinned.reduce((acc, product) => {
-          const brandName = product.brand || "Other Masterpieces";
+          const brandName = product.brand || "AURA-X"; 
           if (!acc[brandName]) acc[brandName] = [];
           acc[brandName].push(product);
 
@@ -83,11 +89,27 @@ export default function Home() {
           return acc;
       }, {} as Record<string, any[]>);
 
-      const groupedArray = Object.entries(grouped).map(([brand, prods]: [string, any]) => ({
-          brand,
-          products: (prods as any[]).slice(0, 8), 
-          sortOrder: Number(brandSettingsMap.get(brand) ?? 99) 
-      }));
+      const consolidatedGroups: Record<string, any[]> = {};
+      consolidatedGroups["AURA-X"] = grouped["AURA-X"] || [];
+
+      for (const brand in grouped) {
+          if (brand === "AURA-X") continue;
+          if (grouped[brand].length <= 3) {
+              consolidatedGroups["AURA-X"] = [...consolidatedGroups["AURA-X"], ...grouped[brand]];
+          } else {
+              consolidatedGroups[brand] = grouped[brand];
+          }
+      }
+
+      if (consolidatedGroups["AURA-X"].length === 0) {
+          delete consolidatedGroups["AURA-X"];
+      }
+
+      const groupedArray = Object.entries(consolidatedGroups).map(([brand, prods]: [string, any]) => {
+          const catSpecificKey = `${activeMasterCategory}__${brand}`;
+          const sortOrder = Number(brandSettingsMap.get(catSpecificKey) ?? brandSettingsMap.get(brand) ?? 99);
+          return { brand, products: (prods as any[]).slice(0, 8), sortOrder: sortOrder };
+      });
 
       groupedArray.sort((a, b) => {
           if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
@@ -105,7 +127,6 @@ export default function Home() {
   }, [activeMasterCategory]);
 
   return (
-    // 🚀 FIX 1: max-w-[100vw] overflow-x-hidden absolutely prevents the whole page from sliding sideways
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
       
       <style dangerouslySetInnerHTML={{__html: `
@@ -214,9 +235,9 @@ export default function Home() {
               </div>
           </div>
 
-          <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-24 w-full">
+          <div className="max-w-[1400px] mx-auto pb-24 flex-1 min-h-[50vh] w-full">
               
-              <div className="text-center mt-6 md:mt-12 mb-6 md:mb-10">
+              <div className="text-center mt-6 md:mt-12 mb-6 md:mb-10 px-4">
                   <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
                       <Sparkles size={14} className="text-aura-gold" /> The Vault <Sparkles size={14} className="text-aura-gold" />
                   </p>
@@ -224,17 +245,15 @@ export default function Home() {
               </div>
 
               {isLoading ? (
-                  // 🚀 FIX 2: Added min-h-[50vh] so the screen doesn't collapse and jump to the top when switching categories
-                  <div className="flex flex-col items-center justify-center py-32 opacity-50 min-h-[50vh]">
+                  <div className="flex flex-col items-center justify-center py-32 opacity-50">
                       <div className="w-12 h-12 border-4 border-aura-brown border-t-transparent rounded-full animate-spin mb-4"></div>
                       <p className="font-serif text-aura-brown text-xl animate-pulse">Accessing Vault...</p>
                   </div>
               ) : (
                   <div className="flex flex-col gap-6 md:gap-12 w-full">
-                      {/* --- ROW 1: PINNED / BEST SELLERS --- */}
                       {pinnedProducts.length > 0 && (
                           <div className="w-full">
-                              <div className="flex justify-between items-end mb-3 md:mb-6 pl-1 md:pl-0">
+                              <div className="flex justify-between items-end mb-3 md:mb-6 px-4 md:px-8">
                                   <div>
                                       <p className="text-aura-brown text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
                                           <Star size={12} fill="#D4AF37" className="text-aura-gold"/> Highly Coveted
@@ -244,12 +263,10 @@ export default function Home() {
                               </div>
                               
                               <div className="relative w-full">
-                                  {/* 🚀 FIX 3: Clean, native flex-overflow. No crazy hacks. Works perfectly on all devices. */}
-                                  <div className="flex overflow-x-auto gap-4 md:gap-6 pb-6 pt-2 scrollbar-hide snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                  {/* 🚀 PX-[12.5VW] FIX: This perfectly pads the slider so the first 75vw card sits completely dead-center on mobile load, showing exactly 10% of the next card peeking! */}
+                                  <div className="flex overflow-x-auto gap-4 md:gap-6 pb-6 pt-2 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
                                       {pinnedProducts.map(product => (
-                                          <div key={product.id} className="flex-none snap-start w-[140px] md:w-[200px] lg:w-[230px] h-full">
-                                              <ProductCard product={product} priority={false} />
-                                          </div>
+                                          <TrainProductCard key={product.id} product={product} />
                                       ))}
                                   </div>
                                   
@@ -262,9 +279,8 @@ export default function Home() {
                           </div>
                       )}
 
-                      {/* --- DYNAMIC BRAND ROWS --- */}
                       {brandGroups.map((group, index) => (
-                          <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] p-4 md:p-6 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full">
+                          <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] py-6 md:py-8 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full md:mx-8 md:w-auto">
                               
                               <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] pointer-events-none z-0">
                                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] whitespace-nowrap animate-pulse tracking-[0.1em]">
@@ -272,7 +288,7 @@ export default function Home() {
                                   </div>
                               </div>
 
-                              <div className="relative z-10 flex flex-row justify-between items-end mb-5">
+                              <div className="relative z-10 flex flex-row justify-between items-end mb-6 px-5 md:px-8">
                                   <div>
                                       <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">Brand Showcase</p>
                                       <h2 className="text-2xl md:text-4xl font-serif italic tracking-wider text-white leading-tight drop-shadow-md animate-[pulse_4s_ease-in-out_infinite]">{group.brand}</h2>
@@ -287,15 +303,12 @@ export default function Home() {
                               </div>
 
                               <div className="relative z-10 w-full">
-                                  <div className="flex overflow-x-auto gap-4 md:gap-6 pb-4 md:pb-6 scrollbar-hide snap-x snap-mandatory pr-6 md:pr-10" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                  <div className="flex overflow-x-auto gap-4 md:gap-6 pb-4 md:pb-6 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
                                       {group.products.map(product => (
-                                          <div key={product.id} className="flex-none snap-start w-[140px] md:w-[200px] lg:w-[230px] h-full">
-                                              <ProductCard product={product} priority={false} />
-                                          </div>
+                                          <TrainProductCard key={product.id} product={product} />
                                       ))}
                                       
-                                      {/* END CARD */}
-                                      <div className="flex-none snap-start w-[140px] md:w-[200px] lg:w-[230px] h-full flex items-center justify-center pb-2">
+                                      <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full flex items-center justify-center pb-2">
                                           <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
                                               <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
                                                   <ArrowRight size={18} className="md:w-5 md:h-5" />
@@ -316,7 +329,7 @@ export default function Home() {
                       ))}
 
                       {brandGroups.length === 0 && pinnedProducts.length === 0 && (
-                          <div className="text-center py-20 bg-white/50 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 shadow-sm">
+                          <div className="text-center py-20 bg-white/50 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 shadow-sm mx-4">
                               <p className="font-serif text-2xl text-gray-400 mb-2">The Vault is empty.</p>
                               <p className="text-gray-400 text-sm">We are currently restocking this collection.</p>
                           </div>
