@@ -5,18 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
-import { motion, Variants } from "framer-motion";
+import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, ShieldCheck, Sparkles, Star, Flame, Quote } from "lucide-react"; 
 
-const fadeInUp: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
-};
-
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// 🚀 MASSIVE CARD FIX: w-[75vw] combined with snap-center perfectly achieves the 1-center + side-peeking view on mobile. Desktop naturally fits 3 in a row.
 const TrainProductCard = ({ product }: { product: any }) => (
     <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full">
         <ProductCard product={product} priority={false} />
@@ -129,6 +123,7 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
       
+      {/* 🚀 LCP PERF FIX: Added pure CSS fadeInUp animation. Bypasses Javascript execution for instant Hero text loading! */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -141,6 +136,13 @@ export default function Home() {
         }
         .animate-scroll:hover {
           animation-play-state: paused;
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.8s ease-out forwards;
         }
       `}} />
 
@@ -164,7 +166,8 @@ export default function Home() {
             
             <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="text-center lg:text-left z-20">
-                <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
+                {/* 🚀 LCP PERF FIX: Replaced framer-motion with pure CSS 'animate-fade-in-up' */}
+                <div className="animate-fade-in-up">
                    <p className="text-xs font-bold text-aura-gold tracking-[0.3em] uppercase mb-4">The Art of Timing</p>
                    <h1 className="text-5xl sm:text-7xl font-serif font-bold leading-tight mb-6">
                      Legacy in <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-aura-gold to-yellow-600 italic">Every Tick</span>
@@ -175,7 +178,7 @@ export default function Home() {
                    <button onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })} className="bg-aura-brown text-white px-10 py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold transition-all shadow-xl">
                      SHOP THE VAULT
                    </button>
-                </motion.div>
+                </div>
               </div>
               
               <div className="relative h-[350px] md:h-[550px] w-full flex justify-center items-center">
@@ -191,7 +194,15 @@ export default function Home() {
                       className="absolute"
                     >
                       <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-                        <Image src={src} alt="AURA-X Premium Watch" fill className="object-contain drop-shadow-2xl" priority={index === currentIndex} unoptimized={true} />
+                        {/* 🚀 LCP PERF FIX: Removed 'unoptimized={true}' and added explicit sizes so mobile phones download tiny 200px images instead of giant heavy files! */}
+                        <Image 
+                            src={src} 
+                            alt="AURA-X Premium Watch" 
+                            fill 
+                            className="object-contain drop-shadow-2xl" 
+                            priority={index === currentIndex} 
+                            sizes="(max-width: 768px) 250px, 400px"
+                        />
                       </div>
                     </motion.div>
                   );
@@ -263,7 +274,6 @@ export default function Home() {
                               </div>
                               
                               <div className="relative w-full">
-                                  {/* 🚀 PX-[12.5VW] FIX: This perfectly pads the slider so the first 75vw card sits completely dead-center on mobile load, showing exactly 10% of the next card peeking! */}
                                   <div className="flex overflow-x-auto gap-4 md:gap-6 pb-6 pt-2 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
                                       {pinnedProducts.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
