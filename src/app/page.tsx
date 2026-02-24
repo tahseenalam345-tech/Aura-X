@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, ChevronRight, ShieldCheck, Sparkles, Star, Flame, Quote } from "lucide-react"; 
+import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote } from "lucide-react"; 
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
@@ -47,7 +47,7 @@ export default function Home() {
       setIsLoading(true);
 
       const { data: brandSettingsData } = await supabase.from('brand_settings').select('*');
-      const brandSettingsMap = new Map(brandSettingsData?.map(b => [b.brand_name, b.sort_order]) || []);
+      const brandSettingsMap = new Map(brandSettingsData?.map(b => [b.brand_name.toUpperCase(), b.sort_order]) || []);
 
       const { data: products } = await supabase
         .from('products')
@@ -66,10 +66,24 @@ export default function Home() {
       setPinnedProducts(pinned);
 
       const unpinned = products.filter(p => p.is_pinned !== true);
+      
       const grouped = unpinned.reduce((acc, product) => {
-          const brandName = product.brand || "AURA-X"; 
-          if (!acc[brandName]) acc[brandName] = [];
-          acc[brandName].push(product);
+          const rawBrand = (product.brand || "AURA-X").trim();
+          
+          // 🚀 TS FIX: We look for the existing key
+          const existingKey = Object.keys(acc).find(k => k.toUpperCase() === rawBrand.toUpperCase());
+          
+          // 🚀 TS FIX: We guarantee it's a string by falling back to the formatted rawBrand
+          let finalBrandName: string = existingKey || (rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1));
+          
+          if (finalBrandName.toUpperCase() === "AURA-X") {
+              finalBrandName = "AURA-X";
+          }
+
+          if (!acc[finalBrandName]) {
+              acc[finalBrandName] = [];
+          }
+          acc[finalBrandName].push(product);
 
           if (product.manual_reviews && product.manual_reviews.length > 0) {
               const productReviews = product.manual_reviews.map((r: any) => ({
@@ -84,10 +98,12 @@ export default function Home() {
       }, {} as Record<string, any[]>);
 
       const consolidatedGroups: Record<string, any[]> = {};
-      consolidatedGroups["AURA-X"] = grouped["AURA-X"] || [];
+      
+      const auraXKey = Object.keys(grouped).find(k => k.toUpperCase() === "AURA-X") || "AURA-X";
+      consolidatedGroups["AURA-X"] = grouped[auraXKey] || [];
 
       for (const brand in grouped) {
-          if (brand === "AURA-X") continue;
+          if (brand.toUpperCase() === "AURA-X") continue;
           if (grouped[brand].length <= 3) {
               consolidatedGroups["AURA-X"] = [...consolidatedGroups["AURA-X"], ...grouped[brand]];
           } else {
@@ -100,8 +116,9 @@ export default function Home() {
       }
 
       const groupedArray = Object.entries(consolidatedGroups).map(([brand, prods]: [string, any]) => {
-          const catSpecificKey = `${activeMasterCategory}__${brand}`;
-          const sortOrder = Number(brandSettingsMap.get(catSpecificKey) ?? brandSettingsMap.get(brand) ?? 99);
+          const catSpecificKey = `${activeMasterCategory}__${brand}`.toUpperCase();
+          const sortOrder = Number(brandSettingsMap.get(catSpecificKey) ?? brandSettingsMap.get(brand.toUpperCase()) ?? 99);
+          
           return { brand, products: (prods as any[]).slice(0, 8), sortOrder: sortOrder };
       });
 
@@ -123,7 +140,6 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
       
-      {/* 🚀 LCP PERF FIX: Added pure CSS fadeInUp animation. Bypasses Javascript execution for instant Hero text loading! */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -166,7 +182,6 @@ export default function Home() {
             
             <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="text-center lg:text-left z-20">
-                {/* 🚀 LCP PERF FIX: Replaced framer-motion with pure CSS 'animate-fade-in-up' */}
                 <div className="animate-fade-in-up">
                    <p className="text-xs font-bold text-aura-gold tracking-[0.3em] uppercase mb-4">The Art of Timing</p>
                    <h1 className="text-5xl sm:text-7xl font-serif font-bold leading-tight mb-6">
@@ -194,7 +209,6 @@ export default function Home() {
                       className="absolute"
                     >
                       <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-                        {/* 🚀 LCP PERF FIX: Removed 'unoptimized={true}' and added explicit sizes so mobile phones download tiny 200px images instead of giant heavy files! */}
                         <Image 
                             src={src} 
                             alt="AURA-X Premium Watch" 
