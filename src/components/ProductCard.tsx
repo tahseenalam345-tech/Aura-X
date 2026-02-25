@@ -50,9 +50,14 @@ export function ProductCard({ product, priority = false }: { product: Product; p
     ? (realReviews.reduce((acc, r) => acc + r.rating, 0) / realReviews.length).toFixed(1)
     : (product.rating && product.rating <= 5 ? product.rating : 5.0); 
 
-  // 🚀 MASSIVE SEO UPGRADE: Dynamic Alt Text Generator
+  // 🚀 THE SEO MAGIC TRICK 🚀
+  // 1. Google gets the FULL, massive, keyword-rich name from the database.
   const seoCategory = product.category?.toLowerCase() === 'women' ? "Women's" : product.category?.toLowerCase() === 'couple' ? "Couple" : "Men's";
   const seoAltText = `${product.name} - Premium Luxury ${seoCategory} Watch in Pakistan | AURA-X`;
+  
+  // 2. Humans get ONLY the short, premium name (everything before the "|" symbol).
+  // If you forget to add a "|", it safely just shows the normal name.
+  const displayShortName = product.name.includes('|') ? product.name.split('|')[0].trim() : product.name;
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); 
@@ -60,7 +65,8 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
     addToCart({
         id: product.id,
-        name: product.name,
+        // We pass the short name to the cart so it looks clean there too
+        name: displayShortName,
         price: product.price,
         image: activeImage, 
         quantity: 1,
@@ -94,7 +100,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
             <div className="relative w-full h-full mix-blend-multiply bg-white/20">
                 <Image
                     src={activeImage}
-                    alt={seoAltText} // 🚀 SEO INJECTED HERE
+                    alt={seoAltText} // <-- GOOGLE SEES THIS
                     fill
                     quality={100} 
                     className={`object-cover transition-transform duration-500 ease-out ${isOutOfStock ? 'grayscale opacity-75' : 'group-hover:scale-105'}`}
@@ -123,8 +129,9 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                 </div>
 
                 <Link href={`/product/${product.id}`}>
-                  <h3 className="text-[#1E1B18] font-serif font-bold text-sm md:text-base leading-snug line-clamp-2 group-hover:text-[#C5A67C] transition-colors">
-                      {product.name}
+                  {/* 👇 HUMANS SEE THIS (The Clean Short Name) */}
+                  <h3 className="text-[#1E1B18] font-serif font-bold text-sm md:text-base leading-snug line-clamp-2 group-hover:text-[#C5A67C] transition-colors" title={product.name}>
+                      {displayShortName}
                   </h3>
                   <p className="text-[9px] text-[#8B6E4E] font-medium tracking-wide uppercase mt-0.5 min-h-[14px]">
                       {product.category || "LUXURY"} {activeColorName && `• ${activeColorName}`}
@@ -156,7 +163,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   onClick={isOutOfStock ? undefined : handleAddToCart}
                   disabled={isOutOfStock}
                   className={`w-8 h-8 md:w-10 md:h-10 flex-shrink-0 rounded-full flex items-center justify-center shadow-md transition-all duration-300 z-20 ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#1E1B18] text-white hover:bg-aura-gold hover:text-black hover:scale-110 cursor-pointer'}`}
-                  aria-label={isOutOfStock ? "Out of stock" : `Add ${product.name} to cart`}
+                  aria-label={isOutOfStock ? "Out of stock" : `Add ${displayShortName} to cart`}
                 >
                     <ShoppingBag size={14} className="md:w-5 md:h-5" />
                 </button>

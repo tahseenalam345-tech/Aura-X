@@ -147,6 +147,9 @@ export default function ProductClient() {
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7] text-aura-brown font-serif text-xl animate-pulse">Loading Masterpiece...</div>;
   if (!product) return <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">Product Not Found</div>;
 
+  // 🚀 THE SEO MAGIC TRICK (Extracts the short name for the UI)
+  const displayShortName = product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name;
+
   const handleWishlistToggle = () => {
       const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
       if (isLiked) {
@@ -156,8 +159,13 @@ export default function ProductClient() {
           toast.success("Removed from Wishlist");
       } else {
           const newItem = {
-              id: product.id, name: product.name, price: product.price, main_image: product.main_image,
-              category: product.category, original_price: product.original_price, discount: product.discount
+              id: product.id, 
+              name: displayShortName, // 🚀 Saves the short name so Wishlist page doesn't break
+              price: product.price, 
+              main_image: product.main_image,
+              category: product.category, 
+              original_price: product.original_price, 
+              discount: product.discount
           };
           localStorage.setItem('wishlist', JSON.stringify([...wishlist, newItem]));
           setIsLiked(true);
@@ -169,23 +177,28 @@ export default function ProductClient() {
     if (specs.stock <= 0) return toast.error("Sorry, this item is currently out of stock.");
 
     addToCart({
-      id: product.id, name: product.name, price: product.price,
+      id: product.id, 
+      name: displayShortName, // 🚀 Saves the short name to the Cart so Cart UI stays clean
+      price: product.price,
       image: selectedColor?.image || activeImage, color: selectedColor?.name || "Standard", 
       quantity: quantity, isGift: isGift, addBox: addBox
     });
 
-    toast.success(`${product.name} added to bag!`, {
+    // 🚀 Clean popup notification
+    toast.success(`${displayShortName} added to bag!`, {
         style: { border: '1px solid #D4AF37', padding: '16px', color: '#4A3B32' },
         iconTheme: { primary: '#D4AF37', secondary: '#FFFAEE' },
     });
     setTimeout(() => { router.push("/cart"); }, 800);
   };
+
   const handleNotifyMe = () => {
       toast.success("We'll notify you when it's back!", {
           icon: '🔔',
           style: { background: '#1E1B18', color: '#fff' }
       });
   };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) setReviewImage(URL.createObjectURL(file));
@@ -254,7 +267,7 @@ export default function ProductClient() {
     </div>
   );
 
-  // 🚀 MASSIVE SEO UPGRADE: Dynamic Alt Text Generator configured specifically for this product
+  // 🚀 SEO MAGIC FOR IMAGES (This still perfectly passes the FULL massive string to Google)
   const seoCategory = product?.category?.toLowerCase() === 'women' ? "Women's" : product?.category?.toLowerCase() === 'couple' ? "Couple" : "Men's";
   const seoAltText = product ? `${product.name} - Premium Luxury ${seoCategory} Watch in Pakistan | AURA-X` : "Luxury Watch | AURA-X";
 
@@ -269,7 +282,6 @@ export default function ProductClient() {
              {isVideoFile(lightboxImage) ? (
                  <video src={lightboxImage} controls autoPlay className="w-full h-full object-contain" />
              ) : (
-                 // 🚀 SEO INJECTED: Lightbox Image
                  <Image src={lightboxImage} alt={`Zoomed view of ${seoAltText}`} fill className="object-contain" quality={90} />
              )}
            </div>
@@ -296,7 +308,8 @@ export default function ProductClient() {
             <span>/</span>
             <Link href={`/${product.category}`} className="hover:text-aura-gold capitalize">{product.category}</Link>
             <span>/</span>
-            <span className="text-aura-brown truncate max-w-[150px] md:max-w-none capitalize">{product.name}</span>
+            {/* 🚀 UI CLEANUP: Breadcrumb gets the short name */}
+            <span className="text-aura-brown truncate max-w-[150px] md:max-w-none capitalize" title={product.name}>{displayShortName}</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12 md:mb-24">
@@ -312,7 +325,6 @@ export default function ProductClient() {
                 isVideoFile(activeImage) ? (
                     <video src={activeImage} autoPlay muted loop playsInline className="object-cover w-full h-full cursor-pointer" onClick={() => setLightboxImage(activeImage)} />
                 ) : (
-                    // 🚀 SEO INJECTED: Main Product Image
                     <Image src={activeImage} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 60vw" className="object-cover cursor-zoom-in" onClick={() => setLightboxImage(activeImage)} />
                 )
               )}
@@ -328,7 +340,6 @@ export default function ProductClient() {
                              <Play size={20} className="relative z-10 text-aura-brown" fill="currentColor"/>
                          </div>
                      ) : (
-                         // 🚀 SEO INJECTED: Thumbnail Gallery Images (added "View X" to keep tags unique)
                          <Image src={img} alt={`${seoAltText} - View ${i + 1}`} fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
                      )}
                    </button>
@@ -346,7 +357,10 @@ export default function ProductClient() {
                         : <span className="px-2 py-0.5 bg-red-50 text-red-700 text-[10px] font-bold tracking-widest uppercase rounded-full">Out of Stock</span>
                     }
                 </div>
-                <h1 className="text-3xl md:text-5xl font-serif font-medium text-aura-brown mb-2 md:mb-4 leading-tight capitalize">{product.name}</h1>
+                {/* 🚀 UI CLEANUP: Main H1 Title gets the short name! */}
+                <h1 className="text-3xl md:text-5xl font-serif font-medium text-aura-brown mb-2 md:mb-4 leading-tight capitalize" title={product.name}>
+                  {displayShortName}
+                </h1>
                 
                 <div className="flex flex-col gap-2 border-b border-gray-100 pb-4 mb-4 md:mb-6">
                     <div className="flex items-center gap-4 text-sm">
@@ -564,14 +578,12 @@ export default function ProductClient() {
                                   {review.images ? (
                                       review.images.map((img: string, i: number) => (
                                           <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-aura-gold/30 shadow-sm flex-shrink-0 cursor-zoom-in group/img" onClick={() => setLightboxImage(img)}>
-                                              {/* 🚀 SEO INJECTED: Review Images Array */}
                                               <Image src={img} alt={`${seoAltText} - Customer Review ${i + 1}`} fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" />
                                           </div>
                                       ))
                                   ) : (
                                       review.image && (
                                           <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-aura-gold/30 shadow-sm cursor-zoom-in group/img" onClick={() => setLightboxImage(review.image)}>
-                                              {/* 🚀 SEO INJECTED: Single Review Image fallback */}
                                               <Image src={review.image} alt={`${seoAltText} - Customer Review`} fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" />
                                           </div>
                                       )
