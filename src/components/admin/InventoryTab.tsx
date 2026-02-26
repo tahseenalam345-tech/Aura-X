@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
@@ -25,7 +25,6 @@ const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-// 🚀 FIX: Highly aggressive image compression for reviews
 const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -77,14 +76,18 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [editId, setEditId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('grid');
   
-  // --- BRAND MANAGEMENT STATES (CATEGORY SPECIFIC) ---
   const [showBrandModal, setShowBrandModal] = useState(false);
   const [brandModalTab, setBrandModalTab] = useState<'men' | 'women' | 'couple'>('men');
   const [brandSettings, setBrandSettings] = useState<Record<string, { brand_name: string; sort_order: number; db_key: string }[]>>({
       men: [], women: [], couple: []
   });
 
-  // --- FILTER STATES ---
+  // 🚀 MASSIVE BULK VIEW GENERATOR STATES
+  const [showViewsModal, setShowViewsModal] = useState(false);
+  const [bulkViewCategory, setBulkViewCategory] = useState("All");
+  const [minViews, setMinViews] = useState(50);
+  const [maxViews, setMaxViews] = useState(250);
+
   const [searchQuery, setSearchQuery] = useState(""); 
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState<{ start: string, end: string }>({ start: "", end: "" });
@@ -109,7 +112,51 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // --- FETCH & MANAGE BRAND ORDERS (CATEGORY SPECIFIC) ---
+  // 🚀 EXECUTOR FUNCTION: Apply Bulk Random Views
+  const applyBulkViews = async () => {
+    if (minViews >= maxViews) {
+        return toast.error("Max views must be greater than Min views.");
+    }
+
+    const loadingToast = toast.loading(`Generating random views...`);
+
+    // 1. Filter the products we are applying this to based on selection
+    let targetProducts = products;
+    if (bulkViewCategory !== "All") {
+        targetProducts = products.filter(p => p.category === bulkViewCategory);
+    }
+
+    if (targetProducts.length === 0) {
+        toast.dismiss(loadingToast);
+        return toast.error("No products found in this category.");
+    }
+
+    // 2. Loop through every product, generate a random number, and push it to Supabase
+    try {
+        const promises = targetProducts.map(async (p) => {
+            const randomViewCount = Math.floor(Math.random() * (maxViews - minViews + 1)) + minViews;
+            
+            // Keep old specs, just update view_count
+            const currentSpecs = p.specs || {};
+            const newSpecs = { ...currentSpecs, view_count: randomViewCount };
+
+            return supabase.from('products').update({ specs: newSpecs }).eq('id', p.id);
+        });
+
+        await Promise.all(promises);
+
+        toast.dismiss(loadingToast);
+        toast.success(`Successfully added views to ${targetProducts.length} items!`);
+        setShowViewsModal(false);
+        fetchProducts(); // Refresh the list so you can see the new numbers!
+
+    } catch (error) {
+        console.error("Bulk view error:", error);
+        toast.dismiss(loadingToast);
+        toast.error("Failed to generate bulk views.");
+    }
+  };
+
   const handleManageBrands = async () => {
       const loadingToast = toast.loading("Loading brands...");
       
@@ -158,7 +205,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       toast.dismiss(loadingToast);
   };
 
-  // --- FILTERING LOGIC ---
   const filteredProducts = products.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (item.specs?.sku || "").toLowerCase().includes(searchQuery.toLowerCase());
@@ -371,7 +417,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         <div className="flex flex-col gap-6 mb-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
-                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                    {/* 🚀 NEW BUTTON: Bulk Add Views */}
+                    <button onClick={() => setShowViewsModal(true)} className="bg-white border border-red-200 text-red-600 px-5 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-red-50 hover:shadow-md transition-all text-sm md:text-base justify-center"><Eye size={18} /> Bulk Fake Views</button>
                     <button onClick={handleManageBrands} className="bg-white border border-gray-200 text-aura-brown px-5 py-3 rounded-full font-bold flex items-center gap-2 hover:border-aura-gold hover:shadow-md transition-all text-sm md:text-base justify-center"><List size={18} /> Manage Brands</button>
                     <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base w-full md:w-auto justify-center"><Plus size={18} /> Add New</button>
                 </div>
@@ -413,6 +461,52 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         </div>
 
+        {/* 🚀 MODAL: Bulk Fake View Generator */}
+        {showViewsModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col relative border-t-8 border-red-500">
+                    <div className="p-6 text-center border-b border-gray-100 relative">
+                        <button onClick={() => setShowViewsModal(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><X size={18}/></button>
+                        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><Eye size={30}/></div>
+                        <h2 className="text-xl font-bold font-serif text-aura-brown">Bulk Fake Views</h2>
+                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">Instantly add random "Currently Viewing" numbers to your products to boost FOMO.</p>
+                    </div>
+                    
+                    <div className="p-6 space-y-5 bg-gray-50 flex-1">
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Apply To Category</label>
+                            <select className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-red-500 font-medium" value={bulkViewCategory} onChange={(e) => setBulkViewCategory(e.target.value)}>
+                                <option value="All">All Categories (Entire Store)</option>
+                                <option value="men">Men's Watches Only</option>
+                                <option value="women">Women's Watches Only</option>
+                                <option value="couple">Couple's Watches Only</option>
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Min Views</label>
+                                <input type="number" className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none font-bold text-center focus:border-red-500" value={minViews} onChange={(e) => setMinViews(Number(e.target.value))} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Max Views</label>
+                                <input type="number" className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none font-bold text-center focus:border-red-500" value={maxViews} onChange={(e) => setMaxViews(Number(e.target.value))} />
+                            </div>
+                        </div>
+                        <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex gap-3 items-start mt-2">
+                            <Flame className="text-red-500 flex-shrink-0" size={18} />
+                            <p className="text-[10px] text-red-800 leading-tight">This will permanently overwrite the current view counts of all selected products with a random number between {minViews} and {maxViews}.</p>
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-white border-t border-gray-100">
+                        <button onClick={applyBulkViews} className="w-full py-3.5 bg-red-600 text-white rounded-xl font-bold tracking-widest uppercase text-sm hover:bg-red-700 transition-colors shadow-lg flex justify-center items-center gap-2">
+                            <Flame size={16}/> Generate Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {viewMode === 'grid' && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-20">
                 {filteredProducts.map((item) => (
@@ -428,6 +522,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 {item.is_pinned && <span className="text-[9px] bg-aura-gold text-black px-2 py-0.5 rounded shadow font-bold flex items-center gap-1"><Star size={8} fill="currentColor"/> PINNED</span>}
                                 {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded shadow font-bold">EID</span>}
                                 {item.specs?.stock <= 0 && <span className="text-[9px] bg-red-600 text-white px-2 py-0.5 rounded shadow font-bold">OUT OF STOCK</span>}
+                                {/* 🚀 NEW: Shows View Count visually on the Admin Card */}
+                                {item.specs?.view_count > 0 && <span className="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded shadow font-bold flex items-center gap-1"><Eye size={8}/> {item.specs.view_count} VIEWS</span>}
                             </div>
 
                             <button 
@@ -474,6 +570,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <span>SKU: {item.specs?.sku}</span>
                                 <span className={item.specs?.stock > 0 ? "text-green-600 font-bold" : "text-red-600 font-bold"}>Stock: {item.specs?.stock}</span>
                                 <span className="font-bold text-aura-gold">Rs {item.price.toLocaleString()}</span>
+                                {item.specs?.view_count > 0 && <span className="text-red-500 font-bold flex items-center gap-1"><Eye size={10}/> {item.specs.view_count}</span>}
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -500,7 +597,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <p className="font-bold text-aura-brown text-sm group-hover:text-aura-gold transition-colors flex items-center gap-1">
                                             {item.name} {item.is_pinned && <Star size={10} className="text-aura-gold" fill="currentColor"/>}
                                         </p>
-                                        {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID</span>}
+                                        <div className="flex items-center gap-1">
+                                            {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID</span>}
+                                            {item.specs?.view_count > 0 && <span className="text-[9px] text-red-500 font-bold flex items-center gap-0.5"><Eye size={8}/> {item.specs.view_count} views</span>}
+                                        </div>
                                     </div>
                                 </td>
                                 <td className="p-4 text-xs text-gray-500">{formatDate(item.created_at)}</td>
