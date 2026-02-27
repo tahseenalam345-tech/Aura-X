@@ -11,7 +11,6 @@ import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lu
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// 🚀 FIX: Added a warm brown shadow to normal cards so they detach from the background perfectly
 const TrainProductCard = ({ product }: { product: any }) => (
     <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5">
         <ProductCard product={product} priority={false} />
@@ -26,7 +25,6 @@ export default function Home() {
   const [allReviews, setAllReviews] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   
-  // 🚀 FIX: State for the Eid Grid Column Toggle (Defaults to 2 columns)
   const [gridCols, setGridCols] = useState<number>(2);
 
   useEffect(() => {
@@ -45,6 +43,32 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
   };
 
+  // 🚀 FIX 1: Fetch ALL reviews from the entire store independently of the active tab!
+  useEffect(() => {
+    const fetchGlobalReviews = async () => {
+       const { data: allProductsData } = await supabase.from('products').select('manual_reviews, name, main_image');
+       if (allProductsData) {
+           let globalReviews: any[] = [];
+           allProductsData.forEach(p => {
+               if (p.manual_reviews && p.manual_reviews.length > 0) {
+                   const shortName = p.name?.includes('|') ? p.name.split('|')[0].trim() : p.name;
+                   const reviewsWithName = p.manual_reviews.map((r: any) => ({ 
+                       ...r, 
+                       productName: shortName,
+                       productImage: p.main_image
+                   }));
+                   globalReviews.push(...reviewsWithName);
+               }
+           });
+           // Shuffle them so they look fresh every time the page loads
+           globalReviews = globalReviews.sort(() => 0.5 - Math.random());
+           setAllReviews(globalReviews);
+       }
+    };
+    fetchGlobalReviews();
+  }, []);
+
+  // Fetch category products
   useEffect(() => {
     const fetchAndGroupProducts = async () => {
       setIsLoading(true);
@@ -67,24 +91,6 @@ export default function Home() {
           return;
       }
 
-      let extractedReviews: any[] = [];
-      products.forEach(product => {
-          if (product.manual_reviews && product.manual_reviews.length > 0) {
-              const productReviews = product.manual_reviews.map((r: any) => ({
-                  ...r,
-                  productName: product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name,
-                  productImage: product.main_image
-              }));
-              extractedReviews.push(...productReviews);
-          }
-      });
-
-      if (extractedReviews.length > 0) {
-          const shuffledReviews = extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15);
-          setAllReviews(shuffledReviews);
-      }
-
-      // 🚀 EID LOGIC: Sort strictly by pinned, then priority, and set up for GRID view
       if (activeMasterCategory === "eid") {
           const sortedEid = [...products].sort((a, b) => {
               if (a.is_pinned && !b.is_pinned) return -1;
@@ -98,7 +104,6 @@ export default function Home() {
           return;
       }
 
-      // NORMAL CATEGORY LOGIC: Sliding rows by Brand
       const pinned = products.filter(p => p.is_pinned === true).slice(0, 8);
       setPinnedProducts(pinned);
 
@@ -158,7 +163,7 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
       
-      {/* 🚀 FIX: Faster review speed (15s) and seamless scroll styling */}
+      {/* 🚀 FIX 2: Restored normal, readable scrolling speed (35s) */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -167,7 +172,7 @@ export default function Home() {
         .animate-scroll {
           display: flex;
           width: max-content;
-          animation: scroll 15s linear infinite; 
+          animation: scroll 35s linear infinite; 
         }
         .animate-scroll:hover {
           animation-play-state: paused;
@@ -287,7 +292,6 @@ export default function Home() {
           <div className="max-w-[1400px] mx-auto pb-24 flex-1 min-h-[50vh] w-full">
               
               <div className="text-center mt-8 md:mt-14 mb-4 md:mb-8 px-4">
-                  {/* 🚀 FIX: Highly organized text hierarchy and spelling fixes for mobile */}
                   {activeMasterCategory === 'eid' ? (
                       <div className="animate-fade-in-up">
                           <p className="text-[#750000] text-[9px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1.5 flex items-center justify-center gap-1.5">
@@ -314,7 +318,6 @@ export default function Home() {
               ) : (
                   <div className="flex flex-col gap-6 md:gap-12 w-full">
                       
-                      {/* 🚀 NEW: THE EID GRID VIEW WITH BACKGROUND & TOGGLES */}
                       {activeMasterCategory === 'eid' && pinnedProducts.length > 0 && (
                           <div className="w-full bg-[#1E1B18] rounded-[2rem] p-4 md:p-8 shadow-[0_20px_50px_rgba(30,27,24,0.4)] border border-[#C8A97E]/20 mt-4 relative overflow-hidden mx-4 md:mx-auto max-w-[calc(100%-2rem)] md:max-w-full">
                               
@@ -328,7 +331,6 @@ export default function Home() {
                                       <h2 className="text-2xl md:text-4xl font-serif text-white leading-none">The Vault Selection</h2>
                                   </div>
                                   
-                                  {/* 🚀 GRID COLUMN TOGGLES */}
                                   <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
                                       <button onClick={() => setGridCols(1)} className={`p-2 rounded-lg transition-all ${gridCols === 1 ? 'bg-[#C8A97E] text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>
                                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
@@ -342,7 +344,6 @@ export default function Home() {
                                   </div>
                               </div>
 
-                              {/* EID GRID */}
                               <div className={`grid gap-3 md:gap-6 relative z-10 ${gridCols === 1 ? 'grid-cols-1 max-w-sm mx-auto' : gridCols === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                                   {pinnedProducts.map(product => (
                                       <div key={product.id} className="bg-white/5 rounded-2xl p-1 border border-white/10 shadow-lg">
@@ -359,7 +360,6 @@ export default function Home() {
                           </div>
                       )}
 
-                      {/* --- NORMAL CATEGORIES (MEN, WOMEN, COUPLE) --- */}
                       {activeMasterCategory !== 'eid' && pinnedProducts.length > 0 && (
                           <div className="w-full">
                               <div className="flex justify-between items-end mb-3 md:mb-6 px-4 md:px-8">
@@ -466,11 +466,10 @@ export default function Home() {
                     <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
 
                     <div className="animate-scroll gap-4 md:gap-6 px-4">
-                        {/* 🚀 FIX: Massive Array Duplication to ensure no gaps, moving quickly! */}
                         {(() => {
                             let repeated = [...allReviews];
                             if (repeated.length > 0) {
-                                while (repeated.length < 15) {
+                                while (repeated.length < 10) {
                                     repeated = [...repeated, ...allReviews];
                                 }
                             }
