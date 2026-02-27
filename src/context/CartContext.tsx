@@ -12,6 +12,7 @@ export interface CartItem {
   quantity: number;
   isGift: boolean;
   addBox: boolean;
+  isEidExclusive?: boolean; // 🚀 NEW: Tracks if the item gets Free Shipping
 }
 
 // 2. Define the Context functions
@@ -81,7 +82,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   
   const cartTotal = cart.reduce((acc, item) => {
-    const extras = (item.isGift ? 150 : 0) + (item.addBox ? 100 : 0);
+    // 🚀 FIXED: Gift is 300, Box is 200 (Matches your checkout and product page)
+    const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
     return acc + (item.price + extras) * item.quantity;
   }, 0);
 

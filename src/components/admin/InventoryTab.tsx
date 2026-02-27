@@ -25,6 +25,7 @@ const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+// --- SAFE CLIENT-SIDE IMAGE COMPRESSOR ---
 const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -37,13 +38,29 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
         const MAX_WIDTH = isReview ? 600 : 1000; 
         let width = img.width;
         let height = img.height;
-        if (width > MAX_WIDTH) { height = height * (MAX_WIDTH / width); width = MAX_WIDTH; }
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
         
-        const quality = isReview ? 0.6 : 0.8;
-        canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error("Compression failed")); }, "image/webp", quality); 
+        if (width > MAX_WIDTH) { 
+            height = height * (MAX_WIDTH / width); 
+            width = MAX_WIDTH; 
+        }
+        
+        canvas.width = width; 
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        
+        if (ctx) {
+            // 🚀 FIX: Paint a white background first to prevent transparent PNG corruption!
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+        }
+        
+        // 🚀 FIX: Export as highly stable JPEG instead of WEBP
+        const quality = isReview ? 0.7 : 0.85;
+        canvas.toBlob((blob) => { 
+            if (blob) resolve(blob); 
+            else reject(new Error("Compression failed")); 
+        }, "image/jpeg", quality); 
       };
     };
     reader.onerror = (error) => reject(error);
@@ -59,9 +76,10 @@ const processFileUpload = async (file: File, isReview: boolean = false) => {
         catch (e) { console.error("Compression failed:", e); return null; } 
     }
 
-    const ext = isVideo ? 'mp4' : 'webp';
+    // 🚀 FIX: Change extension to JPG
+    const ext = isVideo ? 'mp4' : 'jpg';
     const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
-    const fileName = `v3-${Date.now()}-${cleanName}.${ext}`;
+    const fileName = `v4-${Date.now()}-${cleanName}.${ext}`;
 
     const { error } = await supabase.storage.from('product-images').upload(fileName, fileToUpload); 
     if (error) { console.error("Upload Error:", error.message); return null; }

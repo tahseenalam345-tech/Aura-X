@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
-import { ArrowLeft, User, Mail, Phone, MapPin, CreditCard, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Mail, Phone, MapPin, CreditCard, Lock, ArrowRight, Loader2, Flame } from "lucide-react";
 import toast from "react-hot-toast";
 import emailjs from '@emailjs/browser';
 
@@ -19,7 +19,7 @@ export default function CheckoutPage() {
     address: "", city: "", postalCode: ""
   });
 
-  // --- 1. FORCE RECALCULATE TOTAL (Fixes price issue) ---
+  // --- 1. TOTAL CALCULATIONS ---
   const GIFT_PRICE = 300;
   const BOX_PRICE = 200;
 
@@ -28,10 +28,12 @@ export default function CheckoutPage() {
     return total + ((item.price + extras) * item.quantity);
   }, 0);
 
-  const FREE_SHIPPING_THRESHOLD = 5000;
-  const STANDARD_SHIPPING_COST = 250;
-  const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
-  const shippingCost = isFreeShipping ? 0 : STANDARD_SHIPPING_COST;
+  // 🚀 RAMZAN OFFER & NEW SHIPPING LOGIC 🚀
+  // Base shipping is 300. If every item in the cart is an Eid Exclusive item, shipping is 0!
+  const hasNormalItems = cart.some(item => !item.isEidExclusive);
+  const STANDARD_SHIPPING_COST = 300;
+  const shippingCost = hasNormalItems ? STANDARD_SHIPPING_COST : 0;
+  
   const finalTotal = cartTotal + shippingCost;
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -41,7 +43,7 @@ export default function CheckoutPage() {
     try {
         const fullName = `${formData.firstName} ${formData.lastName}`.trim();
 
-        // 2. Prepare Order Items with correct flags
+        // 2. Prepare Order Items
         const orderItems = cart.map(item => ({
             id: item.id,
             name: item.name,
@@ -65,7 +67,7 @@ export default function CheckoutPage() {
                     address: `${formData.address}, ${formData.postalCode}`,
                 },
                 items: orderItems,
-                total: finalTotal, // Sends the corrected total
+                total: finalTotal, // Correctly includes shipping logic
                 city: formData.city
             })
         });
@@ -197,7 +199,6 @@ export default function CheckoutPage() {
                                 {item.addBox && <span className="text-[9px] text-orange-600 block">+ Box (200)</span>}
                             </div>
                             <span className="text-sm font-bold text-aura-brown">
-                                {/* UPDATED CALCULATION TO 300 and 200 */}
                                 Rs {((item.price + (item.isGift?300:0) + (item.addBox?200:0)) * item.quantity).toLocaleString()}
                             </span>
                          </div>
@@ -205,7 +206,18 @@ export default function CheckoutPage() {
                    </div>
                    <div className="space-y-3 text-sm text-gray-600 mb-6 pt-4 border-t border-gray-100">
                       <div className="flex justify-between"><span>Subtotal</span><span className="font-bold">Rs {cartTotal.toLocaleString()}</span></div>
-                      <div className="flex justify-between items-center"><span>Shipping</span>{isFreeShipping ? <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs">Free</span> : <span className="font-bold text-aura-brown">Rs {STANDARD_SHIPPING_COST}</span>}</div>
+                      
+                      {/* 🚀 UPGRADED SHIPPING DISPLAY (Eid Exclusive Logic) */}
+                      <div className="flex justify-between items-center">
+                          <span>Shipping</span>
+                          {shippingCost === 0 ? (
+                              <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded text-[10px] uppercase tracking-widest flex items-center gap-1 shadow-sm animate-pulse">
+                                  <Flame size={12}/> Ramzan Offer: FREE
+                              </span>
+                          ) : (
+                              <span className="font-bold text-aura-brown">Rs {STANDARD_SHIPPING_COST}</span>
+                          )}
+                      </div>
                    </div>
                    <div className="flex justify-between items-end border-t border-dashed border-gray-200 pt-6 mb-8"><span className="font-bold text-lg">Total to Pay</span><span className="font-serif text-3xl font-bold text-aura-brown">Rs {finalTotal.toLocaleString()}</span></div>
                    <button type="submit" form="checkout-form" disabled={loading} className="w-full bg-aura-brown text-white py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed">

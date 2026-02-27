@@ -218,7 +218,8 @@ export default function ProductClient() {
       color: `${finalColorName}${boxLabel}`, 
       quantity: quantity, 
       isGift: isGift, 
-      addBox: false 
+      addBox: false,
+      isEidExclusive: product.is_eid_exclusive // 🚀 YOU MUST ADD THIS LINE
     });
 
     toast.success(`${displayShortName} added to bag!`, {

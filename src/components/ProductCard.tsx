@@ -23,6 +23,7 @@ interface Product {
   manual_reviews?: { rating: number }[]; 
   colors?: { name: string; hex: string; image: string }[]; 
   specs?: any; 
+  is_eid_exclusive?: boolean; 
 }
 
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
@@ -50,14 +51,10 @@ export function ProductCard({ product, priority = false }: { product: Product; p
     ? (realReviews.reduce((acc, r) => acc + r.rating, 0) / realReviews.length).toFixed(1)
     : (product.rating && product.rating <= 5 ? product.rating : 5.0); 
 
-  // 🚀 THE SEO MAGIC TRICK 🚀
-  // 1. Google gets the FULL, massive, keyword-rich name from the database.
   const seoCategory = product.category?.toLowerCase() === 'women' ? "Women's" : product.category?.toLowerCase() === 'couple' ? "Couple" : "Men's";
   const seoAltText = `${product.name} - Premium Luxury ${seoCategory} Watch in Pakistan | AURA-X`;
   
-  // 2. Humans get ONLY the short, premium name (everything before the "|" symbol).
-  // If you forget to add a "|", it safely just shows the normal name.
-  const displayShortName = product.name.includes('|') ? product.name.split('|')[0].trim() : product.name;
+  const displayShortName = product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name;
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); 
@@ -65,21 +62,22 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
     addToCart({
         id: product.id,
-        // We pass the short name to the cart so it looks clean there too
         name: displayShortName,
         price: product.price,
         image: activeImage, 
         quantity: 1,
         color: activeColorName || "Standard",
         isGift: false,
-        addBox: false
+        addBox: false,
+        isEidExclusive: product.is_eid_exclusive || false 
     });
     toast.success("Added to Cart");
   };
 
   return (
     <div className="group block relative h-full">
-      <div className="relative h-full bg-gradient-to-br from-[#FDFBF7] via-[#F1E8D1] to-[#E3CBA1] rounded-2xl transition-all duration-300 flex flex-col overflow-hidden border border-aura-gold/40 shadow-[0_4px_15px_rgba(212,175,55,0.1)] hover:shadow-[0_10px_30px_rgba(212,175,55,0.3)] hover:-translate-y-1">
+      {/* 🚀 FIX: Swapped light gold shadow for a deep dark brown shadow so it pops off the background! */}
+      <div className="relative h-full bg-gradient-to-br from-[#FDFBF7] via-[#F1E8D1] to-[#E3CBA1] rounded-2xl transition-all duration-300 flex flex-col overflow-hidden border border-aura-gold/40 shadow-[0_10px_30px_rgba(74,59,50,0.15)] hover:shadow-[0_20px_50px_rgba(74,59,50,0.35)] hover:-translate-y-1">
         
         <div className="absolute top-3 left-3 z-30 flex flex-col gap-1.5 pointer-events-none">
             {isOutOfStock && (
@@ -100,7 +98,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
             <div className="relative w-full h-full mix-blend-multiply bg-white/20">
                 <Image
                     src={activeImage}
-                    alt={seoAltText} // <-- GOOGLE SEES THIS
+                    alt={seoAltText} 
                     fill
                     quality={100} 
                     className={`object-cover transition-transform duration-500 ease-out ${isOutOfStock ? 'grayscale opacity-75' : 'group-hover:scale-105'}`}
@@ -129,7 +127,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                 </div>
 
                 <Link href={`/product/${product.id}`}>
-                  {/* 👇 HUMANS SEE THIS (The Clean Short Name) */}
                   <h3 className="text-[#1E1B18] font-serif font-bold text-sm md:text-base leading-snug line-clamp-2 group-hover:text-[#C5A67C] transition-colors" title={product.name}>
                       {displayShortName}
                   </h3>

@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote } from "lucide-react"; 
+import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
@@ -19,8 +19,7 @@ const TrainProductCard = ({ product }: { product: any }) => (
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  
-  const [activeMasterCategory, setActiveCategory] = useState<"men" | "women" | "couple">("men");
+  const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">("eid");
   const [pinnedProducts, setPinnedProducts] = useState<any[]>([]);
   const [brandGroups, setBrandGroups] = useState<{ brand: string; products: any[]; sortOrder: number }[]>([]);
   const [allReviews, setAllReviews] = useState<any[]>([]); 
@@ -49,12 +48,15 @@ export default function Home() {
       const { data: brandSettingsData } = await supabase.from('brand_settings').select('*');
       const brandSettingsMap = new Map(brandSettingsData?.map(b => [b.brand_name.toUpperCase(), b.sort_order]) || []);
 
-      const { data: products } = await supabase
-        .from('products')
-        .select('*')
-        .eq('category', activeMasterCategory)
-        .eq('is_eid_exclusive', false) 
-        .order('priority', { ascending: false });
+      let query = supabase.from('products').select('*').order('priority', { ascending: false });
+      
+      if (activeMasterCategory === "eid") {
+          query = query.eq('is_eid_exclusive', true);
+      } else {
+          query = query.eq('category', activeMasterCategory).eq('is_eid_exclusive', false);
+      }
+
+      const { data: products } = await query;
 
       if (!products) {
           setIsLoading(false);
@@ -62,6 +64,37 @@ export default function Home() {
       }
 
       let extractedReviews: any[] = [];
+      products.forEach(product => {
+          if (product.manual_reviews && product.manual_reviews.length > 0) {
+              const productReviews = product.manual_reviews.map((r: any) => ({
+                  ...r,
+                  productName: product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name,
+                  productImage: product.main_image
+              }));
+              extractedReviews.push(...productReviews);
+          }
+      });
+
+      if (extractedReviews.length > 0) {
+          const shuffledReviews = extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15);
+          setAllReviews(shuffledReviews);
+      }
+
+      // 🚀 EID LOGIC: Do not group by brand. Just show top pieces sorted by Pinned -> Priority
+      if (activeMasterCategory === "eid") {
+          const sortedEid = [...products].sort((a, b) => {
+              if (a.is_pinned && !b.is_pinned) return -1;
+              if (!a.is_pinned && b.is_pinned) return 1;
+              return (b.priority || 0) - (a.priority || 0);
+          });
+          
+          setPinnedProducts(sortedEid.slice(0, 12)); // Only show top 12 on home page
+          setBrandGroups([]); // Hide brand groups entirely for Eid Tab
+          setIsLoading(false);
+          return;
+      }
+
+      // NORMAL LOGIC: For Men/Women/Couple
       const pinned = products.filter(p => p.is_pinned === true).slice(0, 8);
       setPinnedProducts(pinned);
 
@@ -69,36 +102,21 @@ export default function Home() {
       
       const grouped = unpinned.reduce((acc, product) => {
           const rawBrand = (product.brand || "AURA-X").trim();
-          
-          // 🚀 TS FIX: We look for the existing key
           const existingKey = Object.keys(acc).find(k => k.toUpperCase() === rawBrand.toUpperCase());
+          let safeBrandName: string = existingKey ? existingKey : (rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1));
           
-          // 🚀 TS FIX: We guarantee it's a string by falling back to the formatted rawBrand
-          let finalBrandName: string = existingKey || (rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1));
-          
-          if (finalBrandName.toUpperCase() === "AURA-X") {
-              finalBrandName = "AURA-X";
+          if (safeBrandName.toUpperCase() === "AURA-X") {
+              safeBrandName = "AURA-X";
           }
 
-          if (!acc[finalBrandName]) {
-              acc[finalBrandName] = [];
+          if (!acc[safeBrandName]) {
+              acc[safeBrandName] = [];
           }
-          acc[finalBrandName].push(product);
-
-          if (product.manual_reviews && product.manual_reviews.length > 0) {
-              const productReviews = product.manual_reviews.map((r: any) => ({
-                  ...r,
-                  productName: product.name,
-                  productImage: product.main_image
-              }));
-              extractedReviews = [...extractedReviews, ...productReviews];
-          }
-
+          acc[safeBrandName].push(product);
           return acc;
       }, {} as Record<string, any[]>);
 
       const consolidatedGroups: Record<string, any[]> = {};
-      
       const auraXKey = Object.keys(grouped).find(k => k.toUpperCase() === "AURA-X") || "AURA-X";
       consolidatedGroups["AURA-X"] = grouped[auraXKey] || [];
 
@@ -118,7 +136,6 @@ export default function Home() {
       const groupedArray = Object.entries(consolidatedGroups).map(([brand, prods]: [string, any]) => {
           const catSpecificKey = `${activeMasterCategory}__${brand}`.toUpperCase();
           const sortOrder = Number(brandSettingsMap.get(catSpecificKey) ?? brandSettingsMap.get(brand.toUpperCase()) ?? 99);
-          
           return { brand, products: (prods as any[]).slice(0, 8), sortOrder: sortOrder };
       });
 
@@ -127,9 +144,6 @@ export default function Home() {
           return a.brand.localeCompare(b.brand);
       });
 
-      const shuffledReviews = extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15);
-      setAllReviews(shuffledReviews);
-      
       setBrandGroups(groupedArray);
       setIsLoading(false);
     };
@@ -233,14 +247,15 @@ export default function Home() {
                 <Flame size={12} className="hidden md:block"/> BREAKING
               </span>
               <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
-              <span>Up to 30% OFF + Free Delivery.</span>
-              <span className="text-aura-gold hidden sm:inline">Stay Tuned 🌙</span>
+              <span>Free Delivery on all Eid Exclusive Pieces.</span>
+              <span className="text-aura-gold hidden sm:inline">Limited Stock 🌙</span>
             </div>
           </div>
 
-          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-3 md:py-5 shadow-sm border-b border-aura-gold/10 w-full">
-              <div className="max-w-7xl mx-auto px-4 flex justify-center gap-2 md:gap-6">
+          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-3 md:py-5 shadow-sm border-b border-aura-gold/10 w-full overflow-x-auto scrollbar-hide">
+              <div className="max-w-7xl mx-auto px-4 flex justify-start md:justify-center gap-2 md:gap-6 min-w-max">
                   {[
+                      { id: "eid", label: "Eid Edit 🌙", special: true },
                       { id: "men", label: "Gents Collection" },
                       { id: "women", label: "Ladies Precision" },
                       { id: "couple", label: "Timeless Bonds" }
@@ -248,9 +263,13 @@ export default function Home() {
                       <button 
                           key={cat.id}
                           onClick={() => setActiveCategory(cat.id as any)}
-                          className={`text-[9px] md:text-sm font-bold tracking-widest uppercase transition-all px-4 py-2 md:px-8 md:py-3 rounded-full border ${
-                              activeMasterCategory === cat.id 
-                              ? 'bg-aura-brown text-white border-aura-brown shadow-[0_4px_15px_rgba(74,59,50,0.3)] scale-105' 
+                          className={`text-[10px] md:text-sm font-bold tracking-widest uppercase transition-all px-5 py-2.5 md:px-8 md:py-3 rounded-full border whitespace-nowrap ${
+                              activeMasterCategory === cat.id && cat.special
+                              ? 'bg-gradient-to-r from-aura-gold to-yellow-600 text-black border-transparent shadow-[0_0_20px_rgba(212,175,55,0.5)] scale-105 animate-[pulse_2s_ease-in-out_infinite]' 
+                              : activeMasterCategory === cat.id 
+                              ? 'bg-aura-brown text-white border-aura-brown shadow-[0_4px_15px_rgba(74,59,50,0.3)] scale-105'
+                              : cat.special 
+                              ? 'bg-[#1E1B18] text-aura-gold border-aura-gold hover:bg-aura-gold hover:text-black'
                               : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold hover:text-aura-brown'
                           }`}
                       >
@@ -262,11 +281,23 @@ export default function Home() {
 
           <div className="max-w-[1400px] mx-auto pb-24 flex-1 min-h-[50vh] w-full">
               
-              <div className="text-center mt-6 md:mt-12 mb-6 md:mb-10 px-4">
-                  <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
-                      <Sparkles size={14} className="text-aura-gold" /> The Vault <Sparkles size={14} className="text-aura-gold" />
-                  </p>
-                  <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
+              <div className="text-center mt-8 md:mt-14 mb-8 md:mb-12 px-4">
+                  {activeMasterCategory === 'eid' ? (
+                      <div className="animate-fade-in-up">
+                          <p className="text-[#750000] text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center gap-2">
+                              <Moon size={14} className="text-aura-gold" /> The Ramzan Drop <Moon size={14} className="text-aura-gold" />
+                          </p>
+                          <h2 className="text-4xl md:text-6xl font-serif text-aura-brown leading-tight">Eid Royale Collection</h2>
+                          <p className="text-sm text-gray-500 mt-3 max-w-md mx-auto">Extremely limited quantities. Free nationwide delivery applied at checkout.</p>
+                      </div>
+                  ) : (
+                      <div className="animate-fade-in-up">
+                          <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
+                              <Sparkles size={14} className="text-aura-gold" /> The Vault <Sparkles size={14} className="text-aura-gold" />
+                          </p>
+                          <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
+                      </div>
+                  )}
               </div>
 
               {isLoading ? (
@@ -283,8 +314,16 @@ export default function Home() {
                                       <p className="text-aura-brown text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
                                           <Star size={12} fill="#D4AF37" className="text-aura-gold"/> Highly Coveted
                                       </p>
-                                      <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">Aura Exclusives</h2>
+                                      <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">
+                                          {activeMasterCategory === 'eid' ? "Festive Highlights" : "Aura Exclusives"}
+                                      </h2>
                                   </div>
+                                  {/* 🚀 VIEW ALL BUTTON FOR EID COLLECTION */}
+                                  {activeMasterCategory === 'eid' && (
+                                      <Link href="/eid-collection" className="bg-aura-brown text-white px-5 py-2 md:px-6 md:py-3 rounded-full text-[9px] md:text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-aura-gold hover:text-black transition-colors shadow-lg">
+                                          View Full Collection <ArrowRight size={14} />
+                                      </Link>
+                                  )}
                               </div>
                               
                               <div className="relative w-full">
@@ -314,7 +353,9 @@ export default function Home() {
 
                               <div className="relative z-10 flex flex-row justify-between items-end mb-6 px-5 md:px-8">
                                   <div>
-                                      <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">Brand Showcase</p>
+                                      <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">
+                                          Brand Showcase
+                                      </p>
                                       <h2 className="text-2xl md:text-4xl font-serif italic tracking-wider text-white leading-tight drop-shadow-md animate-[pulse_4s_ease-in-out_infinite]">{group.brand}</h2>
                                   </div>
                                   
@@ -354,8 +395,12 @@ export default function Home() {
 
                       {brandGroups.length === 0 && pinnedProducts.length === 0 && (
                           <div className="text-center py-20 bg-white/50 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 shadow-sm mx-4">
-                              <p className="font-serif text-2xl text-gray-400 mb-2">The Vault is empty.</p>
-                              <p className="text-gray-400 text-sm">We are currently restocking this collection.</p>
+                              <p className="font-serif text-2xl text-gray-400 mb-2">
+                                  {activeMasterCategory === 'eid' ? "The Eid Vault is securely sealed." : "The Vault is empty."}
+                              </p>
+                              <p className="text-gray-400 text-sm">
+                                  {activeMasterCategory === 'eid' ? "Releasing highly exclusive pieces shortly." : "We are currently restocking this collection."}
+                              </p>
                           </div>
                       )}
                   </div>
