@@ -11,8 +11,9 @@ import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lu
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
+// 🚀 FIX: Added a warm brown shadow to normal cards so they detach from the background perfectly
 const TrainProductCard = ({ product }: { product: any }) => (
-    <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full">
+    <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5">
         <ProductCard product={product} priority={false} />
     </div>
 );
@@ -24,6 +25,9 @@ export default function Home() {
   const [brandGroups, setBrandGroups] = useState<{ brand: string; products: any[]; sortOrder: number }[]>([]);
   const [allReviews, setAllReviews] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 🚀 FIX: State for the Eid Grid Column Toggle (Defaults to 2 columns)
+  const [gridCols, setGridCols] = useState<number>(2);
 
   useEffect(() => {
     const idleTimer = setTimeout(() => {
@@ -80,7 +84,7 @@ export default function Home() {
           setAllReviews(shuffledReviews);
       }
 
-      // 🚀 EID LOGIC: Do not group by brand. Just show top pieces sorted by Pinned -> Priority
+      // 🚀 EID LOGIC: Sort strictly by pinned, then priority, and set up for GRID view
       if (activeMasterCategory === "eid") {
           const sortedEid = [...products].sort((a, b) => {
               if (a.is_pinned && !b.is_pinned) return -1;
@@ -88,13 +92,13 @@ export default function Home() {
               return (b.priority || 0) - (a.priority || 0);
           });
           
-          setPinnedProducts(sortedEid.slice(0, 12)); // Only show top 12 on home page
-          setBrandGroups([]); // Hide brand groups entirely for Eid Tab
+          setPinnedProducts(sortedEid.slice(0, 12)); 
+          setBrandGroups([]); 
           setIsLoading(false);
           return;
       }
 
-      // NORMAL LOGIC: For Men/Women/Couple
+      // NORMAL CATEGORY LOGIC: Sliding rows by Brand
       const pinned = products.filter(p => p.is_pinned === true).slice(0, 8);
       setPinnedProducts(pinned);
 
@@ -154,6 +158,7 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
       
+      {/* 🚀 FIX: Faster review speed (15s) and seamless scroll styling */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -162,7 +167,7 @@ export default function Home() {
         .animate-scroll {
           display: flex;
           width: max-content;
-          animation: scroll 40s linear infinite;
+          animation: scroll 15s linear infinite; 
         }
         .animate-scroll:hover {
           animation-play-state: paused;
@@ -281,14 +286,15 @@ export default function Home() {
 
           <div className="max-w-[1400px] mx-auto pb-24 flex-1 min-h-[50vh] w-full">
               
-              <div className="text-center mt-8 md:mt-14 mb-8 md:mb-12 px-4">
+              <div className="text-center mt-8 md:mt-14 mb-4 md:mb-8 px-4">
+                  {/* 🚀 FIX: Highly organized text hierarchy and spelling fixes for mobile */}
                   {activeMasterCategory === 'eid' ? (
                       <div className="animate-fade-in-up">
-                          <p className="text-[#750000] text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center gap-2">
-                              <Moon size={14} className="text-aura-gold" /> The Ramzan Drop <Moon size={14} className="text-aura-gold" />
+                          <p className="text-[#750000] text-[9px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1.5 flex items-center justify-center gap-1.5">
+                              <Moon size={12} className="text-aura-gold" /> The Ramzan Drop <Moon size={12} className="text-aura-gold" />
                           </p>
-                          <h2 className="text-4xl md:text-6xl font-serif text-aura-brown leading-tight">Eid Royale Collection</h2>
-                          <p className="text-sm text-gray-500 mt-3 max-w-md mx-auto">Extremely limited quantities. Free nationwide delivery applied at checkout.</p>
+                          <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight mb-2">Eid Royal</h2>
+                          <p className="text-[10px] md:text-sm text-gray-500 max-w-[250px] md:max-w-md mx-auto leading-snug">Limited stock. Free delivery applied at checkout.</p>
                       </div>
                   ) : (
                       <div className="animate-fade-in-up">
@@ -307,27 +313,66 @@ export default function Home() {
                   </div>
               ) : (
                   <div className="flex flex-col gap-6 md:gap-12 w-full">
-                      {pinnedProducts.length > 0 && (
+                      
+                      {/* 🚀 NEW: THE EID GRID VIEW WITH BACKGROUND & TOGGLES */}
+                      {activeMasterCategory === 'eid' && pinnedProducts.length > 0 && (
+                          <div className="w-full bg-[#1E1B18] rounded-[2rem] p-4 md:p-8 shadow-[0_20px_50px_rgba(30,27,24,0.4)] border border-[#C8A97E]/20 mt-4 relative overflow-hidden mx-4 md:mx-auto max-w-[calc(100%-2rem)] md:max-w-full">
+                              
+                              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/5 blur-[100px] rounded-full pointer-events-none"></div>
+                              
+                              <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 gap-4 border-b border-[#C8A97E]/10 pb-4 relative z-10">
+                                  <div className="text-center md:text-left">
+                                      <p className="text-aura-gold text-[10px] font-bold tracking-[0.3em] uppercase flex items-center justify-center md:justify-start gap-2 mb-1">
+                                          <Star size={12} fill="#D4AF37"/> Festive Highlights
+                                      </p>
+                                      <h2 className="text-2xl md:text-4xl font-serif text-white leading-none">The Vault Selection</h2>
+                                  </div>
+                                  
+                                  {/* 🚀 GRID COLUMN TOGGLES */}
+                                  <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
+                                      <button onClick={() => setGridCols(1)} className={`p-2 rounded-lg transition-all ${gridCols === 1 ? 'bg-[#C8A97E] text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                                      </button>
+                                      <button onClick={() => setGridCols(2)} className={`p-2 rounded-lg transition-all ${gridCols === 2 ? 'bg-[#C8A97E] text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+                                      </button>
+                                      <button onClick={() => setGridCols(3)} className={`hidden md:block p-2 rounded-lg transition-all ${gridCols === 3 ? 'bg-[#C8A97E] text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="5" height="18" rx="1"/><rect x="9.5" y="3" width="5" height="18" rx="1"/><rect x="17" y="3" width="5" height="18" rx="1"/></svg>
+                                      </button>
+                                  </div>
+                              </div>
+
+                              {/* EID GRID */}
+                              <div className={`grid gap-3 md:gap-6 relative z-10 ${gridCols === 1 ? 'grid-cols-1 max-w-sm mx-auto' : gridCols === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                                  {pinnedProducts.map(product => (
+                                      <div key={product.id} className="bg-white/5 rounded-2xl p-1 border border-white/10 shadow-lg">
+                                          <ProductCard product={product} />
+                                      </div>
+                                  ))}
+                              </div>
+                              
+                              <div className="mt-8 flex justify-center relative z-10">
+                                  <Link href="/eid-collection" className="bg-[#C8A97E] text-[#1E1B18] px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-white transition-colors shadow-[0_5px_15px_rgba(200,169,126,0.3)]">
+                                      View Full Collection <ArrowRight size={16} />
+                                  </Link>
+                              </div>
+                          </div>
+                      )}
+
+                      {/* --- NORMAL CATEGORIES (MEN, WOMEN, COUPLE) --- */}
+                      {activeMasterCategory !== 'eid' && pinnedProducts.length > 0 && (
                           <div className="w-full">
                               <div className="flex justify-between items-end mb-3 md:mb-6 px-4 md:px-8">
                                   <div>
                                       <p className="text-aura-brown text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
                                           <Star size={12} fill="#D4AF37" className="text-aura-gold"/> Highly Coveted
                                       </p>
-                                      <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">
-                                          {activeMasterCategory === 'eid' ? "Festive Highlights" : "Aura Exclusives"}
-                                      </h2>
+                                      <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">Aura Exclusives</h2>
                                   </div>
-                                  {/* 🚀 VIEW ALL BUTTON FOR EID COLLECTION */}
-                                  {activeMasterCategory === 'eid' && (
-                                      <Link href="/eid-collection" className="bg-aura-brown text-white px-5 py-2 md:px-6 md:py-3 rounded-full text-[9px] md:text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-aura-gold hover:text-black transition-colors shadow-lg">
-                                          View Full Collection <ArrowRight size={14} />
-                                      </Link>
-                                  )}
                               </div>
                               
                               <div className="relative w-full">
-                                  <div className="flex overflow-x-auto gap-4 md:gap-6 pb-6 pt-2 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                  <div className="flex overflow-x-auto gap-6 md:gap-8 pb-10 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
                                       {pinnedProducts.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
@@ -342,7 +387,7 @@ export default function Home() {
                           </div>
                       )}
 
-                      {brandGroups.map((group, index) => (
+                      {activeMasterCategory !== 'eid' && brandGroups.map((group, index) => (
                           <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] py-6 md:py-8 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full md:mx-8 md:w-auto">
                               
                               <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] pointer-events-none z-0">
@@ -368,7 +413,7 @@ export default function Home() {
                               </div>
 
                               <div className="relative z-10 w-full">
-                                  <div className="flex overflow-x-auto gap-4 md:gap-6 pb-4 md:pb-6 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                  <div className="flex overflow-x-auto gap-6 md:gap-8 pb-8 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
                                       {group.products.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
@@ -421,27 +466,38 @@ export default function Home() {
                     <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
 
                     <div className="animate-scroll gap-4 md:gap-6 px-4">
-                        {[...allReviews, ...allReviews].map((review, i) => (
-                            <div key={i} className="w-[260px] md:w-[350px] p-5 md:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col gap-3 flex-shrink-0 hover:bg-white/10 transition-colors shadow-lg">
-                               <div className="flex justify-between items-start mb-1">
-                                  <div className="flex items-center gap-3">
-                                      {review.productImage && (
-                                          <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 border border-white/20 flex-shrink-0 relative">
-                                              <Image src={review.productImage} alt="product" fill className="object-cover" unoptimized={true} />
+                        {/* 🚀 FIX: Massive Array Duplication to ensure no gaps, moving quickly! */}
+                        {(() => {
+                            let repeated = [...allReviews];
+                            if (repeated.length > 0) {
+                                while (repeated.length < 15) {
+                                    repeated = [...repeated, ...allReviews];
+                                }
+                            }
+                            const finalScrollingReviews = [...repeated, ...repeated]; 
+
+                            return finalScrollingReviews.map((review, i) => (
+                                <div key={i} className="w-[260px] md:w-[350px] p-5 md:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col gap-3 flex-shrink-0 hover:bg-white/10 transition-colors shadow-lg">
+                                   <div className="flex justify-between items-start mb-1">
+                                      <div className="flex items-center gap-3">
+                                          {review.productImage && (
+                                              <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 border border-white/20 flex-shrink-0 relative">
+                                                  <Image src={review.productImage} alt="product" fill className="object-cover" unoptimized={true} />
+                                              </div>
+                                          )}
+                                          <div>
+                                              <p className="font-bold text-sm text-white">{review.user}</p>
+                                              <p className="text-[9px] text-aura-gold/80 uppercase tracking-widest line-clamp-1">{review.productName}</p>
                                           </div>
-                                      )}
-                                      <div>
-                                          <p className="font-bold text-sm text-white">{review.user}</p>
-                                          <p className="text-[9px] text-aura-gold/80 uppercase tracking-widest line-clamp-1">{review.productName}</p>
                                       </div>
-                                  </div>
-                                  <div className="flex text-aura-gold mt-1">
-                                      {[...Array(5)].map((_, starIdx) => <Star key={starIdx} size={10} fill={starIdx < (review.rating || 5) ? "currentColor" : "none"} />)}
-                                  </div>
-                               </div>
-                               <p className="text-xs md:text-sm text-gray-300 italic line-clamp-4 leading-relaxed">"{review.comment}"</p>
-                            </div>
-                        ))}
+                                      <div className="flex text-aura-gold mt-1">
+                                          {[...Array(5)].map((_, starIdx) => <Star key={starIdx} size={10} fill={starIdx < (review.rating || 5) ? "currentColor" : "none"} />)}
+                                      </div>
+                                   </div>
+                                   <p className="text-xs md:text-sm text-gray-300 italic line-clamp-4 leading-relaxed">"{review.comment}"</p>
+                                </div>
+                            ));
+                        })()}
                     </div>
                  </div>
               </div>
