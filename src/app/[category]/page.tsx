@@ -18,12 +18,10 @@ export default function CategoryPage() {
   const categorySlug = params.category as string; 
   const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection', 'style-quiz'];
 
-  // --- ALL HOOKS MUST BE AT THE TOP ---
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(8);
   
-  // --- FILTERS ---
   const [selectedBrand, setSelectedBrand] = useState("All"); 
   const [priceRange, setPriceRange] = useState(500000); 
   const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
@@ -36,7 +34,6 @@ export default function CategoryPage() {
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
-  // Read URL params safely on mount 
   useEffect(() => {
       if (typeof window !== 'undefined') {
           const urlParams = new URLSearchParams(window.location.search);
@@ -53,8 +50,6 @@ export default function CategoryPage() {
       }
 
       setLoading(true);
-      // 🚀 FIX: Removed the line that was hiding Eid items! 
-      // Now it fetches ALL watches for this category.
       const { data } = await supabase
         .from('products')
         .select('*')
@@ -71,17 +66,34 @@ export default function CategoryPage() {
     setVisibleCount(8);
   }, [priceRange, selectedMovements, selectedStraps, sortBy, selectedBrand]);
 
-  // --- DERIVED DATA & LOGIC ---
-  
-  // Extract all unique brands available in this specific category
+  // 🚀 BRAND COUNTING AND SORTING LOGIC
   const availableBrands = useMemo(() => {
-      const brands = products.map(p => p.brand || "AURA-X").filter(Boolean);
-      return ["All", ...Array.from(new Set(brands))].sort();
+      const brandCounts: Record<string, number> = {};
+      const originalNames: Record<string, string> = {}; 
+
+      // Count the frequency of each brand and merge case mismatches (Hublot vs HUBLOT)
+      products.forEach(p => {
+          const rawBrand = (p.brand || "AURA-X").trim();
+          const upperBrand = rawBrand.toUpperCase();
+
+          if (!brandCounts[upperBrand]) {
+              brandCounts[upperBrand] = 0;
+              originalNames[upperBrand] = rawBrand; // Save the original case to display on the pill
+          }
+          brandCounts[upperBrand]++;
+      });
+
+      // Sort brands by the number of products they have (Descending)
+      const sortedBrands = Object.keys(brandCounts)
+          .sort((a, b) => brandCounts[b] - brandCounts[a])
+          .map(upper => originalNames[upper]);
+
+      return ["All", ...sortedBrands];
   }, [products]);
 
   const filteredProducts = products.filter((product) => {
-    // 1. Brand Filter
-    if (selectedBrand !== "All" && (product.brand || "AURA-X") !== selectedBrand) return false;
+    // 🚀 UPDATED FILTER: Ignores case so "HUBLOT" and "Hublot" watches both show up when clicked
+    if (selectedBrand !== "All" && (product.brand || "AURA-X").trim().toUpperCase() !== selectedBrand.toUpperCase()) return false;
 
     // 2. Price Filter
     if (product.price > priceRange) return false;
@@ -226,7 +238,6 @@ export default function CategoryPage() {
 
       <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex flex-col lg:flex-row gap-8 lg:gap-16 pb-20">
         
-        {/* DESKTOP SIDEBAR FILTERS */}
         <aside className="hidden lg:block w-64 flex-shrink-0 lg:sticky lg:top-32 h-fit">
             <div className="flex items-center gap-2 pb-4 border-b border-aura-brown/10 mb-8">
                 <Filter size={20} className="text-aura-gold" />
@@ -236,7 +247,6 @@ export default function CategoryPage() {
         </aside>
 
         <div className="flex-1">
-            {/* UTILITY BAR (Sort & Mobile Filter Trigger) */}
             <div className="flex justify-between items-center mb-8 pb-4 border-b border-aura-brown/10">
                 <button 
                   onClick={() => setMobileFilterOpen(true)}
@@ -286,7 +296,6 @@ export default function CategoryPage() {
                 </div>
             </div>
 
-            {/* PRODUCT GRID */}
             {loading ? (
                 <div className="h-64 flex items-center justify-center text-aura-brown">
                     <Loader2 className="animate-spin mr-2" /> Loading Vault...
@@ -321,7 +330,6 @@ export default function CategoryPage() {
                 </div>
             )}
             
-            {/* EMPTY STATE */}
             {!loading && filteredProducts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-6">No pieces match these criteria.</p>
