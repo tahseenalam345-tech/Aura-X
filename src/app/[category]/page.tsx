@@ -24,7 +24,7 @@ export default function CategoryPage() {
   const [visibleCount, setVisibleCount] = useState(8);
   
   // --- FILTERS ---
-  const [selectedBrand, setSelectedBrand] = useState("All"); // NEW: Brand Filter
+  const [selectedBrand, setSelectedBrand] = useState("All"); 
   const [priceRange, setPriceRange] = useState(500000); 
   const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
   const [selectedStraps, setSelectedStraps] = useState<string[]>([]);
@@ -36,7 +36,7 @@ export default function CategoryPage() {
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
-  // Read URL params safely on mount (to see if they clicked "View All Rolex" from Home Page)
+  // Read URL params safely on mount 
   useEffect(() => {
       if (typeof window !== 'undefined') {
           const urlParams = new URLSearchParams(window.location.search);
@@ -53,11 +53,12 @@ export default function CategoryPage() {
       }
 
       setLoading(true);
+      // 🚀 FIX: Removed the line that was hiding Eid items! 
+      // Now it fetches ALL watches for this category.
       const { data } = await supabase
         .from('products')
         .select('*')
-        .eq('category', categorySlug)
-        .eq('is_eid_exclusive', false); 
+        .eq('category', categorySlug); 
       
       if (data) setProducts(data);
       setLoading(false);
@@ -210,7 +211,7 @@ export default function CategoryPage() {
                       <button
                           key={brand}
                           onClick={() => setSelectedBrand(brand)}
-                          className={`px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                          className={`px-5 py-2 md:px-6 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
                               selectedBrand === brand
                               ? 'bg-aura-brown text-white border-aura-brown shadow-lg scale-105'
                               : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold hover:text-aura-brown'
