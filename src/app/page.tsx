@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
@@ -9,10 +9,12 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
 
+// 🚀 THE MASTER EID SWITCH
 const IS_EID_LIVE = true; 
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
+// 🚀 FIX: Warm dark brown shadow applied to normal cards
 const TrainProductCard = ({ product }: { product: any }) => (
     <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5">
         <ProductCard product={product} priority={false} />
@@ -21,9 +23,10 @@ const TrainProductCard = ({ product }: { product: any }) => (
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
+  
   const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(IS_EID_LIVE ? "eid" : "men");
   
-  // 🚀 NEW: State to hold all data in memory so we never double-fetch
+  // 🚀 FAST MEMORY CACHE STATES
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>([]);
   const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(new Map());
   
@@ -34,7 +37,7 @@ export default function Home() {
   
   const [gridCols, setGridCols] = useState<number>(2);
 
-  // Background Image Slider
+  // Background Slider
   useEffect(() => {
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
@@ -51,14 +54,13 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
   };
 
-  // 🚀 FIX: SINGLE MASTER FETCH! 
-  // We fetch everything exactly ONCE when the site loads, saving massive load times.
+  // 🚀 THE ULTIMATE SPEED FIX: FETCH EVERYTHING EXACTLY ONCE
   useEffect(() => {
     const fetchEverythingOnce = async () => {
       setIsLoading(true);
 
       try {
-          // 1. Fetch Brand Sort Orders
+          // 1. Fetch Brand Settings
           const { data: brandSettingsData } = await supabase.from('brand_settings').select('*');
           const bMap = new Map(brandSettingsData?.map(b => [b.brand_name.toUpperCase(), b.sort_order]) || []);
           setBrandSettingsMap(bMap);
@@ -92,23 +94,22 @@ export default function Home() {
     };
 
     fetchEverythingOnce();
-  }, []); // Empty dependency array means it only happens ONCE!
+  }, []); // Only runs ONCE on page load
 
-  // 🚀 INSTANT TAB SWITCHING LOGIC
-  // This runs instantly in the browser memory without talking to the database!
+  // 🚀 INSTANT TAB FILTERING (Runs in memory, NO database delay)
   useEffect(() => {
       if (allStoreProducts.length === 0) return;
 
       let filteredProducts = [];
       
-      // Filter from memory
+      // 🚀 CORRECTED LOGIC: 
+      // Eid tab = ONLY Eid watches. Men/Women tab = ALL watches in that category (including Eid ones!)
       if (activeMasterCategory === "eid") {
           filteredProducts = allStoreProducts.filter(p => p.is_eid_exclusive === true);
       } else {
-          filteredProducts = allStoreProducts.filter(p => p.category === activeMasterCategory && p.is_eid_exclusive !== true);
+          filteredProducts = allStoreProducts.filter(p => p.category === activeMasterCategory); 
       }
 
-      // Grouping Logic
       if (activeMasterCategory === "eid") {
           const sortedEid = [...filteredProducts].sort((a, b) => {
               if (a.is_pinned && !b.is_pinned) return -1;
