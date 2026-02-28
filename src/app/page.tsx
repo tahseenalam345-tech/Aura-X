@@ -9,12 +9,10 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
 
-// 🚀 THE MASTER EID SWITCH
 const IS_EID_LIVE = true; 
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// 🚀 FIX: Warm dark brown shadow applied to normal cards
 const TrainProductCard = ({ product }: { product: any }) => (
     <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5">
         <ProductCard product={product} priority={false} />
@@ -26,7 +24,6 @@ export default function Home() {
   
   const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(IS_EID_LIVE ? "eid" : "men");
   
-  // 🚀 FAST MEMORY CACHE STATES
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>([]);
   const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(new Map());
   
@@ -36,8 +33,21 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   
   const [gridCols, setGridCols] = useState<number>(2);
+  
+  // 🚀 LAZY LOAD REVIEWS: Only show reviews if user scrolls down
+  const [showReviews, setShowReviews] = useState(false);
 
-  // Background Slider
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowReviews(true);
+        window.removeEventListener('scroll', handleScroll);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   useEffect(() => {
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
@@ -54,56 +64,65 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
   };
 
-  // 🚀 THE ULTIMATE SPEED FIX: FETCH EVERYTHING EXACTLY ONCE
+  // 🚀 STAGGERED LOADING ENGINE 
   useEffect(() => {
-    const fetchEverythingOnce = async () => {
+    const fetchStaggered = async () => {
       setIsLoading(true);
 
       try {
-          // 1. Fetch Brand Settings
+          // STEP 1: Fetch ONLY the top priority items to show immediately
+          const { data: initialData } = await supabase
+            .from('products')
+            .select('*')
+            .order('priority', { ascending: false })
+            .limit(16); // Only grab enough to fill the first screen
+
+          if (initialData) {
+              if (IS_EID_LIVE) {
+                  setPinnedProducts(initialData.filter(p => p.is_eid_exclusive));
+              } else {
+                  setPinnedProducts(initialData.filter(p => p.is_pinned));
+              }
+          }
+          // Turn off the loading spinner instantly!
+          setIsLoading(false);
+
+          // STEP 2: Quietly download brand settings and the rest of the store in the background
           const { data: brandSettingsData } = await supabase.from('brand_settings').select('*');
           const bMap = new Map(brandSettingsData?.map(b => [b.brand_name.toUpperCase(), b.sort_order]) || []);
           setBrandSettingsMap(bMap);
 
-          // 2. Fetch ALL Products Once
-          const { data: products } = await supabase.from('products').select('*').order('priority', { ascending: false });
+          const { data: allProducts } = await supabase.from('products').select('*').order('priority', { ascending: false });
           
-          if (products) {
-              setAllStoreProducts(products);
+          if (allProducts) {
+              setAllStoreProducts(allProducts);
 
-              // 3. Extract Reviews Instantly
               let globalReviews: any[] = [];
-              products.forEach(p => {
+              allProducts.forEach(p => {
                   if (p.manual_reviews && p.manual_reviews.length > 0) {
                       const shortName = p.name?.includes('|') ? p.name.split('|')[0].trim() : p.name;
-                      const reviewsWithName = p.manual_reviews.map((r: any) => ({ 
-                          ...r, 
-                          productName: shortName,
-                          productImage: p.main_image
-                      }));
-                      globalReviews.push(...reviewsWithName);
+                      globalReviews.push(...p.manual_reviews.map((r: any) => ({ 
+                          ...r, productName: shortName, productImage: p.main_image
+                      })));
                   }
               });
               setAllReviews(globalReviews.sort(() => 0.5 - Math.random()));
           }
       } catch (error) {
-          console.error("Failed to load store data", error);
-      } finally {
+          console.error("Data load failed", error);
           setIsLoading(false);
       }
     };
 
-    fetchEverythingOnce();
-  }, []); // Only runs ONCE on page load
+    fetchStaggered();
+  }, []); 
 
-  // 🚀 INSTANT TAB FILTERING (Runs in memory, NO database delay)
+  // In-memory Tab Filtering (Runs instantly)
   useEffect(() => {
       if (allStoreProducts.length === 0) return;
 
       let filteredProducts = [];
       
-      // 🚀 CORRECTED LOGIC: 
-      // Eid tab = ONLY Eid watches. Men/Women tab = ALL watches in that category (including Eid ones!)
       if (activeMasterCategory === "eid") {
           filteredProducts = allStoreProducts.filter(p => p.is_eid_exclusive === true);
       } else {
@@ -270,7 +289,7 @@ export default function Home() {
                     <Flame size={12} className="hidden md:block"/> BREAKING
                   </span>
                   <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
-                  <span>Upto 30% Off + Free Delivery  on all Eid Exclusive Pieces.</span>
+                  <span>30% Off + Free Delivery on all Eid Exclusive Pieces.</span>
                   <span className="text-aura-gold hidden sm:inline">Limited Stock 🌙</span>
                 </div>
               </div>
@@ -451,23 +470,13 @@ export default function Home() {
                               </div>
                           </div>
                       ))}
-
-                      {brandGroups.length === 0 && pinnedProducts.length === 0 && (
-                          <div className="text-center py-20 bg-white/50 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 shadow-sm mx-4">
-                              <p className="font-serif text-2xl text-gray-400 mb-2">
-                                  {activeMasterCategory === 'eid' ? "The Eid Vault is securely sealed." : "The Vault is empty."}
-                              </p>
-                              <p className="text-gray-400 text-sm">
-                                  {activeMasterCategory === 'eid' ? "Releasing highly exclusive pieces shortly." : "We are currently restocking this collection."}
-                              </p>
-                          </div>
-                      )}
                   </div>
               )}
           </div>
 
-          {!isLoading && allReviews.length > 0 && (
-              <div className="w-full py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12">
+          {/* 🚀 ONLY RENDER REVIEWS IF USER SCROLLS DOWN */}
+          {showReviews && allReviews.length > 0 && (
+              <div className="w-full py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12 animate-fade-in-up">
                  <div className="text-center mb-10 px-4">
                      <p className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex justify-center items-center gap-2">
                         <Quote size={14} className="text-aura-gold/50" /> Word on the Street <Quote size={14} className="text-aura-gold/50" />
@@ -495,7 +504,7 @@ export default function Home() {
                                       <div className="flex items-center gap-3">
                                           {review.productImage && (
                                               <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 border border-white/20 flex-shrink-0 relative">
-                                                  <Image src={review.productImage} alt="product" fill className="object-cover" unoptimized={true} />
+                                                  <Image src={review.productImage} alt="product" fill className="object-cover" unoptimized={true} loading="lazy" />
                                               </div>
                                           )}
                                           <div>
