@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
@@ -9,7 +9,6 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
 
-// 🚀 THE MASTER EID SWITCH
 const IS_EID_LIVE = true; 
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
@@ -22,8 +21,11 @@ const TrainProductCard = ({ product }: { product: any }) => (
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  
   const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(IS_EID_LIVE ? "eid" : "men");
+  
+  // 🚀 NEW: State to hold all data in memory so we never double-fetch
+  const [allStoreProducts, setAllStoreProducts] = useState<any[]>([]);
+  const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(new Map());
   
   const [pinnedProducts, setPinnedProducts] = useState<any[]>([]);
   const [brandGroups, setBrandGroups] = useState<{ brand: string; products: any[]; sortOrder: number }[]>([]);
@@ -32,6 +34,7 @@ export default function Home() {
   
   const [gridCols, setGridCols] = useState<number>(2);
 
+  // Background Image Slider
   useEffect(() => {
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
@@ -48,55 +51,66 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
   };
 
+  // 🚀 FIX: SINGLE MASTER FETCH! 
+  // We fetch everything exactly ONCE when the site loads, saving massive load times.
   useEffect(() => {
-    const fetchGlobalReviews = async () => {
-       const { data: allProductsData } = await supabase.from('products').select('manual_reviews, name, main_image');
-       if (allProductsData) {
-           let globalReviews: any[] = [];
-           allProductsData.forEach(p => {
-               if (p.manual_reviews && p.manual_reviews.length > 0) {
-                   const shortName = p.name?.includes('|') ? p.name.split('|')[0].trim() : p.name;
-                   const reviewsWithName = p.manual_reviews.map((r: any) => ({ 
-                       ...r, 
-                       productName: shortName,
-                       productImage: p.main_image
-                   }));
-                   globalReviews.push(...reviewsWithName);
-               }
-           });
-           globalReviews = globalReviews.sort(() => 0.5 - Math.random());
-           setAllReviews(globalReviews);
-       }
-    };
-    fetchGlobalReviews();
-  }, []);
-
-  useEffect(() => {
-    const fetchAndGroupProducts = async () => {
+    const fetchEverythingOnce = async () => {
       setIsLoading(true);
 
-      const { data: brandSettingsData } = await supabase.from('brand_settings').select('*');
-      const brandSettingsMap = new Map(brandSettingsData?.map(b => [b.brand_name.toUpperCase(), b.sort_order]) || []);
+      try {
+          // 1. Fetch Brand Sort Orders
+          const { data: brandSettingsData } = await supabase.from('brand_settings').select('*');
+          const bMap = new Map(brandSettingsData?.map(b => [b.brand_name.toUpperCase(), b.sort_order]) || []);
+          setBrandSettingsMap(bMap);
 
-      let query = supabase.from('products').select('*').order('priority', { ascending: false });
-      
-      // 🚀 FIX: If Eid Tab is active, only show Eid exclusives. 
-      // If ANY OTHER tab is active, show ALL products in that category (including Eid ones!)
-      if (activeMasterCategory === "eid") {
-          query = query.eq('is_eid_exclusive', true);
-      } else {
-          query = query.eq('category', activeMasterCategory);
-      }
+          // 2. Fetch ALL Products Once
+          const { data: products } = await supabase.from('products').select('*').order('priority', { ascending: false });
+          
+          if (products) {
+              setAllStoreProducts(products);
 
-      const { data: products } = await query;
-
-      if (!products) {
+              // 3. Extract Reviews Instantly
+              let globalReviews: any[] = [];
+              products.forEach(p => {
+                  if (p.manual_reviews && p.manual_reviews.length > 0) {
+                      const shortName = p.name?.includes('|') ? p.name.split('|')[0].trim() : p.name;
+                      const reviewsWithName = p.manual_reviews.map((r: any) => ({ 
+                          ...r, 
+                          productName: shortName,
+                          productImage: p.main_image
+                      }));
+                      globalReviews.push(...reviewsWithName);
+                  }
+              });
+              setAllReviews(globalReviews.sort(() => 0.5 - Math.random()));
+          }
+      } catch (error) {
+          console.error("Failed to load store data", error);
+      } finally {
           setIsLoading(false);
-          return;
+      }
+    };
+
+    fetchEverythingOnce();
+  }, []); // Empty dependency array means it only happens ONCE!
+
+  // 🚀 INSTANT TAB SWITCHING LOGIC
+  // This runs instantly in the browser memory without talking to the database!
+  useEffect(() => {
+      if (allStoreProducts.length === 0) return;
+
+      let filteredProducts = [];
+      
+      // Filter from memory
+      if (activeMasterCategory === "eid") {
+          filteredProducts = allStoreProducts.filter(p => p.is_eid_exclusive === true);
+      } else {
+          filteredProducts = allStoreProducts.filter(p => p.category === activeMasterCategory && p.is_eid_exclusive !== true);
       }
 
+      // Grouping Logic
       if (activeMasterCategory === "eid") {
-          const sortedEid = [...products].sort((a, b) => {
+          const sortedEid = [...filteredProducts].sort((a, b) => {
               if (a.is_pinned && !b.is_pinned) return -1;
               if (!a.is_pinned && b.is_pinned) return 1;
               return (b.priority || 0) - (a.priority || 0);
@@ -104,65 +118,59 @@ export default function Home() {
           
           setPinnedProducts(sortedEid.slice(0, 12)); 
           setBrandGroups([]); 
-          setIsLoading(false);
-          return;
-      }
+      } else {
+          const pinned = filteredProducts.filter(p => p.is_pinned === true).slice(0, 8);
+          setPinnedProducts(pinned);
 
-      const pinned = products.filter(p => p.is_pinned === true).slice(0, 8);
-      setPinnedProducts(pinned);
-
-      const unpinned = products.filter(p => p.is_pinned !== true);
-      
-      const grouped = unpinned.reduce((acc, product) => {
-          const rawBrand = (product.brand || "AURA-X").trim();
-          const existingKey = Object.keys(acc).find(k => k.toUpperCase() === rawBrand.toUpperCase());
-          let safeBrandName: string = existingKey ? existingKey : (rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1));
+          const unpinned = filteredProducts.filter(p => p.is_pinned !== true);
           
-          if (safeBrandName.toUpperCase() === "AURA-X") {
-              safeBrandName = "AURA-X";
+          const grouped = unpinned.reduce((acc, product) => {
+              const rawBrand = (product.brand || "AURA-X").trim();
+              const existingKey = Object.keys(acc).find(k => k.toUpperCase() === rawBrand.toUpperCase());
+              let safeBrandName: string = existingKey ? existingKey : (rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1));
+              
+              if (safeBrandName.toUpperCase() === "AURA-X") {
+                  safeBrandName = "AURA-X";
+              }
+
+              if (!acc[safeBrandName]) {
+                  acc[safeBrandName] = [];
+              }
+              acc[safeBrandName].push(product);
+              return acc;
+          }, {} as Record<string, any[]>);
+
+          const consolidatedGroups: Record<string, any[]> = {};
+          const auraXKey = Object.keys(grouped).find(k => k.toUpperCase() === "AURA-X") || "AURA-X";
+          consolidatedGroups["AURA-X"] = grouped[auraXKey] || [];
+
+          for (const brand in grouped) {
+              if (brand.toUpperCase() === "AURA-X") continue;
+              if (grouped[brand].length <= 3) {
+                  consolidatedGroups["AURA-X"] = [...consolidatedGroups["AURA-X"], ...grouped[brand]];
+              } else {
+                  consolidatedGroups[brand] = grouped[brand];
+              }
           }
 
-          if (!acc[safeBrandName]) {
-              acc[safeBrandName] = [];
+          if (consolidatedGroups["AURA-X"].length === 0) {
+              delete consolidatedGroups["AURA-X"];
           }
-          acc[safeBrandName].push(product);
-          return acc;
-      }, {} as Record<string, any[]>);
 
-      const consolidatedGroups: Record<string, any[]> = {};
-      const auraXKey = Object.keys(grouped).find(k => k.toUpperCase() === "AURA-X") || "AURA-X";
-      consolidatedGroups["AURA-X"] = grouped[auraXKey] || [];
+          const groupedArray = Object.entries(consolidatedGroups).map(([brand, prods]: [string, any]) => {
+              const catSpecificKey = `${activeMasterCategory}__${brand}`.toUpperCase();
+              const sortOrder = Number(brandSettingsMap.get(catSpecificKey) ?? brandSettingsMap.get(brand.toUpperCase()) ?? 99);
+              return { brand, products: (prods as any[]).slice(0, 8), sortOrder: sortOrder };
+          });
 
-      for (const brand in grouped) {
-          if (brand.toUpperCase() === "AURA-X") continue;
-          if (grouped[brand].length <= 3) {
-              consolidatedGroups["AURA-X"] = [...consolidatedGroups["AURA-X"], ...grouped[brand]];
-          } else {
-              consolidatedGroups[brand] = grouped[brand];
-          }
+          groupedArray.sort((a, b) => {
+              if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+              return a.brand.localeCompare(b.brand);
+          });
+
+          setBrandGroups(groupedArray);
       }
-
-      if (consolidatedGroups["AURA-X"].length === 0) {
-          delete consolidatedGroups["AURA-X"];
-      }
-
-      const groupedArray = Object.entries(consolidatedGroups).map(([brand, prods]: [string, any]) => {
-          const catSpecificKey = `${activeMasterCategory}__${brand}`.toUpperCase();
-          const sortOrder = Number(brandSettingsMap.get(catSpecificKey) ?? brandSettingsMap.get(brand.toUpperCase()) ?? 99);
-          return { brand, products: (prods as any[]).slice(0, 8), sortOrder: sortOrder };
-      });
-
-      groupedArray.sort((a, b) => {
-          if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-          return a.brand.localeCompare(b.brand);
-      });
-
-      setBrandGroups(groupedArray);
-      setIsLoading(false);
-    };
-
-    fetchAndGroupProducts();
-  }, [activeMasterCategory]);
+  }, [activeMasterCategory, allStoreProducts, brandSettingsMap]);
 
   return (
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
