@@ -12,7 +12,7 @@ export interface CartItem {
   quantity: number;
   isGift: boolean;
   addBox: boolean;
-  isEidExclusive?: boolean; // 🚀 NEW: Tracks if the item gets Free Shipping
+  isEidExclusive?: boolean; // Tracks if the item gets Free Shipping
 }
 
 // 2. Define the Context functions
@@ -24,6 +24,8 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   cartTotal: number;
+  shippingCost: number; // 🚀 EXPORTED: So all pages know the exact shipping cost
+  finalTotal: number;   // 🚀 EXPORTED: Total + Shipping combined
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -82,13 +84,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   
   const cartTotal = cart.reduce((acc, item) => {
-    // 🚀 FIXED: Gift is 300, Box is 200 (Matches your checkout and product page)
+    // Gift is 300, Box is 200 
     const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
     return acc + (item.price + extras) * item.quantity;
   }, 0);
 
+  // 🚀 GLOBAL SHIPPING LOGIC
+  // If cart is empty, shipping is 0.
+  // If ANY item in the cart is NOT an Eid Exclusive item, shipping is 300.
+  // If EVERY item in the cart IS an Eid Exclusive item, shipping is 0 (Free Ramzan Offer).
+  const hasNormalItems = cart.some(item => !item.isEidExclusive);
+  const shippingCost = cart.length === 0 ? 0 : (hasNormalItems ? 300 : 0);
+  
+  const finalTotal = cartTotal + shippingCost;
+
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, cartTotal }}>
+    <CartContext.Provider value={{ 
+        cart, 
+        addToCart, 
+        removeFromCart, 
+        updateQuantity, 
+        clearCart, 
+        totalItems, 
+        cartTotal,
+        shippingCost, // 🚀 Added to context
+        finalTotal    // 🚀 Added to context
+    }}>
       {children}
     </CartContext.Provider>
   );

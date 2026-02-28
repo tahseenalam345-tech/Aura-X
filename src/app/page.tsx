@@ -9,6 +9,9 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
 
+// 🚀 THE MASTER EID SWITCH
+const IS_EID_LIVE = false; 
+
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
 const TrainProductCard = ({ product }: { product: any }) => (
@@ -19,7 +22,9 @@ const TrainProductCard = ({ product }: { product: any }) => (
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">("eid");
+  
+  const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(IS_EID_LIVE ? "eid" : "men");
+  
   const [pinnedProducts, setPinnedProducts] = useState<any[]>([]);
   const [brandGroups, setBrandGroups] = useState<{ brand: string; products: any[]; sortOrder: number }[]>([]);
   const [allReviews, setAllReviews] = useState<any[]>([]); 
@@ -43,7 +48,6 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
   };
 
-  // 🚀 FIX 1: Fetch ALL reviews from the entire store independently of the active tab!
   useEffect(() => {
     const fetchGlobalReviews = async () => {
        const { data: allProductsData } = await supabase.from('products').select('manual_reviews, name, main_image');
@@ -60,7 +64,6 @@ export default function Home() {
                    globalReviews.push(...reviewsWithName);
                }
            });
-           // Shuffle them so they look fresh every time the page loads
            globalReviews = globalReviews.sort(() => 0.5 - Math.random());
            setAllReviews(globalReviews);
        }
@@ -68,7 +71,6 @@ export default function Home() {
     fetchGlobalReviews();
   }, []);
 
-  // Fetch category products
   useEffect(() => {
     const fetchAndGroupProducts = async () => {
       setIsLoading(true);
@@ -78,10 +80,12 @@ export default function Home() {
 
       let query = supabase.from('products').select('*').order('priority', { ascending: false });
       
+      // 🚀 FIX: If Eid Tab is active, only show Eid exclusives. 
+      // If ANY OTHER tab is active, show ALL products in that category (including Eid ones!)
       if (activeMasterCategory === "eid") {
           query = query.eq('is_eid_exclusive', true);
       } else {
-          query = query.eq('category', activeMasterCategory).eq('is_eid_exclusive', false);
+          query = query.eq('category', activeMasterCategory);
       }
 
       const { data: products } = await query;
@@ -163,7 +167,6 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
       
-      {/* 🚀 FIX 2: Restored normal, readable scrolling speed (35s) */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -250,22 +253,24 @@ export default function Home() {
             </div>
           </section>
 
-          <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden w-full">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
-            <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 text-[9px] md:text-sm font-bold tracking-widest uppercase text-white leading-tight">
-              <span className="bg-red-600 text-white px-2 py-0.5 rounded-[3px] shadow-[0_0_12px_rgba(220,38,38,0.8)] flex items-center gap-1 animate-pulse">
-                <Flame size={12} className="hidden md:block"/> BREAKING
-              </span>
-              <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
-              <span>Free Delivery on all Eid Exclusive Pieces.</span>
-              <span className="text-aura-gold hidden sm:inline">Limited Stock 🌙</span>
-            </div>
-          </div>
+          {IS_EID_LIVE && (
+              <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden w-full">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
+                <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 text-[9px] md:text-sm font-bold tracking-widest uppercase text-white leading-tight">
+                  <span className="bg-red-600 text-white px-2 py-0.5 rounded-[3px] shadow-[0_0_12px_rgba(220,38,38,0.8)] flex items-center gap-1 animate-pulse">
+                    <Flame size={12} className="hidden md:block"/> BREAKING
+                  </span>
+                  <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
+                  <span>Free Delivery on all Eid Exclusive Pieces.</span>
+                  <span className="text-aura-gold hidden sm:inline">Limited Stock 🌙</span>
+                </div>
+              </div>
+          )}
 
           <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-3 md:py-5 shadow-sm border-b border-aura-gold/10 w-full overflow-x-auto scrollbar-hide">
               <div className="max-w-7xl mx-auto px-4 flex justify-start md:justify-center gap-2 md:gap-6 min-w-max">
                   {[
-                      { id: "eid", label: "Eid Edit 🌙", special: true },
+                      ...(IS_EID_LIVE ? [{ id: "eid", label: "Eid Edit 🌙", special: true }] : []),
                       { id: "men", label: "Gents Collection" },
                       { id: "women", label: "Ladies Precision" },
                       { id: "couple", label: "Timeless Bonds" }

@@ -3,7 +3,7 @@
 import React, { useState } from "react"; 
 import Image from "next/image";
 import Link from "next/link";
-import { Star, ShoppingBag } from "lucide-react";
+import { Star, ShoppingBag, Moon } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import toast from "react-hot-toast";
 
@@ -76,7 +76,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
   return (
     <div className="group block relative h-full">
-      {/* 🚀 FIX: Swapped light gold shadow for a deep dark brown shadow so it pops off the background! */}
       <div className="relative h-full bg-gradient-to-br from-[#FDFBF7] via-[#F1E8D1] to-[#E3CBA1] rounded-2xl transition-all duration-300 flex flex-col overflow-hidden border border-aura-gold/40 shadow-[0_10px_30px_rgba(74,59,50,0.15)] hover:shadow-[0_20px_50px_rgba(74,59,50,0.35)] hover:-translate-y-1">
         
         <div className="absolute top-3 left-3 z-30 flex flex-col gap-1.5 pointer-events-none">
@@ -85,6 +84,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                     Out of Stock
                 </span>
             )}
+            {/* 🚀 Removed the Eid tag from here to keep the image clean */}
             {product.tags && product.tags.length > 0 && !isOutOfStock && (
                  product.tags.slice(0, 1).map(tag => (
                     <span key={tag} className="bg-[#1E1B18]/95 backdrop-blur-sm text-aura-gold border border-aura-gold/30 text-[9px] font-bold px-2.5 py-1 rounded shadow-md uppercase tracking-wider block">
@@ -125,6 +125,15 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                       </div>
                   )}
                 </div>
+
+                {/* 🚀 NEW EID TAG LOCATION: Right above the title */}
+                {product.is_eid_exclusive && (
+                    <div className="mb-1.5 flex items-center">
+                        <span className="bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-white text-[8px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest flex items-center gap-1">
+                            <Moon size={8} /> Eid Edit
+                        </span>
+                    </div>
+                )}
 
                 <Link href={`/product/${product.id}`}>
                   <h3 className="text-[#1E1B18] font-serif font-bold text-sm md:text-base leading-snug line-clamp-2 group-hover:text-[#C5A67C] transition-colors" title={product.name}>

@@ -11,30 +11,14 @@ import toast from "react-hot-toast";
 import emailjs from '@emailjs/browser';
 
 export default function CheckoutPage() {
-  const { cart, clearCart } = useCart();
+  // 🚀 Now reading the global shipping calculations from context!
+  const { cart, clearCart, cartTotal, shippingCost, finalTotal } = useCart();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "", lastName: "", email: "", phone: "",
     address: "", city: "", postalCode: ""
   });
-
-  // --- 1. TOTAL CALCULATIONS ---
-  const GIFT_PRICE = 300;
-  const BOX_PRICE = 200;
-
-  const cartTotal = cart.reduce((total, item) => {
-    const extras = (item.isGift ? GIFT_PRICE : 0) + (item.addBox ? BOX_PRICE : 0);
-    return total + ((item.price + extras) * item.quantity);
-  }, 0);
-
-  // 🚀 RAMZAN OFFER & NEW SHIPPING LOGIC 🚀
-  // Base shipping is 300. If every item in the cart is an Eid Exclusive item, shipping is 0!
-  const hasNormalItems = cart.some(item => !item.isEidExclusive);
-  const STANDARD_SHIPPING_COST = 300;
-  const shippingCost = hasNormalItems ? STANDARD_SHIPPING_COST : 0;
-  
-  const finalTotal = cartTotal + shippingCost;
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +27,7 @@ export default function CheckoutPage() {
     try {
         const fullName = `${formData.firstName} ${formData.lastName}`.trim();
 
-        // 2. Prepare Order Items
+        // Prepare Order Items
         const orderItems = cart.map(item => ({
             id: item.id,
             name: item.name,
@@ -55,7 +39,7 @@ export default function CheckoutPage() {
             addBox: item.addBox
         }));
 
-        // 3. Call API to Save Order
+        // Call API to Save Order
         const response = await fetch('/api/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -67,7 +51,7 @@ export default function CheckoutPage() {
                     address: `${formData.address}, ${formData.postalCode}`,
                 },
                 items: orderItems,
-                total: finalTotal, // Correctly includes shipping logic
+                total: finalTotal, // Uses the global context total
                 city: formData.city
             })
         });
@@ -77,7 +61,7 @@ export default function CheckoutPage() {
 
         const orderCode = result.orderId;
 
-        // --- 4. SEND EMAILS ---
+        // SEND EMAILS
         const customerEmailParams = {
             email_subject: `Order Confirmation #${orderCode}`,
             to_email: formData.email,
@@ -150,7 +134,6 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24">
           <div className="lg:col-span-7">
              <form id="checkout-form" onSubmit={handlePlaceOrder} className="space-y-8">
-                {/* Contact Info */}
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-8 h-8 bg-aura-gold/10 text-aura-gold rounded-full flex items-center justify-center text-sm">1</span> Contact Information</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -160,7 +143,6 @@ export default function CheckoutPage() {
                       <div className="space-y-2 md:col-span-2"><label className="text-xs font-bold text-gray-400 uppercase" htmlFor="phone">Phone Number</label><div className="relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input required id="phone" name="phone" onChange={handleInputChange} type="tel" placeholder="e.g. 0300 1234567" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold" /></div></div>
                    </div>
                 </div>
-                {/* Shipping Info */}
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-8 h-8 bg-aura-gold/10 text-aura-gold rounded-full flex items-center justify-center text-sm">2</span> Shipping Details</h2>
                    <div className="space-y-4">
@@ -171,7 +153,6 @@ export default function CheckoutPage() {
                       </div>
                    </div>
                 </div>
-                {/* Payment */}
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-8 h-8 bg-aura-gold/10 text-aura-gold rounded-full flex items-center justify-center text-sm">3</span> Payment Method</h2>
                    <div className="space-y-3">
@@ -183,7 +164,6 @@ export default function CheckoutPage() {
                 </div>
              </form>
           </div>
-          {/* Summary */}
           <div className="lg:col-span-5">
              <div className="sticky top-32">
                 <div className="bg-white p-6 md:p-8 rounded-2xl border border-aura-gold/20 shadow-xl">
@@ -207,7 +187,6 @@ export default function CheckoutPage() {
                    <div className="space-y-3 text-sm text-gray-600 mb-6 pt-4 border-t border-gray-100">
                       <div className="flex justify-between"><span>Subtotal</span><span className="font-bold">Rs {cartTotal.toLocaleString()}</span></div>
                       
-                      {/* 🚀 UPGRADED SHIPPING DISPLAY (Eid Exclusive Logic) */}
                       <div className="flex justify-between items-center">
                           <span>Shipping</span>
                           {shippingCost === 0 ? (
@@ -215,7 +194,7 @@ export default function CheckoutPage() {
                                   <Flame size={12}/> Ramzan Offer: FREE
                               </span>
                           ) : (
-                              <span className="font-bold text-aura-brown">Rs {STANDARD_SHIPPING_COST}</span>
+                              <span className="font-bold text-aura-brown">Rs {shippingCost}</span>
                           )}
                       </div>
                    </div>
