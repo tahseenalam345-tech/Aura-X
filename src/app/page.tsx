@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
 
 // 🚀 THE MASTER EID SWITCH
-const IS_EID_LIVE = false; 
+const IS_EID_LIVE = true; 
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
@@ -261,7 +261,7 @@ export default function Home() {
                     <Flame size={12} className="hidden md:block"/> BREAKING
                   </span>
                   <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
-                  <span>Free Delivery on all Eid Exclusive Pieces.</span>
+                  <span>Upto 30% Off + Free Delivery  on all Eid Exclusive Pieces.</span>
                   <span className="text-aura-gold hidden sm:inline">Limited Stock 🌙</span>
                 </div>
               </div>
