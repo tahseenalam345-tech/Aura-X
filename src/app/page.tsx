@@ -23,15 +23,16 @@ export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(IS_EID_LIVE ? "eid" : "men");
   
-  // Master Store Data
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>([]);
   const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(new Map());
   const [allReviews, setAllReviews] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [gridCols, setGridCols] = useState<number>(2);
+
+  // 🚀 LAZY RENDER STATES (This is the speed fix)
+  const [renderBrands, setRenderBrands] = useState(false);
   const [showReviews, setShowReviews] = useState(false);
 
-  // Background Slider
   useEffect(() => {
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
@@ -48,20 +49,26 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
   };
 
-  // Scroll Listener for Lazy Reviews
+  // 🚀 SCROLL LISTENER: Only load the heavy bottom sections if the user scrolls down!
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 300) {
-        setShowReviews(true);
-        window.removeEventListener('scroll', handleScroll);
-      }
+      if (window.scrollY > 50) setRenderBrands(true); // Loads brands after slight scroll
+      if (window.scrollY > 300) setShowReviews(true); // Loads reviews further down
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Safety net: In case they have a huge desktop monitor and don't need to scroll
+    const t1 = setTimeout(() => setRenderBrands(true), 1500);
+    const t2 = setTimeout(() => setShowReviews(true), 2500);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
-  // 🚀 SPEED FIX 1: PARALLEL FETCHING
-  // This fetches Brands and Products at the EXACT same time, cutting loading time in half.
+  // Fetching Logic (Single fast fetch)
   useEffect(() => {
     const loadEntireStore = async () => {
       setIsLoading(true);
@@ -78,8 +85,6 @@ export default function Home() {
           if (productsResponse.data) {
               setAllStoreProducts(productsResponse.data);
 
-              // 🚀 SPEED FIX 2: PREVENT CPU FREEZE
-              // Extract reviews, but strictly limit to 15 random ones so the mobile processor doesn't crash trying to render 100+ cards.
               let extractedReviews: any[] = [];
               productsResponse.data.forEach(p => {
                   if (p.manual_reviews && p.manual_reviews.length > 0) {
@@ -94,15 +99,14 @@ export default function Home() {
       } catch (error) {
           console.error("Store loading error:", error);
       } finally {
-          setIsLoading(false); // Spinner instantly drops the moment data arrives
+          setIsLoading(false); 
       }
     };
 
     loadEntireStore();
   }, []);
 
-  // 🚀 SPEED FIX 3: INSTANT MEMORY FILTERING (useMemo)
-  // Instead of causing a "double-render" delay with useEffect, useMemo mathematically calculates the grid the exact millisecond the tab is clicked or data arrives.
+  // In-Memory Math Calculation
   const { currentPinnedProducts, currentBrandGroups } = useMemo(() => {
       if (allStoreProducts.length === 0) return { currentPinnedProducts: [], currentBrandGroups: [] };
 
@@ -119,7 +123,6 @@ export default function Home() {
           return { currentPinnedProducts: sortedEid.slice(0, 12), currentBrandGroups: [] };
       }
 
-      // Normal Categories Processing
       const pinned = filtered.filter(p => p.is_pinned === true).slice(0, 8);
       const unpinned = filtered.filter(p => p.is_pinned !== true);
       
@@ -321,6 +324,7 @@ export default function Home() {
               ) : (
                   <div className="flex flex-col gap-6 md:gap-12 w-full">
                       
+                      {/* THIS FIRST ROW RENDERS INSTANTLY SO THE USER IS NOT WAITING */}
                       {activeMasterCategory === 'eid' && currentPinnedProducts.length > 0 && (
                           <div className="w-full bg-[#1E1B18] rounded-[2rem] p-4 md:p-8 shadow-[0_20px_50px_rgba(30,27,24,0.4)] border border-[#C8A97E]/20 mt-4 relative overflow-hidden mx-4 md:mx-auto max-w-[calc(100%-2rem)] md:max-w-full">
                               
@@ -363,6 +367,7 @@ export default function Home() {
                           </div>
                       )}
 
+                      {/* THIS FIRST ROW RENDERS INSTANTLY SO THE USER IS NOT WAITING */}
                       {activeMasterCategory !== 'eid' && currentPinnedProducts.length > 0 && (
                           <div className="w-full">
                               <div className="flex justify-between items-end mb-3 md:mb-6 px-4 md:px-8">
@@ -384,8 +389,9 @@ export default function Home() {
                           </div>
                       )}
 
-                      {activeMasterCategory !== 'eid' && currentBrandGroups.map((group) => (
-                          <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] py-6 md:py-8 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full md:mx-8 md:w-auto">
+                      {/* 🚀 THE BIG SPEED FIX: BRAND ROWS ONLY LOAD ONCE YOU SCROLL */}
+                      {renderBrands && activeMasterCategory !== 'eid' && currentBrandGroups.map((group) => (
+                          <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] py-6 md:py-8 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full md:mx-8 md:w-auto animate-fade-in-up">
                               
                               <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] pointer-events-none z-0">
                                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] whitespace-nowrap animate-pulse tracking-[0.1em]">
@@ -443,6 +449,7 @@ export default function Home() {
               )}
           </div>
 
+          {/* 🚀 REVIEWS ONLY LOAD ONCE YOU SCROLL TO THE BOTTOM */}
           {showReviews && allReviews.length > 0 && (
               <div className="w-full py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12 animate-fade-in-up">
                  <div className="text-center mb-10 px-4">

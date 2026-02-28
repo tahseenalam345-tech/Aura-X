@@ -5,35 +5,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
-import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Truck, Loader2 } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Loader2, Flame, Moon } from "lucide-react";
 
 export default function CartPage() {
-  const { cart, updateQuantity, removeFromCart } = useCart();
+  // 🚀 FIX: Reading the smart variables (shippingCost, finalTotal) straight from Context
+  const { cart, updateQuantity, removeFromCart, cartTotal, shippingCost, finalTotal } = useCart();
   const [isMounted, setIsMounted] = useState(false);
-
-  // Constants
-  const FREE_SHIPPING_THRESHOLD = 5000;
-  const STANDARD_SHIPPING_COST = 250;
-  
-  // --- UPDATED PRICING LOGIC ---
-  const GIFT_PRICE = 300;
-  const BOX_PRICE = 200;
-
-  // Recalculate total manually to ensure new prices (200 & 300) are used
-  const cartTotal = cart.reduce((total, item) => {
-    const extras = (item.isGift ? GIFT_PRICE : 0) + (item.addBox ? BOX_PRICE : 0);
-    return total + ((item.price + extras) * item.quantity);
-  }, 0);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  // Derived Values
-  const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
-  const shippingCost = isFreeShipping ? 0 : STANDARD_SHIPPING_COST;
-  const finalTotal = cartTotal + shippingCost;
-  const amountNeededForFreeShip = FREE_SHIPPING_THRESHOLD - cartTotal;
 
   if (!isMounted) {
     return (
@@ -76,25 +57,27 @@ export default function CartPage() {
             
             <div className="lg:col-span-2 space-y-6">
               
-              {!isFreeShipping && (
-                  <div className="bg-white p-4 rounded-xl border border-aura-gold/20 flex items-center gap-4 shadow-sm">
-                     <div className="p-2 bg-aura-gold/10 rounded-full text-aura-gold"><Truck size={20}/></div>
-                     <div className="flex-1">
-                         <p className="text-sm font-bold text-aura-brown">
-                             Add <span className="text-aura-gold">Rs {amountNeededForFreeShip.toLocaleString()}</span> more for Free Shipping!
-                         </p>
-                         <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-                            <div 
-                              className="h-full bg-aura-gold transition-all duration-500" 
-                              style={{ width: `${Math.min((cartTotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
-                            ></div>
-                         </div>
-                     </div>
+              {/* 🚀 NEW: DYNAMIC EID SHIPPING BANNER */}
+              <div className={`border rounded-2xl p-4 md:p-5 mb-4 shadow-sm flex items-center gap-4 transition-colors ${shippingCost === 0 ? 'bg-[#FAF8F1] border-aura-gold' : 'bg-white border-gray-200'}`}>
+                  <div className={`p-3 rounded-full flex-shrink-0 ${shippingCost === 0 ? 'bg-aura-gold text-white shadow-md animate-pulse' : 'bg-gray-100 text-gray-400'}`}>
+                    {shippingCost === 0 ? <Moon size={24} /> : <Flame size={24} />}
                   </div>
-              )}
+                  <div>
+                    {shippingCost === 0 ? (
+                      <>
+                        <p className="font-bold text-aura-brown md:text-lg">✨ Ramzan Offer Activated!</p>
+                        <p className="text-xs md:text-sm text-gray-500">Your entire order qualifies for Free Premium Delivery.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-bold text-aura-brown md:text-lg">Unlock Free Delivery</p>
+                        <p className="text-xs md:text-sm text-gray-500">Add any <span className="text-aura-gold font-bold">Eid Exclusive</span> item to your bag to instantly remove shipping fees.</p>
+                      </>
+                    )}
+                  </div>
+              </div>
 
               {cart.map((item) => {
-                // Ensure prices are 300 and 200 here as well
                 const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
                 const itemTotalPrice = (item.price + extras) * item.quantity;
 
@@ -108,7 +91,7 @@ export default function CartPage() {
                         sizes="150px"
                         className="object-contain p-2 mix-blend-multiply" 
                         priority={false}
-                        unoptimized={true} // <--- OPTIMIZATION DISABLED TO SAVE VERCEL USAGE
+                        unoptimized={true} 
                       />
                     </div>
 
@@ -128,6 +111,8 @@ export default function CartPage() {
                         <div className="flex gap-2 mt-2 flex-wrap">
                            {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-bold border border-purple-100">Gift Wrap (+Rs 300)</span>}
                            {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold border border-orange-100">Premium Box (+Rs 200)</span>}
+                           {/* 🚀 EID PILL FOR THE CART ITEM */}
+                           {item.isEidExclusive && <span className="text-[10px] bg-aura-gold/10 text-aura-gold px-2 py-1 rounded font-bold border border-aura-gold/20 flex items-center gap-1"><Moon size={10}/> Eid Exclusive</span>}
                         </div>
                       </div>
 
@@ -157,18 +142,20 @@ export default function CartPage() {
                 <div className="space-y-3 text-sm text-gray-600 mb-6">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span className="font-bold">Rs {cartTotal.toLocaleString()}</span>
+                    <span className="font-bold text-aura-brown">Rs {cartTotal.toLocaleString()}</span>
                   </div>
                   
+                  {/* 🚀 ACCURATE CONTEXT SHIPPING DISPLAY */}
                   <div className="flex justify-between items-center">
                     <span>Shipping</span>
-                    {isFreeShipping ? (
-                        <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs">Free</span>
+                    {shippingCost === 0 ? (
+                        <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded text-[10px] uppercase tracking-widest flex items-center gap-1 shadow-sm animate-pulse">
+                            <Flame size={12}/> Ramzan Offer: FREE
+                        </span>
                     ) : (
-                        <span className="font-bold text-aura-brown">Rs {STANDARD_SHIPPING_COST}</span>
+                        <span className="font-bold text-aura-brown">Rs {shippingCost}</span>
                     )}
                   </div>
-                  {!isFreeShipping && <p className="text-[10px] text-gray-400 text-right">Free shipping over Rs 5,000</p>}
                 </div>
 
                 <div className="flex justify-between items-end border-t border-dashed border-gray-200 pt-6 mb-8">
