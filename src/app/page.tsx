@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
@@ -21,33 +21,17 @@ const TrainProductCard = ({ product }: { product: any }) => (
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  
   const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(IS_EID_LIVE ? "eid" : "men");
   
+  // Master Store Data
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>([]);
   const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(new Map());
-  
-  const [pinnedProducts, setPinnedProducts] = useState<any[]>([]);
-  const [brandGroups, setBrandGroups] = useState<{ brand: string; products: any[]; sortOrder: number }[]>([]);
   const [allReviews, setAllReviews] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
-  
   const [gridCols, setGridCols] = useState<number>(2);
-  
-  // 🚀 LAZY LOAD REVIEWS: Only show reviews if user scrolls down
   const [showReviews, setShowReviews] = useState(false);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 300) {
-        setShowReviews(true);
-        window.removeEventListener('scroll', handleScroll);
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
+  // Background Slider
   useEffect(() => {
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
@@ -64,133 +48,121 @@ export default function Home() {
     return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
   };
 
-  // 🚀 STAGGERED LOADING ENGINE 
+  // Scroll Listener for Lazy Reviews
   useEffect(() => {
-    const fetchStaggered = async () => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowReviews(true);
+        window.removeEventListener('scroll', handleScroll);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 🚀 SPEED FIX 1: PARALLEL FETCHING
+  // This fetches Brands and Products at the EXACT same time, cutting loading time in half.
+  useEffect(() => {
+    const loadEntireStore = async () => {
       setIsLoading(true);
-
       try {
-          // STEP 1: Fetch ONLY the top priority items to show immediately
-          const { data: initialData } = await supabase
-            .from('products')
-            .select('*')
-            .order('priority', { ascending: false })
-            .limit(16); // Only grab enough to fill the first screen
+          const [brandsResponse, productsResponse] = await Promise.all([
+              supabase.from('brand_settings').select('*'),
+              supabase.from('products').select('*').order('priority', { ascending: false })
+          ]);
 
-          if (initialData) {
-              if (IS_EID_LIVE) {
-                  setPinnedProducts(initialData.filter(p => p.is_eid_exclusive));
-              } else {
-                  setPinnedProducts(initialData.filter(p => p.is_pinned));
-              }
+          if (brandsResponse.data) {
+              setBrandSettingsMap(new Map(brandsResponse.data.map(b => [b.brand_name.toUpperCase(), b.sort_order])));
           }
-          // Turn off the loading spinner instantly!
-          setIsLoading(false);
 
-          // STEP 2: Quietly download brand settings and the rest of the store in the background
-          const { data: brandSettingsData } = await supabase.from('brand_settings').select('*');
-          const bMap = new Map(brandSettingsData?.map(b => [b.brand_name.toUpperCase(), b.sort_order]) || []);
-          setBrandSettingsMap(bMap);
+          if (productsResponse.data) {
+              setAllStoreProducts(productsResponse.data);
 
-          const { data: allProducts } = await supabase.from('products').select('*').order('priority', { ascending: false });
-          
-          if (allProducts) {
-              setAllStoreProducts(allProducts);
-
-              let globalReviews: any[] = [];
-              allProducts.forEach(p => {
+              // 🚀 SPEED FIX 2: PREVENT CPU FREEZE
+              // Extract reviews, but strictly limit to 15 random ones so the mobile processor doesn't crash trying to render 100+ cards.
+              let extractedReviews: any[] = [];
+              productsResponse.data.forEach(p => {
                   if (p.manual_reviews && p.manual_reviews.length > 0) {
                       const shortName = p.name?.includes('|') ? p.name.split('|')[0].trim() : p.name;
-                      globalReviews.push(...p.manual_reviews.map((r: any) => ({ 
-                          ...r, productName: shortName, productImage: p.main_image
+                      extractedReviews.push(...p.manual_reviews.map((r: any) => ({ 
+                          ...r, productName: shortName, productImage: p.main_image 
                       })));
                   }
               });
-              setAllReviews(globalReviews.sort(() => 0.5 - Math.random()));
+              setAllReviews(extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15));
           }
       } catch (error) {
-          console.error("Data load failed", error);
-          setIsLoading(false);
+          console.error("Store loading error:", error);
+      } finally {
+          setIsLoading(false); // Spinner instantly drops the moment data arrives
       }
     };
 
-    fetchStaggered();
-  }, []); 
+    loadEntireStore();
+  }, []);
 
-  // In-memory Tab Filtering (Runs instantly)
-  useEffect(() => {
-      if (allStoreProducts.length === 0) return;
+  // 🚀 SPEED FIX 3: INSTANT MEMORY FILTERING (useMemo)
+  // Instead of causing a "double-render" delay with useEffect, useMemo mathematically calculates the grid the exact millisecond the tab is clicked or data arrives.
+  const { currentPinnedProducts, currentBrandGroups } = useMemo(() => {
+      if (allStoreProducts.length === 0) return { currentPinnedProducts: [], currentBrandGroups: [] };
 
-      let filteredProducts = [];
-      
-      if (activeMasterCategory === "eid") {
-          filteredProducts = allStoreProducts.filter(p => p.is_eid_exclusive === true);
-      } else {
-          filteredProducts = allStoreProducts.filter(p => p.category === activeMasterCategory); 
-      }
+      let filtered = activeMasterCategory === "eid" 
+          ? allStoreProducts.filter(p => p.is_eid_exclusive === true)
+          : allStoreProducts.filter(p => p.category === activeMasterCategory); 
 
       if (activeMasterCategory === "eid") {
-          const sortedEid = [...filteredProducts].sort((a, b) => {
+          const sortedEid = [...filtered].sort((a, b) => {
               if (a.is_pinned && !b.is_pinned) return -1;
               if (!a.is_pinned && b.is_pinned) return 1;
               return (b.priority || 0) - (a.priority || 0);
           });
-          
-          setPinnedProducts(sortedEid.slice(0, 12)); 
-          setBrandGroups([]); 
-      } else {
-          const pinned = filteredProducts.filter(p => p.is_pinned === true).slice(0, 8);
-          setPinnedProducts(pinned);
-
-          const unpinned = filteredProducts.filter(p => p.is_pinned !== true);
-          
-          const grouped = unpinned.reduce((acc, product) => {
-              const rawBrand = (product.brand || "AURA-X").trim();
-              const existingKey = Object.keys(acc).find(k => k.toUpperCase() === rawBrand.toUpperCase());
-              let safeBrandName: string = existingKey ? existingKey : (rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1));
-              
-              if (safeBrandName.toUpperCase() === "AURA-X") {
-                  safeBrandName = "AURA-X";
-              }
-
-              if (!acc[safeBrandName]) {
-                  acc[safeBrandName] = [];
-              }
-              acc[safeBrandName].push(product);
-              return acc;
-          }, {} as Record<string, any[]>);
-
-          const consolidatedGroups: Record<string, any[]> = {};
-          const auraXKey = Object.keys(grouped).find(k => k.toUpperCase() === "AURA-X") || "AURA-X";
-          consolidatedGroups["AURA-X"] = grouped[auraXKey] || [];
-
-          for (const brand in grouped) {
-              if (brand.toUpperCase() === "AURA-X") continue;
-              if (grouped[brand].length <= 3) {
-                  consolidatedGroups["AURA-X"] = [...consolidatedGroups["AURA-X"], ...grouped[brand]];
-              } else {
-                  consolidatedGroups[brand] = grouped[brand];
-              }
-          }
-
-          if (consolidatedGroups["AURA-X"].length === 0) {
-              delete consolidatedGroups["AURA-X"];
-          }
-
-          const groupedArray = Object.entries(consolidatedGroups).map(([brand, prods]: [string, any]) => {
-              const catSpecificKey = `${activeMasterCategory}__${brand}`.toUpperCase();
-              const sortOrder = Number(brandSettingsMap.get(catSpecificKey) ?? brandSettingsMap.get(brand.toUpperCase()) ?? 99);
-              return { brand, products: (prods as any[]).slice(0, 8), sortOrder: sortOrder };
-          });
-
-          groupedArray.sort((a, b) => {
-              if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-              return a.brand.localeCompare(b.brand);
-          });
-
-          setBrandGroups(groupedArray);
+          return { currentPinnedProducts: sortedEid.slice(0, 12), currentBrandGroups: [] };
       }
+
+      // Normal Categories Processing
+      const pinned = filtered.filter(p => p.is_pinned === true).slice(0, 8);
+      const unpinned = filtered.filter(p => p.is_pinned !== true);
+      
+      const grouped = unpinned.reduce((acc, product) => {
+          const rawBrand = (product.brand || "AURA-X").trim();
+          const existingKey = Object.keys(acc).find(k => k.toUpperCase() === rawBrand.toUpperCase());
+          let safeBrandName = existingKey ? existingKey : (rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1));
+          if (safeBrandName.toUpperCase() === "AURA-X") safeBrandName = "AURA-X";
+          
+          if (!acc[safeBrandName]) acc[safeBrandName] = [];
+          acc[safeBrandName].push(product);
+          return acc;
+      }, {} as Record<string, any[]>);
+
+      const consolidatedGroups: Record<string, any[]> = {};
+      const auraXKey = Object.keys(grouped).find(k => k.toUpperCase() === "AURA-X") || "AURA-X";
+      consolidatedGroups["AURA-X"] = grouped[auraXKey] || [];
+
+      for (const brand in grouped) {
+          if (brand.toUpperCase() === "AURA-X") continue;
+          if (grouped[brand].length <= 3) {
+              consolidatedGroups["AURA-X"] = [...consolidatedGroups["AURA-X"], ...grouped[brand]];
+          } else {
+              consolidatedGroups[brand] = grouped[brand];
+          }
+      }
+
+      if (consolidatedGroups["AURA-X"].length === 0) delete consolidatedGroups["AURA-X"];
+
+      const groupedArray = Object.entries(consolidatedGroups).map(([brand, prods]: [string, any]) => {
+          const catKey = `${activeMasterCategory}__${brand}`.toUpperCase();
+          const sortOrder = Number(brandSettingsMap.get(catKey) ?? brandSettingsMap.get(brand.toUpperCase()) ?? 99);
+          return { brand, products: (prods as any[]).slice(0, 8), sortOrder };
+      });
+
+      groupedArray.sort((a, b) => {
+          if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+          return a.brand.localeCompare(b.brand);
+      });
+
+      return { currentPinnedProducts: pinned, currentBrandGroups: groupedArray };
   }, [activeMasterCategory, allStoreProducts, brandSettingsMap]);
+
 
   return (
     <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
@@ -205,9 +177,7 @@ export default function Home() {
           width: max-content;
           animation: scroll 35s linear infinite; 
         }
-        .animate-scroll:hover {
-          animation-play-state: paused;
-        }
+        .animate-scroll:hover { animation-play-state: paused; }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(30px); }
           to { opacity: 1; transform: translateY(0); }
@@ -351,7 +321,7 @@ export default function Home() {
               ) : (
                   <div className="flex flex-col gap-6 md:gap-12 w-full">
                       
-                      {activeMasterCategory === 'eid' && pinnedProducts.length > 0 && (
+                      {activeMasterCategory === 'eid' && currentPinnedProducts.length > 0 && (
                           <div className="w-full bg-[#1E1B18] rounded-[2rem] p-4 md:p-8 shadow-[0_20px_50px_rgba(30,27,24,0.4)] border border-[#C8A97E]/20 mt-4 relative overflow-hidden mx-4 md:mx-auto max-w-[calc(100%-2rem)] md:max-w-full">
                               
                               <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/5 blur-[100px] rounded-full pointer-events-none"></div>
@@ -378,7 +348,7 @@ export default function Home() {
                               </div>
 
                               <div className={`grid gap-3 md:gap-6 relative z-10 ${gridCols === 1 ? 'grid-cols-1 max-w-sm mx-auto' : gridCols === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                                  {pinnedProducts.map(product => (
+                                  {currentPinnedProducts.map(product => (
                                       <div key={product.id} className="bg-white/5 rounded-2xl p-1 border border-white/10 shadow-lg">
                                           <ProductCard product={product} />
                                       </div>
@@ -393,7 +363,7 @@ export default function Home() {
                           </div>
                       )}
 
-                      {activeMasterCategory !== 'eid' && pinnedProducts.length > 0 && (
+                      {activeMasterCategory !== 'eid' && currentPinnedProducts.length > 0 && (
                           <div className="w-full">
                               <div className="flex justify-between items-end mb-3 md:mb-6 px-4 md:px-8">
                                   <div>
@@ -406,21 +376,15 @@ export default function Home() {
                               
                               <div className="relative w-full">
                                   <div className="flex overflow-x-auto gap-6 md:gap-8 pb-10 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                      {pinnedProducts.map(product => (
+                                      {currentPinnedProducts.map(product => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
-                                  </div>
-                                  
-                                  <div className="md:hidden absolute right-0 top-[40%] -translate-y-1/2 z-20 pointer-events-none bg-gradient-to-l from-[#D5C6AA] via-[#D5C6AA]/80 to-transparent w-16 h-24 flex items-center justify-end pr-1">
-                                      <div className="bg-aura-gold text-white rounded-full p-1 shadow-lg animate-[pulse_2s_ease-in-out_infinite]">
-                                          <ChevronRight size={20} />
-                                      </div>
                                   </div>
                               </div>
                           </div>
                       )}
 
-                      {activeMasterCategory !== 'eid' && brandGroups.map((group, index) => (
+                      {activeMasterCategory !== 'eid' && currentBrandGroups.map((group) => (
                           <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] py-6 md:py-8 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full md:mx-8 md:w-auto">
                               
                               <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] pointer-events-none z-0">
@@ -453,7 +417,7 @@ export default function Home() {
                                       
                                       <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full flex items-center justify-center pb-2">
                                           <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
-                                              <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
+                                              <div className="w-10 h-10 md:w-12 h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
                                                   <ArrowRight size={18} className="md:w-5 md:h-5" />
                                               </div>
                                               <p className="font-serif font-bold text-base md:text-xl mb-1 text-white drop-shadow-md">Discover</p>
@@ -461,20 +425,24 @@ export default function Home() {
                                           </Link>
                                       </div>
                                   </div>
-
-                                  <div className="md:hidden absolute right-0 top-[40%] -translate-y-1/2 z-20 pointer-events-none bg-gradient-to-l from-[#0A0908] via-[#0A0908]/90 to-transparent w-16 h-24 flex items-center justify-end pr-1 rounded-l-2xl">
-                                      <div className="bg-aura-gold/20 border border-aura-gold/50 text-aura-gold rounded-full p-1 shadow-lg animate-[pulse_2s_ease-in-out_infinite]">
-                                          <ChevronRight size={20} />
-                                      </div>
-                                  </div>
                               </div>
                           </div>
                       ))}
+
+                      {currentBrandGroups.length === 0 && currentPinnedProducts.length === 0 && (
+                          <div className="text-center py-20 bg-white/50 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 shadow-sm mx-4">
+                              <p className="font-serif text-2xl text-gray-400 mb-2">
+                                  {activeMasterCategory === 'eid' ? "The Eid Vault is securely sealed." : "The Vault is empty."}
+                              </p>
+                              <p className="text-gray-400 text-sm">
+                                  {activeMasterCategory === 'eid' ? "Releasing highly exclusive pieces shortly." : "We are currently restocking this collection."}
+                              </p>
+                          </div>
+                      )}
                   </div>
               )}
           </div>
 
-          {/* 🚀 ONLY RENDER REVIEWS IF USER SCROLLS DOWN */}
           {showReviews && allReviews.length > 0 && (
               <div className="w-full py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12 animate-fade-in-up">
                  <div className="text-center mb-10 px-4">
