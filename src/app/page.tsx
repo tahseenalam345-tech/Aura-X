@@ -66,13 +66,11 @@ export default function Home() {
     };
   }, []);
 
-  // 🚀 THE MASSIVE SPEED FIX: TWO-STAGE ROCKET FETCHING
   useEffect(() => {
     const fetchInTwoStages = async () => {
       setIsLoading(true);
 
       try {
-          // 🚀 STAGE 1: Download ONLY the top 20 items. This takes milliseconds.
           const { data: fastData } = await supabase
             .from('products')
             .select('*')
@@ -80,13 +78,11 @@ export default function Home() {
             .limit(20);
 
           if (fastData) {
-              setAllStoreProducts(fastData); // Instantly populates the grid
+              setAllStoreProducts(fastData); 
           }
           
-          // 🚀 DROP THE LOADING SCREEN IMMEDIATELY! Users see watches instantly.
           setIsLoading(false); 
 
-          // 🚀 STAGE 2: Quietly download the rest of the 1000+ store items in the background
           const [brandsResponse, productsResponse] = await Promise.all([
               supabase.from('brand_settings').select('*'),
               supabase.from('products').select('*').order('priority', { ascending: false })
@@ -97,9 +93,8 @@ export default function Home() {
           }
 
           if (productsResponse.data) {
-              setAllStoreProducts(productsResponse.data); // Silently upgrades the grid
+              setAllStoreProducts(productsResponse.data); 
 
-              // Quietly prepare reviews
               let extractedReviews: any[] = [];
               productsResponse.data.forEach(p => {
                   if (p.manual_reviews && p.manual_reviews.length > 0) {
@@ -139,45 +134,33 @@ export default function Home() {
       const pinned = filtered.filter(p => p.is_pinned === true).slice(0, 8);
       const unpinned = filtered.filter(p => p.is_pinned !== true);
       
-      const grouped = unpinned.reduce((acc, product) => {
+      const grouped = unpinned.reduce((acc, product: any) => {
           const rawBrand = (product.brand || "AURA-X").trim();
-          const existingKey = Object.keys(acc).find(k => k.toUpperCase() === rawBrand.toUpperCase());
-          let safeBrandName = existingKey ? existingKey : (rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1));
-          if (safeBrandName.toUpperCase() === "AURA-X") safeBrandName = "AURA-X";
+          const upperBrand = rawBrand.toUpperCase();
           
-          if (!acc[safeBrandName]) acc[safeBrandName] = [];
-          acc[safeBrandName].push(product);
-          return acc;
-      }, {} as Record<string, any[]>);
-
-      const consolidatedGroups: Record<string, any[]> = {};
-      const auraXKey = Object.keys(grouped).find(k => k.toUpperCase() === "AURA-X") || "AURA-X";
-      consolidatedGroups["AURA-X"] = grouped[auraXKey] || [];
-
-      for (const brand in grouped) {
-          if (brand.toUpperCase() === "AURA-X") continue;
-          if (grouped[brand].length <= 3) {
-              consolidatedGroups["AURA-X"] = [...consolidatedGroups["AURA-X"], ...grouped[brand]];
-          } else {
-              consolidatedGroups[brand] = grouped[brand];
+          if (!acc[upperBrand]) {
+              acc[upperBrand] = { name: rawBrand, products: [] };
           }
-      }
+          acc[upperBrand].products.push(product);
+          return acc;
+      }, {} as Record<string, { name: string, products: any[] }>);
 
-      if (consolidatedGroups["AURA-X"].length === 0) delete consolidatedGroups["AURA-X"];
+      // 🚀 TS ERROR FIX: Added (g: any) to prevent unknown type error
+      let groupedArray = Object.values(grouped).map((g: any) => ({
+          brand: g.name,
+          products: g.products
+      }));
 
-      const groupedArray = Object.entries(consolidatedGroups).map(([brand, prods]: [string, any]) => {
-          const catKey = `${activeMasterCategory}__${brand}`.toUpperCase();
-          const sortOrder = Number(brandSettingsMap.get(catKey) ?? brandSettingsMap.get(brand.toUpperCase()) ?? 99);
-          return { brand, products: (prods as any[]).slice(0, 8), sortOrder };
-      });
+      groupedArray.sort((a, b) => b.products.length - a.products.length);
 
-      groupedArray.sort((a, b) => {
-          if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-          return a.brand.localeCompare(b.brand);
-      });
+      // 🚀 TS ERROR FIX: Added (group: any)
+      const top3Brands = groupedArray.slice(0, 3).map((group: any) => ({
+          brand: group.brand,
+          products: group.products.slice(0, 4) 
+      }));
 
-      return { currentPinnedProducts: pinned, currentBrandGroups: groupedArray };
-  }, [activeMasterCategory, allStoreProducts, brandSettingsMap]);
+      return { currentPinnedProducts: pinned, currentBrandGroups: top3Brands };
+  }, [activeMasterCategory, allStoreProducts]);
 
 
   return (
@@ -203,7 +186,8 @@ export default function Home() {
         }
       `}} />
 
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.06] select-none mix-blend-color-burn">
+      {/* 🚀 SPEED FIX: REMOVED mix-blend-color-burn. This will instantly stop the scrolling lag! */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.04] select-none">
           <div className="whitespace-nowrap animate-[pulse_5s_ease-in-out_infinite] text-[120px] md:text-[200px] font-serif font-black tracking-[0.2em] -ml-20 text-[#3A2A18]">
               AURA-X • ROLEX • RADO • PATEK PHILIPPE • AUDEMARS PIGUET
           </div>
@@ -255,7 +239,7 @@ export default function Home() {
                             alt="AURA-X Premium Watch" 
                             fill 
                             className="object-contain drop-shadow-2xl" 
-                            priority={index === 0} /* 🚀 MASSIVE LCP FIX: Forces the very first image to load aggressively fast */
+                            priority={index === 0} 
                             sizes="(max-width: 768px) 250px, 400px"
                         />
                       </div>
@@ -364,7 +348,8 @@ export default function Home() {
                               </div>
 
                               <div className={`grid gap-3 md:gap-6 relative z-10 ${gridCols === 1 ? 'grid-cols-1 max-w-sm mx-auto' : gridCols === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                                  {currentPinnedProducts.map(product => (
+                                  {/* 🚀 TS ERROR FIX: Added (product: any) */}
+                                  {currentPinnedProducts.map((product: any) => (
                                       <div key={product.id} className="bg-white/5 rounded-2xl p-1 border border-white/10 shadow-lg">
                                           <ProductCard product={product} />
                                       </div>
@@ -392,7 +377,8 @@ export default function Home() {
                               
                               <div className="relative w-full">
                                   <div className="flex overflow-x-auto gap-6 md:gap-8 pb-10 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                      {currentPinnedProducts.map(product => (
+                                      {/* 🚀 TS ERROR FIX: Added (product: any) */}
+                                      {currentPinnedProducts.map((product: any) => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
                                   </div>
@@ -400,7 +386,7 @@ export default function Home() {
                           </div>
                       )}
 
-                      {renderBrands && activeMasterCategory !== 'eid' && currentBrandGroups.map((group) => (
+                      {renderBrands && activeMasterCategory !== 'eid' && currentBrandGroups.map((group: any) => (
                           <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] py-6 md:py-8 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full md:mx-8 md:w-auto animate-fade-in-up">
                               
                               <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] pointer-events-none z-0">
@@ -412,7 +398,7 @@ export default function Home() {
                               <div className="relative z-10 flex flex-row justify-between items-end mb-6 px-5 md:px-8">
                                   <div>
                                       <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">
-                                          Brand Showcase
+                                          Top Tier Showcase
                                       </p>
                                       <h2 className="text-2xl md:text-4xl font-serif italic tracking-wider text-white leading-tight drop-shadow-md animate-[pulse_4s_ease-in-out_infinite]">{group.brand}</h2>
                                   </div>
@@ -427,7 +413,9 @@ export default function Home() {
 
                               <div className="relative z-10 w-full">
                                   <div className="flex overflow-x-auto gap-6 md:gap-8 pb-8 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                      {group.products.map(product => (
+                                      
+                                      {/* 🚀 TS ERROR FIX: Added (product: any) */}
+                                      {group.products.map((product: any) => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
                                       
@@ -444,6 +432,14 @@ export default function Home() {
                               </div>
                           </div>
                       ))}
+
+                      {renderBrands && activeMasterCategory !== 'eid' && (
+                          <div className="flex justify-center mt-6 animate-fade-in-up">
+                              <Link href={`/${activeMasterCategory}`} className="bg-aura-brown text-white px-10 py-4 rounded-full font-bold text-sm tracking-[0.2em] uppercase hover:bg-aura-gold transition-all shadow-[0_10px_20px_rgba(74,59,50,0.3)] flex items-center gap-3">
+                                  Explore All {activeMasterCategory} Brands <ArrowRight size={16} />
+                              </Link>
+                          </div>
+                      )}
 
                       {currentBrandGroups.length === 0 && currentPinnedProducts.length === 0 && (
                           <div className="text-center py-20 bg-white/50 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 shadow-sm mx-4">
