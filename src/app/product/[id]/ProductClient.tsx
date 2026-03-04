@@ -11,7 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { 
   Star, Truck, ShieldCheck, 
   Minus, Plus, ShoppingBag, Heart, Share2, 
-  ChevronDown, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package, Sun, Calendar, Filter, Image as ImageIcon, Video, Quote, Flame, MapPin
+  ChevronDown, ChevronLeft, ChevronRight, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package, Sun, Calendar, Filter, Image as ImageIcon, Video, Quote, Flame, MapPin
 } from "lucide-react";
 import toast from "react-hot-toast"; 
 
@@ -55,8 +55,11 @@ export default function ProductClient() {
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeImage, setActiveImage] = useState("");
+  // 🚀 NEW IMAGE GALLERY STATES
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const [viewingColor, setViewingColor] = useState(false);
   const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
+  
   const [quantity, setQuantity] = useState(1);
   const [openSection, setOpenSection] = useState<string | null>("description");
   
@@ -76,7 +79,6 @@ export default function ProductClient() {
 
   const GIFT_COST = 300;
 
-  // 🚀 DATE CALCULATOR FOR ESTIMATED DELIVERY (Skips Weekends)
   const addBizDays = (date: Date, days: number) => {
       let d = new Date(date);
       let added = 0;
@@ -97,26 +99,21 @@ export default function ProductClient() {
        if (!id) return;
        setLoading(true);
 
-       // 1. Fetch Current Product
        const { data: currentProduct } = await supabase.from('products').select('*').eq('id', id).single();
 
        if (currentProduct) {
            setProduct(currentProduct);
-           setActiveImage(currentProduct.main_image);
            
-           // 2. Fetch GLOBAL Reviews from ALL products to show massive social proof
            const { data: allProductsData } = await supabase.from('products').select('manual_reviews, name');
            if (allProductsData) {
                let globalReviews: any[] = [];
                allProductsData.forEach(p => {
                    if (p.manual_reviews && p.manual_reviews.length > 0) {
-                       // Attach product name to review
                        const shortName = p.name?.includes('|') ? p.name.split('|')[0].trim() : p.name;
                        const reviewsWithName = p.manual_reviews.map((r: any) => ({ ...r, productName: shortName }));
                        globalReviews.push(...reviewsWithName);
                    }
                });
-               // Shuffle reviews so they look fresh
                globalReviews = globalReviews.sort(() => 0.5 - Math.random());
                setProductReviews(globalReviews);
            }
@@ -141,19 +138,26 @@ export default function ProductClient() {
       return totalStars / productReviews.length;
   }, [productReviews]);
 
-  const { totalPrice, specs, selectedColor, allImages } = useMemo(() => {
-      if (!product) return { basePrice: 0, extras: 0, totalPrice: 0, specs: {}, selectedColor: null, allImages: [] };
+  // 🚀 ISOLATE ONLY THE GALLERY MEDIA (Main + Video + Gallery)
+  const galleryMedia = useMemo(() => {
+      if (!product) return [];
+      const media = [product.main_image];
+      if (product.specs?.video) media.push(product.specs.video);
+      if (product.specs?.gallery?.length > 0) media.push(...product.specs.gallery);
+      return media.filter((m, index, self) => m && self.indexOf(m) === index);
+  }, [product]);
+
+  // 🚀 DETERMINE WHAT IS CURRENTLY SHOWING ON THE BIG SCREEN
+  const currentDisplayImage = viewingColor && product?.colors?.[selectedColorIndex]?.image 
+      ? product.colors[selectedColorIndex].image 
+      : galleryMedia[mediaIndex] || "";
+
+  const { totalPrice, specs, selectedColor } = useMemo(() => {
+      if (!product) return { basePrice: 0, extras: 0, totalPrice: 0, specs: {}, selectedColor: null };
 
       const bPrice = product.price * quantity;
       const boxCost = boxType === 'rolex' ? 300 : boxType === 'black' ? 200 : 0;
       const ex = (isGift ? GIFT_COST : 0) + boxCost;
-      
-      const imgs = [
-        product?.main_image,
-        product?.specs?.video, 
-        ...(product?.specs?.gallery || []),
-        ...(product?.colors?.map((c: any) => c.image).filter(Boolean) || [])
-      ].filter((img, index, self) => img && self.indexOf(img) === index);
 
       return {
           basePrice: bPrice,
@@ -161,11 +165,9 @@ export default function ProductClient() {
           totalPrice: bPrice + ex,
           specs: product.specs || {},
           selectedColor: product.colors?.[selectedColorIndex] || null,
-          allImages: imgs
       };
   }, [product, quantity, isGift, boxType, selectedColorIndex]);
 
-  // 🚀 CALCULATE DISPLAY DISCOUNT FOR RED BADGE
   const displayDiscount = useMemo(() => {
       if (!product) return 0;
       if (product.discount > 0) return product.discount;
@@ -179,6 +181,19 @@ export default function ProductClient() {
   if (!product) return <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">Product Not Found</div>;
 
   const displayShortName = product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name;
+
+  // 🚀 ARROW NAVIGATION HANDLERS
+  const handlePrevImage = (e: any) => {
+      e.stopPropagation();
+      setViewingColor(false);
+      setMediaIndex((prev) => (prev - 1 + galleryMedia.length) % galleryMedia.length);
+  };
+
+  const handleNextImage = (e: any) => {
+      e.stopPropagation();
+      setViewingColor(false);
+      setMediaIndex((prev) => (prev + 1) % galleryMedia.length);
+  };
 
   const handleWishlistToggle = () => {
       const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
@@ -214,12 +229,12 @@ export default function ProductClient() {
       id: product.id, 
       name: displayShortName, 
       price: finalPriceWithBox,
-      image: selectedColor?.image || activeImage, 
+      image: selectedColor?.image || currentDisplayImage, 
       color: `${finalColorName}${boxLabel}`, 
       quantity: quantity, 
       isGift: isGift, 
       addBox: false,
-      isEidExclusive: product.is_eid_exclusive // 🚀 YOU MUST ADD THIS LINE
+      isEidExclusive: product.is_eid_exclusive
     });
 
     toast.success(`${displayShortName} added to bag!`, {
@@ -321,7 +336,7 @@ export default function ProductClient() {
         .animate-scroll {
           display: flex;
           width: max-content;
-          animation: scroll 40s linear infinite;
+          animation: scroll 20s linear infinite;
         }
         .animate-scroll:hover {
           animation-play-state: paused;
@@ -335,7 +350,7 @@ export default function ProductClient() {
              {isVideoFile(lightboxImage) ? (
                  <video src={lightboxImage} controls autoPlay className="w-full h-full object-contain" />
              ) : (
-                 <Image src={lightboxImage} alt={`Zoomed view of ${seoAltText}`} fill className="object-contain" quality={90} />
+                 <Image src={lightboxImage} alt={`Zoomed view of ${seoAltText}`} fill className="object-contain" quality={90} unoptimized={true} />
              )}
            </div>
         </div>
@@ -364,46 +379,101 @@ export default function ProductClient() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12 md:mb-20">
-          <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start">
-            <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10">
-              
-              {/* 🚀 ACTION BUTTONS & RED DISCOUNT BADGE */}
-              <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3">
-                 {displayDiscount > 0 && (
-                     <span className="bg-[#750000] text-white text-xs font-bold px-3 py-1 rounded shadow-lg tracking-widest mb-1 animate-pulse">
-                         -{displayDiscount}%
-                     </span>
-                 )}
-                 <button onClick={handleWishlistToggle} className={`bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg transition-all ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-500'}`}><Heart size={18} fill={isLiked ? "currentColor" : "none"} /></button>
-                 <button onClick={() => {navigator.clipboard.writeText(window.location.href); toast.success("Link Copied!")}} className="bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-400 hover:text-blue-500"><Share2 size={18} /></button>
-              </div>
-              <button onClick={() => setLightboxImage(activeImage)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
-              
-              {activeImage && (
-                isVideoFile(activeImage) ? (
-                    <video src={activeImage} autoPlay muted loop playsInline className="object-cover w-full h-full cursor-pointer" onClick={() => setLightboxImage(activeImage)} />
-                ) : (
-                    <Image src={activeImage} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 60vw" className="object-cover cursor-zoom-in" onClick={() => setLightboxImage(activeImage)} />
-                )
-              )}
-            </div>
+          
+          {/* 🚀 NEW IMAGE LAYOUT: Left Main Image, Bottom Circles, Right Colors */}
+          <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start flex flex-row gap-3 md:gap-4 w-full">
             
-            <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide">
-               {allImages.map((img: string, i: number) => (
-                 img && (
-                   <button key={i} onClick={() => setActiveImage(img)} className={`relative w-16 h-16 md:w-24 md:h-24 flex-shrink-0 bg-white rounded-xl border-2 overflow-hidden transition-all ${activeImage === img ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent'}`}>
-                     {isVideoFile(img) ? (
-                         <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                             <video src={img} className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
-                             <Play size={20} className="relative z-10 text-aura-brown" fill="currentColor"/>
-                         </div>
-                     ) : (
-                         <Image src={img} alt={`${seoAltText} - View ${i + 1}`} fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} />
+            {/* Main Image & Bottom Gallery Circles */}
+            <div className="flex-1 flex flex-col min-w-0">
+                <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10 group">
+                  
+                  {/* Arrows for sliding */}
+                  {galleryMedia.length > 1 && (
+                      <>
+                          <button onClick={handlePrevImage} className="absolute left-3 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-md p-2 rounded-full shadow-md text-aura-brown hover:bg-aura-gold hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                              <ChevronLeft size={24}/>
+                          </button>
+                          <button onClick={handleNextImage} className="absolute right-3 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-md p-2 rounded-full shadow-md text-aura-brown hover:bg-aura-gold hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                              <ChevronRight size={24}/>
+                          </button>
+                      </>
+                  )}
+
+                  {/* Actions / Badges */}
+                  <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
+                     {displayDiscount > 0 && (
+                         <span className="bg-[#750000] text-white text-xs font-bold px-3 py-1 rounded shadow-lg tracking-widest mb-1 animate-pulse">
+                             -{displayDiscount}%
+                         </span>
                      )}
-                   </button>
-                 )
-               ))}
+                     <button onClick={(e) => { e.stopPropagation(); handleWishlistToggle(); }} className={`pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg transition-all ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-500'}`}><Heart size={18} fill={isLiked ? "currentColor" : "none"} /></button>
+                     <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(window.location.href); toast.success("Link Copied!"); }} className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-400 hover:text-blue-500"><Share2 size={18} /></button>
+                  </div>
+                  <button onClick={() => setLightboxImage(currentDisplayImage)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
+                  
+                  {/* Current Active Image / Video */}
+                  {currentDisplayImage && (
+                    isVideoFile(currentDisplayImage) ? (
+                        <video src={currentDisplayImage} autoPlay muted loop playsInline className="object-cover w-full h-full cursor-pointer" onClick={() => setLightboxImage(currentDisplayImage)} />
+                    ) : (
+                        <Image src={currentDisplayImage} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 60vw" className="object-cover cursor-zoom-in" unoptimized={true} onClick={() => setLightboxImage(currentDisplayImage)} />
+                    )
+                  )}
+                </div>
+                
+                {/* Bottom Gallery Circles */}
+                <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide justify-center">
+                   {galleryMedia.map((img: string, i: number) => (
+                     <button 
+                         key={i} 
+                         onClick={() => { setMediaIndex(i); setViewingColor(false); }} 
+                         className={`relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-full border-2 overflow-hidden transition-all duration-300 ${!viewingColor && mediaIndex === i ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                     >
+                         {isVideoFile(img) ? (
+                             <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                 <video src={img} className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
+                                 <Play size={16} className="relative z-10 text-aura-brown" fill="currentColor"/>
+                             </div>
+                         ) : (
+                             <Image src={img} alt={`${seoAltText} - View ${i + 1}`} fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} unoptimized={true} />
+                         )}
+                     </button>
+                   ))}
+                </div>
             </div>
+
+            {/* Right Vertical Color Column */}
+            {product.colors && product.colors.length > 0 && (
+                <div className="w-14 md:w-16 flex flex-col gap-3 flex-shrink-0 items-center pt-2">
+                    <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Colors</span>
+                    {product.colors.map((color: any, index: number) => (
+                        <button 
+                            key={index} 
+                            onClick={() => { 
+                                setSelectedColorIndex(index); 
+                                if(color.image) setViewingColor(true); 
+                            }} 
+                            className={`relative w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl overflow-hidden border-2 transition-all duration-300 ${
+                                selectedColorIndex === index 
+                                ? 'border-aura-gold scale-110 shadow-md z-10' 
+                                : 'border-white shadow-sm opacity-70 hover:opacity-100 hover:scale-105'
+                            }`}
+                            title={color.name}
+                        >
+                            {color.image ? (
+                                <Image src={color.image} alt={color.name} fill className="object-cover" unoptimized={true} />
+                            ) : (
+                                <div className="w-full h-full" style={{ backgroundColor: color.hex }}></div>
+                            )}
+                            {selectedColorIndex === index && (
+                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
+                                    <Check size={16} className="text-white drop-shadow-md" />
+                                </div>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )}
           </div>
 
           <div className="lg:col-span-5 flex flex-col">
@@ -445,6 +515,11 @@ export default function ProductClient() {
                             </span>
                         )}
                     </div>
+                    {product.colors && product.colors.length > 0 && (
+                        <p className="text-xs mt-2 text-gray-500 font-bold tracking-wider uppercase">
+                            Selected Finish: <span className="text-aura-gold">{product.colors[selectedColorIndex]?.name || "Standard"}</span>
+                        </p>
+                    )}
                 </div>
 
                 {(specs.luminous || specs.date_display || specs.box_included) && (
@@ -464,37 +539,6 @@ export default function ProductClient() {
                                 <Package size={14} className="text-aura-gold"/> Box Included
                             </span>
                         )}
-                    </div>
-                )}
-
-                {product.colors && product.colors.length > 0 && (
-                    <div className="mb-6">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select Finish</p>
-                        <div className="flex gap-4 flex-wrap">
-                          {product.colors.map((color: any, index: number) => (
-                              <button 
-                                key={index} 
-                                onClick={() => { 
-                                  setSelectedColorIndex(index); 
-                                  if(color.image) setActiveImage(color.image); 
-                                }} 
-                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                                    selectedColorIndex === index 
-                                    ? 'ring-2 ring-offset-2 ring-aura-brown scale-110 shadow-lg' 
-                                    : 'hover:scale-105 opacity-80 hover:opacity-100'
-                                }`}
-                                style={{ backgroundColor: color.hex }}
-                                title={color.name}
-                             >
-                                {selectedColorIndex === index && (
-                                    <Check size={14} className="text-white drop-shadow-md mix-blend-difference" />
-                                )}
-                             </button>
-                          ))}
-                        </div>
-                        <p className="text-xs mt-2 text-aura-brown font-medium opacity-80 italic">
-                            Finish: {product.colors[selectedColorIndex]?.name || "Standard"}
-                        </p>
                     </div>
                 )}
 
@@ -540,17 +584,14 @@ export default function ProductClient() {
                     )}
                 </div>
 
-                {/* 🚀 PREMIUM 3D ESTIMATED DELIVERY TIMELINE MOVED HERE */}
                 <div className="mt-4 bg-gradient-to-br from-[#FFFFFF] via-[#FDFBF7] to-[#F5EEDC] border border-aura-gold/40 rounded-2xl p-6 mb-8 shadow-[0_10px_30px_rgba(212,175,55,0.15)] relative overflow-hidden">
                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-aura-gold/10 rounded-full blur-3xl pointer-events-none"></div>
                     
                     <p className="text-[10px] font-bold text-aura-brown uppercase tracking-widest mb-6 text-center relative z-10">Estimated Delivery Timeline</p>
                     <div className="flex justify-between items-center relative px-2 md:px-8 z-10">
-                        {/* Connecting Line: Solid then Dashed */}
                         <div className="absolute top-5 left-[10%] right-[50%] border-t-2 border-[#C8A97E] -translate-y-1/2 z-0"></div>
                         <div className="absolute top-5 left-[50%] right-[10%] border-t-2 border-dashed border-[#C8A97E]/60 -translate-y-1/2 z-0"></div>
                         
-                        {/* 🚀 ORDER: Filled Icon */}
                         <div className="relative z-10 flex flex-col items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-[#C8A97E] text-white flex items-center justify-center shadow-md"><ShoppingBag size={18}/></div>
                             <div className="text-center">
@@ -559,7 +600,6 @@ export default function ProductClient() {
                             </div>
                         </div>
                         
-                        {/* 🚀 DISPATCH: Filled Icon */}
                         <div className="relative z-10 flex flex-col items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-[#C8A97E] text-white flex items-center justify-center shadow-md"><Truck size={18}/></div>
                             <div className="text-center">
@@ -568,7 +608,6 @@ export default function ProductClient() {
                             </div>
                         </div>
                         
-                        {/* 🚀 DELIVERY: Dashed Outline Icon */}
                         <div className="relative z-10 flex flex-col items-center gap-3">
                             <div className="w-10 h-10 rounded-full border-2 border-dashed border-[#C8A97E] text-[#C8A97E] flex items-center justify-center bg-white shadow-[0_0_15px_rgba(212,175,55,0.2)]"><MapPin size={18}/></div>
                             <div className="text-center">
@@ -664,39 +703,49 @@ export default function ProductClient() {
                <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
 
                <div className="animate-scroll gap-4 md:gap-6 px-4">
-                   {productReviews.length > 0 ? [...productReviews, ...productReviews].map((review: any, i: number) => (
-                       <div key={i} className="w-[260px] md:w-[350px] p-5 md:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col gap-3 flex-shrink-0 hover:bg-white/10 transition-colors shadow-lg">
-                          <div className="flex justify-between items-start mb-1">
-                             <div className="flex items-center gap-3">
-                                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-serif font-bold shadow-inner bg-gradient-to-br from-aura-gold to-yellow-600 ring-1 ring-aura-gold/20">
-                                     {(review.user || "A").charAt(0).toUpperCase()}
-                                 </div>
-                                 <div>
-                                     <p className="font-bold text-sm text-white">{review.user}</p>
-                                     <p className="text-[9px] text-aura-gold/80 uppercase tracking-widest line-clamp-1">{review.productName || displayShortName}</p>
-                                 </div>
-                             </div>
-                             <div className="flex text-aura-gold mt-1">
-                                 {[...Array(5)].map((_, starIdx) => <Star key={starIdx} size={10} fill={starIdx < (review.rating || 5) ? "currentColor" : "none"} />)}
-                             </div>
-                          </div>
-                          <p className="text-xs md:text-sm text-gray-300 italic line-clamp-4 leading-relaxed">"{review.comment}"</p>
-                          
-                          {(review.images?.length > 0 || review.image) && (
-                              <div className="flex gap-2 mt-2">
-                                  {review.images ? review.images.map((img: string, idx: number) => (
-                                      <div key={idx} className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/20 cursor-zoom-in" onClick={() => setLightboxImage(img)}>
-                                          <Image src={img} alt="Customer Review" fill className="object-cover" />
+                   {(() => {
+                        let repeated = [...productReviews];
+                        if (repeated.length > 0) {
+                            while (repeated.length < 8) {
+                                repeated = [...repeated, ...productReviews];
+                            }
+                        }
+                        const finalScrollingReviews = [...repeated, ...repeated]; 
+
+                        return finalScrollingReviews.map((review, i) => (
+                            <div key={i} className="w-[260px] md:w-[350px] p-5 md:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col gap-3 flex-shrink-0 hover:bg-white/10 transition-colors shadow-lg">
+                               <div className="flex justify-between items-start mb-1">
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-serif font-bold shadow-inner bg-gradient-to-br from-aura-gold to-yellow-600 ring-1 ring-aura-gold/20">
+                                          {(review.user || "A").charAt(0).toUpperCase()}
                                       </div>
-                                  )) : review.image && (
-                                      <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/20 cursor-zoom-in" onClick={() => setLightboxImage(review.image)}>
-                                          <Image src={review.image} alt="Customer Review" fill className="object-cover" />
+                                      <div>
+                                          <p className="font-bold text-sm text-white">{review.user}</p>
+                                          <p className="text-[9px] text-aura-gold/80 uppercase tracking-widest line-clamp-1">{review.productName || displayShortName}</p>
                                       </div>
-                                  )}
-                              </div>
-                          )}
-                       </div>
-                   )) : <div className="text-gray-400 italic text-center w-full">Loading reviews...</div>}
+                                  </div>
+                                  <div className="flex text-aura-gold mt-1">
+                                      {[...Array(5)].map((_, starIdx) => <Star key={starIdx} size={10} fill={starIdx < (review.rating || 5) ? "currentColor" : "none"} />)}
+                                  </div>
+                               </div>
+                               <p className="text-xs md:text-sm text-gray-300 italic line-clamp-4 leading-relaxed">"{review.comment}"</p>
+                               
+                               {(review.images?.length > 0 || review.image) && (
+                                   <div className="flex gap-2 mt-2">
+                                       {review.images ? review.images.map((img: string, idx: number) => (
+                                           <div key={idx} className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/20 cursor-zoom-in" onClick={() => setLightboxImage(img)}>
+                                               <Image src={img} alt="Customer Review" fill className="object-cover" unoptimized={true} />
+                                           </div>
+                                       )) : review.image && (
+                                           <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/20 cursor-zoom-in" onClick={() => setLightboxImage(review.image)}>
+                                               <Image src={review.image} alt="Customer Review" fill className="object-cover" unoptimized={true} />
+                                           </div>
+                                       )}
+                                   </div>
+                               )}
+                            </div>
+                        ));
+                   })()}
                </div>
             </div>
         </div>

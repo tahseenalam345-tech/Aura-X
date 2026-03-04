@@ -29,8 +29,10 @@ interface Product {
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const { addToCart } = useCart();
 
-  const [activeImage, setActiveImage] = useState(product.main_image || product.image || "/placeholder.jpg");
-  const [activeColorName, setActiveColorName] = useState("");
+  // 🚀 FIX: Smart Initialization. If colors exist, default to the first color and its image!
+  const initialColor = product.colors && product.colors.length > 0 ? product.colors[0] : null;
+  const [activeImage, setActiveImage] = useState(initialColor?.image || product.main_image || product.image || "/placeholder.jpg");
+  const [activeColorName, setActiveColorName] = useState(initialColor?.name || "");
   
   const hasVariants = product.colors && product.colors.length > 1;
   const isOutOfStock = product.specs?.stock !== undefined && Number(product.specs.stock) <= 0;
@@ -84,7 +86,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                     Out of Stock
                 </span>
             )}
-            {/* 🚀 Removed the Eid tag from here to keep the image clean */}
             {product.tags && product.tags.length > 0 && !isOutOfStock && (
                  product.tags.slice(0, 1).map(tag => (
                     <span key={tag} className="bg-[#1E1B18]/95 backdrop-blur-sm text-aura-gold border border-aura-gold/30 text-[9px] font-bold px-2.5 py-1 rounded shadow-md uppercase tracking-wider block">
@@ -100,13 +101,10 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                     src={activeImage}
                     alt={seoAltText} 
                     fill
-                    quality={100} 
                     className={`object-cover transition-transform duration-500 ease-out ${isOutOfStock ? 'grayscale opacity-75' : 'group-hover:scale-105'}`}
-                    sizes="(max-width: 768px) 80vw, 400px" 
+                    sizes="(max-width: 768px) 50vw, 300px" 
                     priority={priority}
-                    unoptimized={true} 
-                    loading={priority ? undefined : "lazy"}
-                    decoding="async"
+                    loading={priority ? "eager" : "lazy"}
                 />
             </div>
         </Link>
@@ -126,7 +124,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   )}
                 </div>
 
-                {/* 🚀 NEW EID TAG LOCATION: Right above the title */}
                 {product.is_eid_exclusive && (
                     <div className="mb-1.5 flex items-center">
                         <span className="bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-white text-[8px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest flex items-center gap-1">
@@ -135,14 +132,40 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                     </div>
                 )}
 
-                <Link href={`/product/${product.id}`}>
+                <Link href={`/product/${product.id}`} className="block">
                   <h3 className="text-[#1E1B18] font-serif font-bold text-sm md:text-base leading-snug line-clamp-2 group-hover:text-[#C5A67C] transition-colors" title={product.name}>
                       {displayShortName}
                   </h3>
-                  <p className="text-[9px] text-[#8B6E4E] font-medium tracking-wide uppercase mt-0.5 min-h-[14px]">
+                  <p className="text-[9px] text-[#8B6E4E] font-medium tracking-wide uppercase mt-0.5 min-h-[14px] truncate">
                       {product.category || "LUXURY"} {activeColorName && `• ${activeColorName}`}
                   </p>
                 </Link>
+
+                {/* 🚀 NEW: COLOR SWATCHES */}
+                {hasVariants && product.colors && (
+                    <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                        {product.colors.map((color, idx) => (
+                            <button
+                                key={idx}
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault(); 
+                                    e.stopPropagation(); 
+                                    if (color.image) setActiveImage(color.image);
+                                    setActiveColorName(color.name);
+                                }}
+                                className={`w-4 h-4 rounded-full shadow-inner transition-all duration-300 ${
+                                    activeColorName === color.name 
+                                    ? 'ring-2 ring-offset-2 ring-aura-brown scale-110' 
+                                    : 'ring-1 ring-gray-300 hover:scale-105 opacity-70 hover:opacity-100'
+                                }`}
+                                style={{ backgroundColor: color.hex || '#E5E7EB' }}
+                                title={color.name}
+                                aria-label={`Select ${color.name}`}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="flex items-end justify-between border-t border-aura-gold/30 pt-3 mt-3">
