@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Video } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Video, Loader2 } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
@@ -65,25 +65,44 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
   });
 };
 
-const processFileUpload = async (file: File, isReview: boolean = false) => {
+// 🚀 UPDATED: Handles Uploads and simulates accurate progress
+const processFileUpload = async (file: File, isReview: boolean = false, onProgress?: (p: number) => void) => {
     const isVideo = file.type.startsWith('video/');
     let fileToUpload: File | Blob = file;
 
-    // Skip compression if it is a video file, upload it directly!
     if (!isVideo) { 
         try { fileToUpload = await compressImage(file, isReview); } 
         catch (e) { console.error("Compression failed:", e); return null; } 
     }
 
-    const ext = isVideo ? 'mp4' : 'jpg';
+    const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
     const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
     const fileName = `v4-${Date.now()}-${cleanName}.${ext}`;
 
-    // 🚀 FIX: Smart routing. Sends videos to the video bucket, images to the image bucket!
-    const targetBucket = isVideo ? 'product-videos' : 'product-images';
+    // 🚀 We send EVERYTHING to product-images because Supabase already allows uploads there!
+    const targetBucket = 'product-images';
 
-    const { error } = await supabase.storage.from(targetBucket).upload(fileName, fileToUpload); 
-    if (error) { console.error("Upload Error:", error.message); return null; }
+    // Simulated Progress Bar for UI feedback
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.floor(Math.random() * 15) + 10;
+        if (progress > 90) progress = 90;
+        if (onProgress) onProgress(progress);
+    }, 400);
+
+    const { error } = await supabase.storage.from(targetBucket).upload(fileName, fileToUpload, {
+        cacheControl: '3600',
+        upsert: false
+    }); 
+
+    clearInterval(interval);
+
+    if (error) { 
+        console.error("Upload Error:", error.message); 
+        return null; 
+    }
+
+    if (onProgress) onProgress(100);
 
     const { data: { publicUrl } } = supabase.storage.from(targetBucket).getPublicUrl(fileName);
     return publicUrl;
@@ -95,6 +114,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [editId, setEditId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('grid');
   
+  // 🚀 LIVE UPLOAD TRACKING STATE
+  const [uploadQueue, setUploadQueue] = useState<{ id: string, progress: number, type: string }[]>([]);
+
   const [showBrandModal, setShowBrandModal] = useState(false);
   const [brandModalTab, setBrandModalTab] = useState<'men' | 'women' | 'couple'>('men');
   const [brandSettings, setBrandSettings] = useState<Record<string, { brand_name: string; sort_order: number; db_key: string }[]>>({
@@ -130,11 +152,51 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  const applyBulkViews = async () => {
-    if (minViews >= maxViews) {
-        return toast.error("Max views must be greater than Min views.");
-    }
+  // 🚀 MASTER UPLOAD HANDLER (Handles multiple files, drag/drop, and progress tracking)
+  const processFiles = async (files: File[], type: 'main' | 'gallery' | 'color' | 'video' | 'review', index?: number) => {
+      for (const file of files) {
+          const id = Math.random().toString();
+          setUploadQueue(prev => [...prev, { id, progress: 0, type }]);
+          
+          const url = await processFileUpload(file, type === 'review', (p) => {
+              setUploadQueue(prev => prev.map(item => item.id === id ? { ...item, progress: p } : item));
+          });
 
+          // Keep the 100% success message visible for 1.5 seconds before hiding it
+          setTimeout(() => {
+              setUploadQueue(prev => prev.filter(item => item.id !== id));
+          }, 1500); 
+
+          if (url) {
+              applyImageToState(url, type, index);
+              toast.success(`${file.name.substring(0, 15)}... Uploaded!`);
+          } else {
+              toast.error(`Failed to upload ${file.name}`);
+          }
+      }
+  };
+
+  const handleDrop = async (e: React.DragEvent, type: 'main' | 'gallery' | 'video' | 'review') => {
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer.files || []);
+      if (!files.length) return;
+      
+      // Allow multiple files ONLY for gallery and reviews. Main and Video take the first file.
+      const filesToProcess = (type === 'gallery' || type === 'review') ? files : [files[0]];
+      await processFiles(filesToProcess, type);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'gallery' | 'color' | 'video' | 'review', index?: number) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      
+      const filesToProcess = (type === 'gallery' || type === 'review') ? files : [files[0]];
+      await processFiles(filesToProcess, type, index);
+      e.target.value = ''; // Reset input so you can upload the same file twice if needed
+  };
+
+  const applyBulkViews = async () => {
+    if (minViews >= maxViews) return toast.error("Max views must be greater than Min views.");
     const loadingToast = toast.loading(`Generating random views...`);
 
     let targetProducts = products;
@@ -150,20 +212,16 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     try {
         const promises = targetProducts.map(async (p) => {
             const randomViewCount = Math.floor(Math.random() * (maxViews - minViews + 1)) + minViews;
-            
             const currentSpecs = p.specs || {};
             const newSpecs = { ...currentSpecs, view_count: randomViewCount };
-
             return supabase.from('products').update({ specs: newSpecs }).eq('id', p.id);
         });
 
         await Promise.all(promises);
-
         toast.dismiss(loadingToast);
         toast.success(`Successfully added views to ${targetProducts.length} items!`);
         setShowViewsModal(false);
         fetchProducts(); 
-
     } catch (error) {
         console.error("Bulk view error:", error);
         toast.dismiss(loadingToast);
@@ -173,7 +231,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const handleManageBrands = async () => {
       const loadingToast = toast.loading("Loading brands...");
-      
       const { data: prods } = await supabase.from('products').select('brand, category');
       const { data: settings } = await supabase.from('brand_settings').select('*');
       const settingsMap = new Map(settings?.map(s => [s.brand_name, s.sort_order]));
@@ -200,7 +257,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const saveBrandOrder = async () => {
       const loadingToast = toast.loading("Saving order...");
-      
       const payload: any[] = [];
       ['men', 'women', 'couple'].forEach(cat => {
           brandSettings[cat].forEach(b => {
@@ -209,7 +265,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       });
 
       const { error } = await supabase.from('brand_settings').upsert(payload);
-      
       if (error) {
           toast.error("Failed to save brand order!");
       } else {
@@ -219,7 +274,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       toast.dismiss(loadingToast);
   };
 
-  // 🚀 UPDATED SEARCH LOGIC: Now checks Name, SKU, and Brand
   const filteredProducts = products.filter(item => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q || 
@@ -317,26 +371,20 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     }
   };
 
-  const handleDrop = async (e: React.DragEvent, type: 'main' | 'gallery' | 'video' | 'review') => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const isReviewUpload = type === 'review';
-      const url = await processFileUpload(e.dataTransfer.files[0], isReviewUpload);
-      if (url) applyImageToState(url, type);
-    }
-  };
-
   const handlePaste = async (e: React.ClipboardEvent, type: 'main' | 'gallery' | 'video' | 'review') => {
     const items = e.clipboardData.items;
+    const filesToUpload: File[] = [];
+    
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf("image") !== -1 || items[i].type.indexOf("video") !== -1) {
             const file = items[i].getAsFile();
-            if (file) {
-                const isReviewUpload = type === 'review';
-                const url = await processFileUpload(file, isReviewUpload);
-                if (url) applyImageToState(url, type);
-            }
+            if (file) filesToUpload.push(file);
         }
+    }
+    
+    if (filesToUpload.length > 0) {
+        const processList = (type === 'gallery' || type === 'review') ? filesToUpload : [filesToUpload[0]];
+        await processFiles(processList, type);
     }
   };
 
@@ -396,14 +444,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         newForm.price = Math.round(newForm.originalPrice - discountAmount);
     }
     setFormData(newForm);
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'gallery' | 'color' | 'video' | 'review', index?: number) => {
-    if (!e.target.files?.[0]) return;
-    const isReviewUpload = type === 'review';
-    const url = await processFileUpload(e.target.files[0], isReviewUpload);
-    if (!url) return;
-    applyImageToState(url, type, index);
   };
 
   const removeImage = (type: 'main' | 'gallery' | 'video' | 'review', index?: number) => {
@@ -783,9 +823,19 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Main Image</label>
                                             <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'main')} onPaste={(e) => handlePaste(e, 'main')} tabIndex={0}>
+                                                
+                                                {/* Loading Overlay */}
+                                                {uploadQueue.filter(u => u.type === 'main').map(u => (
+                                                    <div key={u.id} className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
+                                                        <Loader2 className="animate-spin text-aura-gold mb-2" size={24} />
+                                                        <div className="text-xs font-bold text-aura-brown">{u.progress}%</div>
+                                                        <div className="w-20 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden"><div className="h-full bg-aura-gold transition-all duration-300" style={{ width: `${u.progress}%` }}></div></div>
+                                                    </div>
+                                                ))}
+
                                                 {formData.mainImage ? (
                                                     <>
-                                                        {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" /> : <Image src={formData.mainImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" unoptimized={true} />}
+                                                        {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <Image src={formData.mainImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" unoptimized={true} />}
                                                         <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
                                                     </>
                                                 ) : (
@@ -801,12 +851,22 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         </div>
                                     </div>
 
-                                    {/* 🚀 NEW: DEDICATED VIDEO UPLOAD BLOCK */}
+                                    {/* 🚀 DEDICATED VIDEO UPLOAD BLOCK */}
                                     <div className="w-full md:w-40 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Product Video (MP4)</label>
                                             <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.video ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'video')} onPaste={(e) => handlePaste(e, 'video')} tabIndex={0}>
+                                                
+                                                {/* Loading Overlay */}
+                                                {uploadQueue.filter(u => u.type === 'video').map(u => (
+                                                    <div key={u.id} className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
+                                                        <Loader2 className="animate-spin text-aura-gold mb-2" size={24} />
+                                                        <div className="text-xs font-bold text-aura-brown">{u.progress}%</div>
+                                                        <div className="w-20 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden"><div className="h-full bg-aura-gold transition-all duration-300" style={{ width: `${u.progress}%` }}></div></div>
+                                                    </div>
+                                                ))}
+
                                                 {formData.video ? (
                                                     <>
                                                         <video src={formData.video} className="object-cover w-full h-full" autoPlay muted loop playsInline />
@@ -826,18 +886,34 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         </div>
                                     </div>
 
+                                    {/* 🚀 MULTI-UPLOAD GALLERY (Supports Images & Videos via Drag/Drop/Select) */}
                                     <div className="flex-1">
-                                        <label className="block text-xs font-bold text-gray-500 mb-2">Gallery</label>
-                                        <div className="flex flex-wrap gap-4">
+                                        <label className="block text-xs font-bold text-gray-500 mb-2">Gallery (Drag & Drop Multiple Images/Videos)</label>
+                                        <div className="flex flex-wrap gap-4 p-4 bg-white border border-gray-200 rounded-2xl min-h-[190px]"
+                                            onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'gallery')} onPaste={(e) => handlePaste(e, 'gallery')} tabIndex={0}>
+                                            
                                             {formData.gallery.map((img, i) => (
-                                                <div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200 group bg-white">
-                                                    {isVideoFile(img) ? <video src={img} className="object-cover w-full h-full" /> : <Image src={img} alt="" fill sizes="100px" className="object-cover" unoptimized={true} />}
-                                                    <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button>
+                                                <div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200 group bg-gray-50">
+                                                    {isVideoFile(img) ? <video src={img} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <Image src={img} alt="" fill sizes="100px" className="object-cover" unoptimized={true} />}
+                                                    <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12}/></button>
                                                 </div>
                                             ))}
-                                            <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold flex-shrink-0 bg-white"
-                                                onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'gallery')} onPaste={(e) => handlePaste(e, 'gallery')} tabIndex={0}>
-                                                <label className="w-full h-full flex items-center justify-center cursor-pointer"><Plus size={20} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'gallery')}/></label>
+
+                                            {/* LIVE PROGRESS BOXES FOR MULTIPLE UPLOADS */}
+                                            {uploadQueue.filter(u => u.type === 'gallery').map(u => (
+                                                <div key={u.id} className="w-24 h-24 rounded-xl border-2 border-aura-gold flex flex-col items-center justify-center bg-gray-50 flex-shrink-0">
+                                                    <Loader2 className="animate-spin text-aura-gold mb-1" size={16} />
+                                                    <div className="text-[10px] font-bold text-aura-gold">{u.progress}%</div>
+                                                    <div className="w-12 h-1 bg-gray-200 rounded-full mt-1 overflow-hidden"><div className="h-full bg-aura-gold transition-all duration-300" style={{ width: `${u.progress}%` }}></div></div>
+                                                </div>
+                                            ))}
+
+                                            <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold flex-shrink-0 bg-gray-50 transition-colors">
+                                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                                                    <Plus size={20} className="text-gray-400 mb-1"/>
+                                                    <span className="text-[9px] text-gray-400 font-bold uppercase">Add Media</span>
+                                                    <input type="file" multiple accept="image/*,video/mp4,video/webm" className="hidden" onChange={(e) => handleImageUpload(e as any, 'gallery')}/>
+                                                </label>
                                             </div>
                                         </div>
                                         
@@ -851,8 +927,11 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                             <option value="">Select Variant Color</option>
                                                             {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
                                                         </select>
-                                                        <label className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg text-xs font-bold cursor-pointer hover:bg-gray-100 w-full md:w-auto justify-center border">
-                                                            {color.image ? "Image Uploaded" : "Upload Image"} <input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'color', index)}/>
+                                                        <label className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg text-xs font-bold cursor-pointer hover:bg-gray-100 w-full md:w-auto justify-center border relative overflow-hidden">
+                                                            {uploadQueue.find(u => u.type === 'color' && (u as any).index === index) ? (
+                                                                <span className="text-aura-gold animate-pulse">Uploading...</span>
+                                                            ) : color.image ? "Image Uploaded" : "Upload Image"} 
+                                                            <input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'color', index)}/>
                                                         </label>
                                                         <button type="button" onClick={() => setFormData({...formData, colors: formData.colors.filter((_, i) => i !== index)})} className="text-red-400"><Trash2 size={18}/></button>
                                                     </div>
@@ -904,7 +983,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     </div>
                                     <textarea placeholder="Review message..." className="w-full p-3 border rounded-xl text-sm mb-3" value={newReview.comment || ""} onChange={e => setNewReview({...newReview, comment: e.target.value})}></textarea>
                                     <div className="mb-4">
-                                        <label className="block text-xs font-bold text-gray-500 mb-2">Review Images (Auto Compressed)</label>
+                                        <label className="block text-xs font-bold text-gray-500 mb-2">Review Images</label>
                                         <div className="flex flex-wrap gap-2">
                                             {newReview.images.map((img, idx) => (
                                                 <div key={idx} className="w-16 h-16 rounded-lg relative overflow-hidden border border-gray-200 group">
@@ -914,7 +993,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             ))}
                                             <div className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold bg-gray-50"
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'review')} onPaste={(e) => handlePaste(e, 'review')} tabIndex={0}>
-                                                <label className="w-full h-full flex items-center justify-center cursor-pointer"><Plus size={16} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'review')}/></label>
+                                                <label className="w-full h-full flex items-center justify-center cursor-pointer"><Plus size={16} className="text-gray-400"/><input type="file" multiple accept="image/*,video/mp4,video/webm" className="hidden" onChange={(e) => handleImageUpload(e as any, 'review')}/></label>
                                             </div>
                                         </div>
                                     </div>
