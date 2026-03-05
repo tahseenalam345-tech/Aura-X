@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Star, ShoppingBag, Moon } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import toast from "react-hot-toast";
-
+import * as fbq from "@/lib/fpixel";
 interface Product {
   id: string;
   name: string;
@@ -73,6 +73,16 @@ export function ProductCard({ product, priority = false }: { product: Product; p
         addBox: false,
         isEidExclusive: product.is_eid_exclusive || false 
     });
+
+    // 🚀 FIRE META PIXEL EVENT
+    fbq.event('AddToCart', {
+        content_name: displayShortName,
+        content_ids: [product.id],
+        content_type: 'product',
+        value: product.price,
+        currency: 'PKR',
+    });
+
     toast.success("Added to Cart");
   };
 

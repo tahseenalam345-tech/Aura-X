@@ -14,7 +14,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, AlertCircle, Camera, Gift, ArrowRight, X, Maximize2, Home, Eye, Check, Play, Bell, Package, Sun, Calendar, Filter, Image as ImageIcon, Video, Quote, Flame, MapPin
 } from "lucide-react";
 import toast from "react-hot-toast"; 
-
+import * as fbq from "@/lib/fpixel";
 const isVideoFile = (url: string) => url?.toLowerCase().includes('.mp4') || url?.toLowerCase().includes('.webm');
 
 // --- AGGRESSIVE CLIENT-SIDE IMAGE COMPRESSOR ---
@@ -237,10 +237,20 @@ export default function ProductClient() {
       isEidExclusive: product.is_eid_exclusive
     });
 
+    // 🚀 FIRE META PIXEL EVENT (Calculates final price * quantity)
+    fbq.event('AddToCart', {
+        content_name: displayShortName,
+        content_ids: [product.id],
+        content_type: 'product',
+        value: finalPriceWithBox * quantity,
+        currency: 'PKR',
+    });
+
     toast.success(`${displayShortName} added to bag!`, {
         style: { border: '1px solid #D4AF37', padding: '16px', color: '#4A3B32' },
         iconTheme: { primary: '#D4AF37', secondary: '#FFFAEE' },
     });
+    
     setTimeout(() => { router.push("/cart"); }, 800);
   };
 

@@ -5,7 +5,7 @@ import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "react-hot-toast";
 import { Footer } from "@/components/Footer";
-
+import FacebookPixel from "@/components/FacebookPixel";
 import Script from "next/script";
 import { FloatingAction } from "@/components/FloatingAction";
 
@@ -95,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             
             
             {children}
-            
+            <FacebookPixel />
             <Footer />
           </CartProvider>
         </AuthProvider>

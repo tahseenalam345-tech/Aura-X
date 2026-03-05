@@ -3,38 +3,51 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
-import { CheckCircle, Truck, ArrowRight, MessageCircle, XCircle, AlertCircle } from "lucide-react"; // Added Icons
-import { Suspense, useState } from "react";
-import { supabase } from "@/lib/supabase"; // Import Supabase
-import toast from "react-hot-toast";      // Import Toast
+import { CheckCircle, Truck, ArrowRight, MessageCircle, XCircle, AlertCircle } from "lucide-react";
+import { Suspense, useState, useEffect, useRef } from "react";
+import { supabase } from "@/lib/supabase"; 
+import toast from "react-hot-toast"; 
+import * as fbq from "@/lib/fpixel"; // 🚀 IMPORT META PIXEL UTILITY
 
 function SuccessContent() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("id") || "PENDING"; // This is the ORD-XXXX code
+  const orderId = searchParams.get("id") || "PENDING"; 
   const total = searchParams.get("total") || "0";
   const name = searchParams.get("name") || "Customer";
   
-  // New States for Cancellation
   const [cancelling, setCancelling] = useState(false);
   const [isCancelled, setIsCancelled] = useState(false);
+
+  // 🚀 FIRE PURCHASE EVENT SAFELY (Only fires ONCE per visit)
+  const hasFiredPixel = useRef(false);
+
+  useEffect(() => {
+    if (total && total !== "0" && !hasFiredPixel.current) {
+      fbq.event('Purchase', {
+        value: Number(total),
+        currency: 'PKR',
+        order_id: orderId, // Tells Facebook exactly which order this is to prevent duplicates
+        content_type: 'product',
+      });
+      hasFiredPixel.current = true;
+    }
+  }, [total, orderId]);
 
   const handleWhatsApp = () => {
     const text = `Hi AURA-X, I just placed order ${orderId} for Rs ${Number(total).toLocaleString()}. Can you confirm?`;
     window.open(`https://wa.me/923001234567?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  // --- CANCEL ORDER FUNCTION ---
   const handleCancel = async () => {
       if(!confirm("Are you sure you want to cancel this order? This cannot be undone.")) return;
 
       setCancelling(true);
 
       try {
-          // Update status in Supabase using the Order Code
           const { error } = await supabase
             .from('orders')
             .update({ status: 'Cancelled' })
-            .eq('order_code', orderId); // Matches the ORD-XXXX code
+            .eq('order_code', orderId); 
 
           if (error) throw error;
 
@@ -51,7 +64,6 @@ function SuccessContent() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4 pt-32">
       
-      {/* Dynamic Icon: Green Check normally, Red X if cancelled */}
       <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500 ${isCancelled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
         {isCancelled ? <XCircle size={48} /> : <CheckCircle size={48} />}
       </div>
@@ -80,7 +92,6 @@ function SuccessContent() {
         </div>
       </div>
 
-      {/* Main Actions */}
       {!isCancelled && (
         <>
             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
@@ -92,7 +103,6 @@ function SuccessContent() {
                 </button>
             </div>
 
-            {/* Cancel Button - Only visible if NOT cancelled yet */}
             <div className="mt-6 w-full max-w-md">
                  <button 
                     onClick={handleCancel}
@@ -105,7 +115,6 @@ function SuccessContent() {
         </>
       )}
 
-      {/* If Cancelled, show support option */}
       {isCancelled && (
          <div className="flex flex-col gap-4 w-full max-w-md">
             <div className="bg-red-50 text-red-800 p-4 rounded-xl text-sm flex items-center gap-3">
