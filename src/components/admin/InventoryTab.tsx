@@ -79,10 +79,13 @@ const processFileUpload = async (file: File, isReview: boolean = false) => {
     const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
     const fileName = `v4-${Date.now()}-${cleanName}.${ext}`;
 
-    const { error } = await supabase.storage.from('product-images').upload(fileName, fileToUpload); 
+    // 🚀 FIX: Smart routing. Sends videos to the video bucket, images to the image bucket!
+    const targetBucket = isVideo ? 'product-videos' : 'product-images';
+
+    const { error } = await supabase.storage.from(targetBucket).upload(fileName, fileToUpload); 
     if (error) { console.error("Upload Error:", error.message); return null; }
 
-    const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
+    const { data: { publicUrl } } = supabase.storage.from(targetBucket).getPublicUrl(fileName);
     return publicUrl;
 };
 
