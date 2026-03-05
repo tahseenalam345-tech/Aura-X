@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Video } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
@@ -49,13 +49,11 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
         const ctx = canvas.getContext("2d");
         
         if (ctx) {
-            // 🚀 FIX: Paint a white background first to prevent transparent PNG corruption!
             ctx.fillStyle = "#FFFFFF";
             ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
         }
         
-        // 🚀 FIX: Export as highly stable JPEG instead of WEBP
         const quality = isReview ? 0.7 : 0.85;
         canvas.toBlob((blob) => { 
             if (blob) resolve(blob); 
@@ -71,12 +69,12 @@ const processFileUpload = async (file: File, isReview: boolean = false) => {
     const isVideo = file.type.startsWith('video/');
     let fileToUpload: File | Blob = file;
 
+    // Skip compression if it is a video file, upload it directly!
     if (!isVideo) { 
         try { fileToUpload = await compressImage(file, isReview); } 
         catch (e) { console.error("Compression failed:", e); return null; } 
     }
 
-    // 🚀 FIX: Change extension to JPG
     const ext = isVideo ? 'mp4' : 'jpg';
     const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
     const fileName = `v4-${Date.now()}-${cleanName}.${ext}`;
@@ -100,7 +98,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       men: [], women: [], couple: []
   });
 
-  // 🚀 MASSIVE BULK VIEW GENERATOR STATES
   const [showViewsModal, setShowViewsModal] = useState(false);
   const [bulkViewCategory, setBulkViewCategory] = useState("All");
   const [minViews, setMinViews] = useState(50);
@@ -130,7 +127,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // 🚀 EXECUTOR FUNCTION: Apply Bulk Random Views
   const applyBulkViews = async () => {
     if (minViews >= maxViews) {
         return toast.error("Max views must be greater than Min views.");
@@ -138,7 +134,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
     const loadingToast = toast.loading(`Generating random views...`);
 
-    // 1. Filter the products we are applying this to based on selection
     let targetProducts = products;
     if (bulkViewCategory !== "All") {
         targetProducts = products.filter(p => p.category === bulkViewCategory);
@@ -149,12 +144,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         return toast.error("No products found in this category.");
     }
 
-    // 2. Loop through every product, generate a random number, and push it to Supabase
     try {
         const promises = targetProducts.map(async (p) => {
             const randomViewCount = Math.floor(Math.random() * (maxViews - minViews + 1)) + minViews;
             
-            // Keep old specs, just update view_count
             const currentSpecs = p.specs || {};
             const newSpecs = { ...currentSpecs, view_count: randomViewCount };
 
@@ -166,7 +159,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         toast.dismiss(loadingToast);
         toast.success(`Successfully added views to ${targetProducts.length} items!`);
         setShowViewsModal(false);
-        fetchProducts(); // Refresh the list so you can see the new numbers!
+        fetchProducts(); 
 
     } catch (error) {
         console.error("Bulk view error:", error);
@@ -223,9 +216,14 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       toast.dismiss(loadingToast);
   };
 
+  // 🚀 UPDATED SEARCH LOGIC: Now checks Name, SKU, and Brand
   const filteredProducts = products.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (item.specs?.sku || "").toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !q || 
+                          item.name.toLowerCase().includes(q) || 
+                          (item.specs?.sku || "").toLowerCase().includes(q) ||
+                          (item.brand || "").toLowerCase().includes(q);
+                          
     const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
 
     let matchesDate = true;
@@ -328,7 +326,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const handlePaste = async (e: React.ClipboardEvent, type: 'main' | 'gallery' | 'video' | 'review') => {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf("image") !== -1) {
+        if (items[i].type.indexOf("image") !== -1 || items[i].type.indexOf("video") !== -1) {
             const file = items[i].getAsFile();
             if (file) {
                 const isReviewUpload = type === 'review';
@@ -436,7 +434,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h1 className="text-2xl md:text-3xl font-bold text-[#1E1B18]">Inventory</h1>
                 <div className="flex flex-wrap gap-3 w-full md:w-auto">
-                    {/* 🚀 NEW BUTTON: Bulk Add Views */}
                     <button onClick={() => setShowViewsModal(true)} className="bg-white border border-red-200 text-red-600 px-5 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-red-50 hover:shadow-md transition-all text-sm md:text-base justify-center"><Eye size={18} /> Bulk Fake Views</button>
                     <button onClick={handleManageBrands} className="bg-white border border-gray-200 text-aura-brown px-5 py-3 rounded-full font-bold flex items-center gap-2 hover:border-aura-gold hover:shadow-md transition-all text-sm md:text-base justify-center"><List size={18} /> Manage Brands</button>
                     <button onClick={handleAddNewClick} className="bg-aura-brown text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-aura-gold transition-colors shadow-lg text-sm md:text-base w-full md:w-auto justify-center"><Plus size={18} /> Add New</button>
@@ -448,7 +445,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input 
                         type="text" 
-                        placeholder="Search by Name or SKU..." 
+                        placeholder="Search Name, SKU, Brand..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold"
@@ -479,7 +476,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         </div>
 
-        {/* 🚀 MODAL: Bulk Fake View Generator */}
         {showViewsModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col relative border-t-8 border-red-500">
@@ -540,7 +536,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 {item.is_pinned && <span className="text-[9px] bg-aura-gold text-black px-2 py-0.5 rounded shadow font-bold flex items-center gap-1"><Star size={8} fill="currentColor"/> PINNED</span>}
                                 {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded shadow font-bold">EID</span>}
                                 {item.specs?.stock <= 0 && <span className="text-[9px] bg-red-600 text-white px-2 py-0.5 rounded shadow font-bold">OUT OF STOCK</span>}
-                                {/* 🚀 NEW: Shows View Count visually on the Admin Card */}
                                 {item.specs?.view_count > 0 && <span className="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded shadow font-bold flex items-center gap-1"><Eye size={8}/> {item.specs.view_count} VIEWS</span>}
                             </div>
 
@@ -634,7 +629,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
-        {/* --- BRAND ORDERING MODAL --- */}
         {showBrandModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
@@ -690,7 +684,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
-        {/* --- ADD / EDIT PRODUCT MODAL --- */}
         {showForm && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-none md:rounded-[2rem] w-full max-w-6xl h-[100dvh] md:h-[90vh] flex flex-col shadow-2xl relative overflow-hidden">
@@ -780,6 +773,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals & Variants</h3>
                                 <div className="flex flex-col md:flex-row gap-6 mb-6">
+                                    
+                                    {/* 🚀 IMAGE & COLOR BLOCK */}
                                     <div className="w-full md:w-40 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Main Image</label>
@@ -791,7 +786,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                         <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
                                                     </>
                                                 ) : (
-                                                    <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400 mt-1">Upload/Paste</span><input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'main')}/></label>
+                                                    <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400 mt-1">Upload/Paste</span><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'main')}/></label>
                                                 )}
                                             </div>
                                         </div>
@@ -802,6 +797,32 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             </select>
                                         </div>
                                     </div>
+
+                                    {/* 🚀 NEW: DEDICATED VIDEO UPLOAD BLOCK */}
+                                    <div className="w-full md:w-40 space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 mb-2">Product Video (MP4)</label>
+                                            <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.video ? 'border-aura-gold' : 'border-gray-300'}`}
+                                                onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'video')} onPaste={(e) => handlePaste(e, 'video')} tabIndex={0}>
+                                                {formData.video ? (
+                                                    <>
+                                                        <video src={formData.video} className="object-cover w-full h-full" autoPlay muted loop playsInline />
+                                                        <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('video');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
+                                                    </>
+                                                ) : (
+                                                    <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                                                        <Video size={24} className="mx-auto text-gray-300"/>
+                                                        <span className="text-xs text-gray-400 mt-1">Upload Video</span>
+                                                        <input type="file" accept="video/mp4,video/webm" className="hidden" onChange={(e) => handleImageUpload(e as any, 'video')}/>
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] text-gray-400 italic text-center mt-2 leading-tight">Must compress via Handbrake before uploading!</p>
+                                        </div>
+                                    </div>
+
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-gray-500 mb-2">Gallery</label>
                                         <div className="flex flex-wrap gap-4">
@@ -813,7 +834,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             ))}
                                             <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold flex-shrink-0 bg-white"
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'gallery')} onPaste={(e) => handlePaste(e, 'gallery')} tabIndex={0}>
-                                                <label className="w-full h-full flex items-center justify-center cursor-pointer"><Plus size={20} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'gallery')}/></label>
+                                                <label className="w-full h-full flex items-center justify-center cursor-pointer"><Plus size={20} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'gallery')}/></label>
                                             </div>
                                         </div>
                                         
@@ -828,7 +849,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                             {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
                                                         </select>
                                                         <label className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg text-xs font-bold cursor-pointer hover:bg-gray-100 w-full md:w-auto justify-center border">
-                                                            {color.image ? "Image Uploaded" : "Upload Image"} <input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'color', index)}/>
+                                                            {color.image ? "Image Uploaded" : "Upload Image"} <input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'color', index)}/>
                                                         </label>
                                                         <button type="button" onClick={() => setFormData({...formData, colors: formData.colors.filter((_, i) => i !== index)})} className="text-red-400"><Trash2 size={18}/></button>
                                                     </div>
@@ -890,7 +911,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             ))}
                                             <div className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold bg-gray-50"
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'review')} onPaste={(e) => handlePaste(e, 'review')} tabIndex={0}>
-                                                <label className="w-full h-full flex items-center justify-center cursor-pointer"><Plus size={16} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'review')}/></label>
+                                                <label className="w-full h-full flex items-center justify-center cursor-pointer"><Plus size={16} className="text-gray-400"/><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'review')}/></label>
                                             </div>
                                         </div>
                                     </div>

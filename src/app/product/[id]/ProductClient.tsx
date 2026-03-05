@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast"; 
 import * as fbq from "@/lib/fpixel";
+
 const isVideoFile = (url: string) => url?.toLowerCase().includes('.mp4') || url?.toLowerCase().includes('.webm');
 
 // --- AGGRESSIVE CLIENT-SIDE IMAGE COMPRESSOR ---
@@ -237,7 +238,6 @@ export default function ProductClient() {
       isEidExclusive: product.is_eid_exclusive
     });
 
-    // 🚀 FIRE META PIXEL EVENT (Calculates final price * quantity)
     fbq.event('AddToCart', {
         content_name: displayShortName,
         content_ids: [product.id],
@@ -358,7 +358,7 @@ export default function ProductClient() {
            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"><X size={30}/></button>
            <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
              {isVideoFile(lightboxImage) ? (
-                 <video src={lightboxImage} controls autoPlay className="w-full h-full object-contain" />
+                 <video src={lightboxImage} controls autoPlay playsInline className="w-full h-full object-contain" />
              ) : (
                  <Image src={lightboxImage} alt={`Zoomed view of ${seoAltText}`} fill className="object-contain" quality={90} unoptimized={true} />
              )}
@@ -390,14 +390,11 @@ export default function ProductClient() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12 md:mb-20">
           
-          {/* 🚀 NEW IMAGE LAYOUT: Left Main Image, Bottom Circles, Right Colors */}
           <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start flex flex-row gap-3 md:gap-4 w-full">
             
-            {/* Main Image & Bottom Gallery Circles */}
             <div className="flex-1 flex flex-col min-w-0">
                 <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10 group">
                   
-                  {/* Arrows for sliding */}
                   {galleryMedia.length > 1 && (
                       <>
                           <button onClick={handlePrevImage} className="absolute left-3 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-md p-2 rounded-full shadow-md text-aura-brown hover:bg-aura-gold hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
@@ -409,7 +406,6 @@ export default function ProductClient() {
                       </>
                   )}
 
-                  {/* Actions / Badges */}
                   <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
                      {displayDiscount > 0 && (
                          <span className="bg-[#750000] text-white text-xs font-bold px-3 py-1 rounded shadow-lg tracking-widest mb-1 animate-pulse">
@@ -421,17 +417,28 @@ export default function ProductClient() {
                   </div>
                   <button onClick={() => setLightboxImage(currentDisplayImage)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
                   
-                  {/* Current Active Image / Video */}
+                  {/* 🚀 SMART VIDEO FIX: Uses poster and preload="none" */}
                   {currentDisplayImage && (
                     isVideoFile(currentDisplayImage) ? (
-                        <video src={currentDisplayImage} autoPlay muted loop playsInline className="object-cover w-full h-full cursor-pointer" onClick={() => setLightboxImage(currentDisplayImage)} />
+                        <video 
+                            key={currentDisplayImage} // Forces React to reload the video tag when switching media
+                            autoPlay 
+                            muted 
+                            loop 
+                            playsInline 
+                            preload="none" // 🚀 Prevents massive background downloading!
+                            poster={product.main_image} // 🚀 Shows main picture while loading!
+                            className="object-cover w-full h-full cursor-pointer" 
+                            onClick={() => setLightboxImage(currentDisplayImage)} 
+                        >
+                            <source src={currentDisplayImage} type="video/mp4" />
+                        </video>
                     ) : (
                         <Image src={currentDisplayImage} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 60vw" className="object-cover cursor-zoom-in" unoptimized={true} onClick={() => setLightboxImage(currentDisplayImage)} />
                     )
                   )}
                 </div>
                 
-                {/* Bottom Gallery Circles */}
                 <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide justify-center">
                    {galleryMedia.map((img: string, i: number) => (
                      <button 
@@ -439,9 +446,10 @@ export default function ProductClient() {
                          onClick={() => { setMediaIndex(i); setViewingColor(false); }} 
                          className={`relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-full border-2 overflow-hidden transition-all duration-300 ${!viewingColor && mediaIndex === i ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
                      >
+                         {/* 🚀 SMART THUMBNAIL FIX: Disabled autoplay to save huge amounts of CPU and data */}
                          {isVideoFile(img) ? (
                              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                                 <video src={img} className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
+                                 <video src={img} preload="none" playsInline className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
                                  <Play size={16} className="relative z-10 text-aura-brown" fill="currentColor"/>
                              </div>
                          ) : (
@@ -452,7 +460,6 @@ export default function ProductClient() {
                 </div>
             </div>
 
-            {/* Right Vertical Color Column */}
             {product.colors && product.colors.length > 0 && (
                 <div className="w-14 md:w-16 flex flex-col gap-3 flex-shrink-0 items-center pt-2">
                     <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Colors</span>
