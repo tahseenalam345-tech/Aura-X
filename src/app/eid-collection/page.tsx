@@ -2,13 +2,12 @@
 
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard"; 
-import { Lock, Bell, Check, ShoppingBag, Moon, Star, Filter } from "lucide-react";
+import { Lock, Bell, Check, Moon, Filter, Flame } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 
-// --- CUSTOM LANTERN SVG ---
 const Lantern = ({ className, delay = "0s" }: { className?: string, delay?: string }) => (
   <svg viewBox="0 0 100 100" className={`${className} drop-shadow-xl`} style={{ animationDelay: delay }}>
     <line x1="50" y1="0" x2="50" y2="20" stroke="#8B7355" strokeWidth="2" />
@@ -29,11 +28,8 @@ export default function EidCollectionPage() {
   const [isNotified, setIsNotified] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 🚀 BRAND AND SORTING STATES
   const [selectedBrand, setSelectedBrand] = useState("All");
-  const [sortOption, setSortOption] = useState("featured");
 
-  // --- 1. FETCH TARGET DATE FROM DB ---
   useEffect(() => {
     const fetchDate = async () => {
       const { data } = await supabase
@@ -48,7 +44,6 @@ export default function EidCollectionPage() {
     fetchDate();
   }, []);
 
-  // --- 2. COUNTDOWN LOGIC (DEPENDS ON DB DATE) ---
   useEffect(() => {
     if (!targetDate) return;
 
@@ -74,10 +69,9 @@ export default function EidCollectionPage() {
     return () => clearInterval(timer);
   }, [targetDate]); 
 
-  // --- 3. FETCH PRODUCTS ---
   useEffect(() => {
     const fetchEidItems = async () => {
-        const { data } = await supabase.from('products').select('*').eq('is_eid_exclusive', true);
+        const { data } = await supabase.from('products').select('*').eq('is_eid_exclusive', true).order('priority', { ascending: false });
         if (data && data.length > 0) {
             setEidProducts(data);
         }
@@ -85,36 +79,42 @@ export default function EidCollectionPage() {
     fetchEidItems();
   }, []);
 
-  // --- 4. DYNAMIC BRANDS LIST ---
   const brands = useMemo(() => {
-      const b = new Set(eidProducts.map(p => (p.brand || "AURA-X").trim().toUpperCase()));
-      return ["All", ...Array.from(b)];
+      const brandCounts: Record<string, number> = {};
+      const originalNames: Record<string, string> = {}; 
+
+      eidProducts.forEach(p => {
+          const rawBrand = (p.brand || "AURA-X").trim();
+          const upperBrand = rawBrand.toUpperCase();
+
+          if (!brandCounts[upperBrand]) {
+              brandCounts[upperBrand] = 0;
+              originalNames[upperBrand] = rawBrand; 
+          }
+          brandCounts[upperBrand]++;
+      });
+
+      const sortedBrands = Object.keys(brandCounts)
+          .sort((a, b) => brandCounts[b] - brandCounts[a])
+          .map(upper => originalNames[upper]);
+
+      return ["All", ...sortedBrands];
   }, [eidProducts]);
 
-  // --- 5. FILTER & SORT LOGIC ---
   const displayProducts = useMemo(() => {
       let filtered = eidProducts;
       
-      // Filter by Brand
       if (selectedBrand !== "All") {
-          filtered = filtered.filter(p => (p.brand || "AURA-X").trim().toUpperCase() === selectedBrand);
+          filtered = filtered.filter(p => (p.brand || "AURA-X").trim().toUpperCase() === selectedBrand.toUpperCase());
       }
       
-      // Sort Array
       return filtered.sort((a, b) => {
-          if (sortOption === "price_low") return a.price - b.price;
-          if (sortOption === "price_high") return b.price - a.price;
-          if (sortOption === "az") return (a.name || "").localeCompare(b.name || "");
-          if (sortOption === "selling") return (b.specs?.view_count || 0) - (a.specs?.view_count || 0);
-          
-          // default 'featured': pinned first, then priority
           if (a.is_pinned && !b.is_pinned) return -1;
           if (!a.is_pinned && b.is_pinned) return 1;
           return (b.priority || 0) - (a.priority || 0);
       });
-  }, [eidProducts, selectedBrand, sortOption]);
+  }, [eidProducts, selectedBrand]);
 
-  // --- 6. NOTIFY BUTTON ---
   const handleNotify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.includes("@")) return toast.error("Please enter a valid email");
@@ -129,146 +129,121 @@ export default function EidCollectionPage() {
     <main className={`min-h-screen transition-colors duration-1000 relative overflow-hidden ${isLive ? 'bg-[#FDFBF7] text-aura-brown' : 'bg-[#0F0F0F] text-white'} pb-32`}>
       <Navbar /> 
       
-      {/* === RAMZAN THEME (Visible ONLY when Live) === */}
+      {/* 🚀 FIXED: MASSIVE PADDING TO CLEAR THE NAVBAR AND SHOW BANNER */}
       {isLive && (
-        <div className="absolute inset-0 pointer-events-none z-0">
-            <Moon className="absolute top-10 -right-20 w-[500px] h-[500px] text-[#D4AF37] opacity-10 rotate-[15deg]" />
-            <div className="absolute top-0 left-4 md:left-20 animate-in slide-in-from-top duration-[2000ms]">
-               <div className="h-24 w-[1.5px] bg-[#D4AF37] mx-auto opacity-30"></div>
-               <Lantern className="w-20 h-20 -mt-2" />
+        <div className="pt-[100px] md:pt-[125px] w-full relative z-40">
+            <div className="bg-[#750000] text-white py-2 md:py-2.5 px-2 text-center text-[10px] md:text-sm font-bold tracking-widest uppercase shadow-md flex items-center justify-center gap-1.5">
+                <Flame size={14} className="animate-pulse text-yellow-400" /> 
+                EIDI READY: 30% OFF + FREE DELIVERY NATIONWIDE 🇵🇰
             </div>
-            <div className="absolute top-0 left-28 md:left-48 animate-in slide-in-from-top duration-[2500ms]">
-               <div className="h-48 w-[1.5px] bg-[#D4AF37] mx-auto opacity-30"></div>
-               <Lantern className="w-14 h-14 -mt-2" />
-            </div>
-            <div className="absolute top-0 right-4 md:right-20 animate-in slide-in-from-top duration-[2200ms]">
-               <div className="h-32 w-[1.5px] bg-[#D4AF37] mx-auto opacity-30"></div>
-               <Lantern className="w-16 h-16 -mt-2" />
-            </div>
-            <Star className="absolute top-40 left-1/4 w-6 h-6 text-[#D4AF37] fill-[#D4AF37] opacity-20 animate-pulse" />
-            <Star className="absolute top-20 right-1/3 w-8 h-8 text-[#D4AF37] fill-[#D4AF37] opacity-20 animate-pulse delay-700" />
         </div>
       )}
 
-      {/* HEADER CONTENT */}
-      <div className={`pt-40 text-center px-6 relative z-10 ${isLive ? 'pb-10' : 'pb-20'}`}>
+      {isLive && (
+        <div className="absolute inset-0 pointer-events-none z-0 mt-[110px]">
+            <Moon className="absolute top-0 -right-20 w-[400px] h-[400px] text-[#D4AF37] opacity-10 rotate-[15deg]" />
+            <div className="absolute top-5 left-4 md:left-20 animate-in slide-in-from-top duration-[2000ms]">
+               <div className="h-8 md:h-24 w-[1.5px] bg-[#D4AF37] mx-auto opacity-30"></div>
+               <Lantern className="w-10 h-10 md:w-20 md:h-20 -mt-2" />
+            </div>
+            <div className="absolute top-5 right-4 md:right-20 animate-in slide-in-from-top duration-[2200ms]">
+               <div className="h-12 md:h-32 w-[1.5px] bg-[#D4AF37] mx-auto opacity-30"></div>
+               <Lantern className="w-8 h-8 md:w-16 md:h-16 -mt-2" />
+            </div>
+        </div>
+      )}
+
+      {/* 🚀 COMPACTED TEXT SECTION - REMOVED FLUFF TO PULL WATCHES UP */}
+      <div className={`${isLive ? 'pt-4 pb-2' : 'pt-40 pb-20'} text-center px-2 relative z-10`}>
          
          {!isLive && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-aura-gold/10 blur-[150px] rounded-full -z-10"></div>}
          
-         <div className="flex justify-center mb-6">
-            <span className={`inline-block border px-6 py-2 rounded-full text-xs font-bold tracking-[0.3em] uppercase ${isLive ? 'border-aura-brown/20 text-aura-brown bg-white/60 backdrop-blur-sm shadow-sm' : 'border-aura-gold/30 text-aura-gold bg-black/50 backdrop-blur-md animate-pulse'}`}>
+         <div className="flex justify-center mb-1">
+            <span className={`inline-block border px-4 py-1 rounded-full text-[9px] font-bold tracking-[0.2em] uppercase ${isLive ? 'border-aura-brown/20 text-aura-brown bg-white/60 backdrop-blur-sm shadow-sm' : 'border-aura-gold/30 text-aura-gold bg-black/50 backdrop-blur-md animate-pulse'}`}>
                 {isLive ? "✨ Collection Unlocked ✨" : "Ramzan 10th"}
             </span>
          </div>
          
-         <h1 className={`text-5xl md:text-8xl font-serif mb-6 transition-all duration-1000 ${isLive ? 'text-[#3E3025] drop-shadow-sm scale-105' : 'text-white'}`}>
+         <h1 className={`text-4xl md:text-6xl font-serif leading-none transition-all duration-1000 ${isLive ? 'text-[#3E3025] drop-shadow-sm' : 'text-white mb-6'}`}>
             The <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#D4AF37] to-[#8B7355] italic">Unseen</span>
          </h1>
-         
-         <p className={`${isLive ? 'text-[#5A4A3A] font-semibold' : 'text-gray-400'} max-w-lg mx-auto text-lg mb-12`}>
-            {isLive 
-              ? "The wait is over. The moon has risen, and the exclusive Eid Collection is now yours to explore." 
-              : "Our most anticipated collection of the year. Strictly locked until the moon rises."}
-         </p>
 
-         {/* TIMER (Hidden when Live) */}
          {!isLive && (
-             <div className="flex justify-center gap-4 md:gap-8 mb-12">
-                {[ 
-                  { label: "Days", val: timeLeft.days }, 
-                  { label: "Hours", val: timeLeft.hours }, 
-                  { label: "Mins", val: timeLeft.minutes }, 
-                  { label: "Secs", val: timeLeft.seconds } 
-                ].map((item, i) => (
-                    <div key={i} className="text-center">
-                        <div className="w-16 h-16 md:w-24 md:h-24 bg-[#1a1a1a] border border-white/10 rounded-2xl flex items-center justify-center text-2xl md:text-4xl font-bold font-mono text-aura-gold shadow-2xl">
-                            {String(item.val).padStart(2, '0')}
-                        </div>
-                        <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-2">{item.label}</p>
-                    </div>
-                ))}
-             </div>
+             <>
+               <p className="text-gray-400 max-w-lg mx-auto text-sm md:text-lg mb-10 mt-4 px-4">
+                  Our most anticipated collection of the year. Strictly locked until the moon rises.
+               </p>
+               <div className="flex justify-center gap-3 md:gap-8 mb-10">
+                  {[ 
+                    { label: "Days", val: timeLeft.days }, 
+                    { label: "Hours", val: timeLeft.hours }, 
+                    { label: "Mins", val: timeLeft.minutes }, 
+                    { label: "Secs", val: timeLeft.seconds } 
+                  ].map((item, i) => (
+                      <div key={i} className="text-center">
+                          <div className="w-14 h-14 md:w-24 md:h-24 bg-[#1a1a1a] border border-white/10 rounded-xl flex items-center justify-center text-xl md:text-4xl font-bold font-mono text-aura-gold shadow-2xl">
+                              {String(item.val).padStart(2, '0')}
+                          </div>
+                          <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-gray-500 mt-2">{item.label}</p>
+                      </div>
+                  ))}
+               </div>
+               <div className="w-full flex justify-center">
+                   <div className="max-w-md w-full px-4">
+                      {!isNotified ? (
+                          <form onSubmit={handleNotify} className="flex flex-col gap-3">
+                              <input type="email" placeholder="Enter your email address" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-3 text-white focus:outline-none focus:border-aura-gold transition-colors text-center" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                              <button type="submit" disabled={isLoading} className="w-full bg-white text-black px-8 py-3.5 rounded-full font-bold text-xs tracking-widest hover:bg-aura-gold hover:text-white transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
+                                  {isLoading ? "SAVING..." : <><Bell size={16} /> NOTIFY ME WHEN LIVE</>}
+                              </button>
+                          </form>
+                      ) : (
+                          <div className="bg-green-900/20 border border-green-500/30 text-green-400 px-8 py-4 rounded-xl flex items-center justify-center gap-3">
+                              <Check size={20} /> <span className="font-bold tracking-wide text-xs">YOU'RE ON THE LIST!</span>
+                          </div>
+                      )}
+                   </div>
+               </div>
+             </>
          )}
-
-         {/* ACTIONS */}
-         <div className="w-full flex justify-center">
-             {!isLive ? (
-                 <div className="max-w-md w-full">
-                    {!isNotified ? (
-                        <form onSubmit={handleNotify} className="flex flex-col md:flex-row gap-2">
-                            <input type="email" placeholder="Enter your email address" className="flex-1 bg-white/5 border border-white/10 rounded-full px-6 py-3 text-white focus:outline-none focus:border-aura-gold transition-colors text-center md:text-left" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                            <button type="submit" disabled={isLoading} className="bg-white text-black px-8 py-3 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold hover:text-white transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
-                                {isLoading ? "SAVING..." : <><Bell size={16} /> NOTIFY ME</>}
-                            </button>
-                        </form>
-                    ) : (
-                        <div className="bg-green-900/20 border border-green-500/30 text-green-400 px-8 py-4 rounded-xl flex items-center justify-center gap-3">
-                            <Check size={20} /> <span className="font-bold tracking-wide">YOU'RE ON THE LIST!</span>
-                        </div>
-                    )}
-                 </div>
-             ) : (
-                 <button 
-                    onClick={() => window.scrollTo({ top: 750, behavior: 'smooth' })} 
-                    className="bg-gradient-to-r from-aura-brown to-[#2a2622] text-white px-12 py-4 rounded-full font-bold text-sm tracking-[0.2em] hover:scale-105 transition-all flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(74,59,50,0.4)] animate-in zoom-in duration-500"
-                 >
-                    <ShoppingBag size={18} className="text-aura-gold" /> BROWSE NOW
-                 </button>
-             )}
-         </div>
       </div>
 
-      {/* --- PRODUCT GRID & FILTERS --- */}
-      <div className="max-w-7xl mx-auto px-6 relative z-10 pt-10">
-         {/* SCENARIO A: UNLOCKED (Live) */}
+      {/* 🚀 COMPACTED GRID SPACING */}
+      <div className="max-w-7xl mx-auto px-2 md:px-6 relative z-10 pt-2">
          {isLive ? (
              <div className="animate-in fade-in duration-1000">
                  
-                 {/* 🚀 BRAND FILTERS & SORTING OPTIONS */}
-                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 border-b border-aura-brown/10 pb-6">
-                    {/* Brand Pills */}
-                    <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 scrollbar-hide">
-                        <Filter size={16} className="text-gray-400 mt-2 mr-2 hidden md:block" />
+                 <div className="flex flex-row justify-between items-center gap-2 mb-3 border-b border-aura-brown/10 pb-2 px-2">
+                    <div className="flex gap-1.5 overflow-x-auto w-full pb-1 scrollbar-hide items-center">
+                        <Filter size={14} className="text-gray-400 flex-shrink-0" />
                         {brands.map(b => (
                             <button 
                                 key={b} 
                                 onClick={() => setSelectedBrand(b)} 
-                                className={`px-5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${selectedBrand === b ? 'bg-aura-brown text-white' : 'bg-white text-aura-brown border border-gray-200 hover:border-aura-gold hover:text-black'}`}
+                                className={`px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${selectedBrand === b ? 'bg-aura-brown text-white' : 'bg-white text-aura-brown border border-gray-200'}`}
                             >
                                 {b}
                             </button>
                         ))}
                     </div>
-                    
-                    {/* Sorting Dropdown */}
-                    <select 
-                        value={sortOption} 
-                        onChange={(e) => setSortOption(e.target.value)} 
-                        className="w-full md:w-auto bg-white text-xs font-bold text-aura-brown outline-none cursor-pointer border border-gray-200 rounded-full px-4 py-2.5 shadow-sm focus:border-aura-gold focus:ring-1 focus:ring-aura-gold"
-                    >
-                        <option value="featured">Sort by: Featured</option>
-                        <option value="selling">Best Selling</option>
-                        <option value="price_low">Price: Low to High</option>
-                        <option value="price_high">Price: High to Low</option>
-                        <option value="az">Alphabetically (A-Z)</option>
-                    </select>
                  </div>
 
-                 {/* Products Grid */}
-                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
+                 {/* 🚀 SMALLER GAP ON MOBILE TO FIT MORE WATCHES ON SCREEN */}
+                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-6 px-1">
                     {displayProducts.length > 0 ? displayProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} />
+                        <div key={product.id} className="bg-white/50 rounded-2xl p-1 border border-black/5 shadow-sm">
+                            <ProductCard product={product} />
+                        </div>
                     )) : (
-                        <div className="col-span-full text-center py-20 bg-white/50 rounded-3xl border border-dashed border-gray-300">
-                            <p className="text-gray-400 font-serif text-2xl mb-2">No watches found.</p>
-                            <p className="text-gray-400 text-sm">Try selecting a different brand.</p>
+                        <div className="col-span-full text-center py-20 bg-white/50 rounded-3xl border border-dashed border-gray-300 mt-4">
+                            <p className="text-gray-400 font-serif text-xl mb-2">No watches found.</p>
+                            <p className="text-gray-400 text-xs">Try selecting a different brand.</p>
                         </div>
                     )}
                  </div>
              </div>
          ) : (
-         /* SCENARIO B: LOCKED (Original Dark Look) */
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 px-2">
                 {(eidProducts.length > 0 ? eidProducts : Array.from({ length: 8 })).map((item: any, i) => (
                     <div key={i} className="relative aspect-[3/4] bg-[#1a1a1a] rounded-2xl border border-white/5 overflow-hidden group">
                         {item?.main_image ? (
@@ -277,10 +252,10 @@ export default function EidCollectionPage() {
                             <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black opacity-50"></div>
                         )}
                         <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-md bg-black/20 group-hover:backdrop-blur-lg transition-all">
-                            <div className="bg-black/50 p-4 rounded-full border border-white/10 mb-3 shadow-2xl">
-                                <Lock className="text-white/70 w-6 h-6" />
+                            <div className="bg-black/50 p-3 md:p-4 rounded-full border border-white/10 mb-2 md:mb-3 shadow-2xl">
+                                <Lock className="text-white/70 w-5 h-5 md:w-6 md:h-6" />
                             </div>
-                            <p className="text-[10px] font-bold tracking-widest uppercase text-white/50">Revealing Soon</p>
+                            <p className="text-[8px] md:text-[10px] font-bold tracking-widest uppercase text-white/50">Revealing Soon</p>
                         </div>
                     </div>
                 ))}
