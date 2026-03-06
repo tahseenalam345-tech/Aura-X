@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Video, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Video, Loader2, Copy } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
@@ -65,7 +65,7 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
   });
 };
 
-// 🚀 UPDATED: Handles Uploads and simulates accurate progress
+// 🚀 Handles Uploads and simulates accurate progress
 const processFileUpload = async (file: File, isReview: boolean = false, onProgress?: (p: number) => void) => {
     const isVideo = file.type.startsWith('video/');
     let fileToUpload: File | Blob = file;
@@ -79,7 +79,6 @@ const processFileUpload = async (file: File, isReview: boolean = false, onProgre
     const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
     const fileName = `v4-${Date.now()}-${cleanName}.${ext}`;
 
-    // 🚀 We send EVERYTHING to product-images because Supabase already allows uploads there!
     const targetBucket = 'product-images';
 
     // Simulated Progress Bar for UI feedback
@@ -114,7 +113,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [editId, setEditId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('grid');
   
-  // 🚀 LIVE UPLOAD TRACKING STATE
+  // LIVE UPLOAD TRACKING STATE
   const [uploadQueue, setUploadQueue] = useState<{ id: string, progress: number, type: string }[]>([]);
 
   const [showBrandModal, setShowBrandModal] = useState(false);
@@ -152,7 +151,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // 🚀 MASTER UPLOAD HANDLER (Handles multiple files, drag/drop, and progress tracking)
+  // MASTER UPLOAD HANDLER (Handles multiple files, drag/drop, and progress tracking)
   const processFiles = async (files: File[], type: 'main' | 'gallery' | 'color' | 'video' | 'review', index?: number) => {
       for (const file of files) {
           const id = Math.random().toString();
@@ -181,7 +180,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       const files = Array.from(e.dataTransfer.files || []);
       if (!files.length) return;
       
-      // Allow multiple files ONLY for gallery and reviews. Main and Video take the first file.
       const filesToProcess = (type === 'gallery' || type === 'review') ? files : [files[0]];
       await processFiles(filesToProcess, type);
   };
@@ -355,6 +353,69 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     setEditId(item.id);
     setIsEditing(true);
     setShowForm(true);
+  };
+
+  // 🚀 NEW: EXACT COPY FUNCTION
+  const handleCopyClick = (item: any, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevents the Edit click from firing at the same time
+    
+    const specs = item.specs || {};
+    let singleTag = "";
+    if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
+    else if (typeof item.tags === 'string') singleTag = item.tags;
+
+    // Generate a fresh SKU so it doesn't overwrite the old one!
+    const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    setFormData({
+        ...initialFormState,
+        name: `${item.name} (Copy)`, // Adds (Copy) to the name so you don't confuse them
+        brand: item.brand || "AURA-X",
+        category: item.category || "",
+        price: item.price || 0,
+        originalPrice: item.original_price || 0,
+        discount: item.discount || 0,
+        description: item.description || "",
+        mainImage: item.main_image || "",
+        baseColorName: item.colors?.[0]?.name || "Silver",
+        tags: singleTag,
+        priority: item.priority || 100,
+        isEidExclusive: item.is_eid_exclusive || false,
+        isPinned: item.is_pinned || false, 
+        colors: item.colors?.slice(1) || [], 
+        manualReviews: item.manual_reviews || [],
+        sku: randomSku, // Apply the new random SKU
+        stock: specs.stock || 1,
+        costPrice: specs.cost_price || 0,
+        viewCount: specs.view_count || 0,
+        movement: specs.movement || "Quartz (Battery)",
+        waterResistance: specs.water_resistance || "0ATM (No Resistance)",
+        glass: specs.glass || "",
+        caseMaterial: specs.case_material || "",
+        caseColor: specs.case_color || "Silver",
+        caseShape: specs.case_shape || "Round",
+        caseDiameter: specs.case_size || "40mm",
+        caseThickness: specs.case_thickness || "10mm",
+        strapMaterial: specs.strap || "",
+        strapColor: specs.strap_color || "",
+        strapWidth: specs.strap_width || "20mm",
+        adjustable: specs.adjustable ?? true,
+        dialColor: specs.dial_color || "",
+        luminous: specs.luminous ?? false,
+        dateDisplay: specs.date_display ?? false,
+        weight: specs.weight || "135g",
+        warranty: specs.warranty || "No Official Warranty",
+        shippingText: specs.shipping_text || "2-4 Working Days",
+        returnPolicy: specs.return_policy || "7 Days Return Policy",
+        boxIncluded: specs.box_included ?? false,
+        gallery: specs.gallery || [],
+        video: specs.video || ""
+    });
+
+    setEditId(null); // CRITICAL: Sets it as a New Item, not an Update
+    setIsEditing(false); // CRITICAL: Tells the publish button to 'insert' instead of 'update'
+    setShowForm(true);
+    toast.success("Copied details! Update the images and publish.");
   };
 
   const applyImageToState = (url: string, type: string, index?: number) => {
@@ -582,13 +643,23 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 {item.specs?.view_count > 0 && <span className="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded shadow font-bold flex items-center gap-1"><Eye size={8}/> {item.specs.view_count} VIEWS</span>}
                             </div>
 
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} 
-                                className="absolute top-2 right-2 bg-white/80 p-1.5 rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
-                                title="Delete Item"
-                            >
-                                <Trash2 size={16} />
-                            </button>
+                            {/* 🚀 NEW: Copy Button added to Grid View */}
+                            <div className="absolute top-2 right-2 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={(e) => handleCopyClick(item, e)} 
+                                    className="bg-white/90 backdrop-blur p-1.5 rounded-full text-blue-500 hover:bg-blue-500 hover:text-white transition-colors shadow-sm"
+                                    title="Duplicate Item"
+                                >
+                                    <Copy size={16} />
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} 
+                                    className="bg-white/90 backdrop-blur p-1.5 rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-colors shadow-sm"
+                                    title="Delete Item"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </div>
                         <div className="p-3">
                             <h3 className="font-bold text-aura-brown text-sm truncate">{item.name}</h3>
@@ -630,7 +701,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
+                            {/* 🚀 NEW: Copy Button added to List View */}
+                            <button onClick={(e) => handleCopyClick(item, e)} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-colors" title="Duplicate"><Copy size={16}/></button>
+                            <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors" title="Delete"><Trash2 size={16}/></button>
                             <div className="p-2 text-aura-gold"><Edit2 size={16} /></div>
                         </div>
                     </div>
@@ -641,7 +714,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         {viewMode === 'table' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto pb-20">
                 <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Uploaded</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Delete</th></tr></thead>
+                    <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Uploaded</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Actions</th></tr></thead>
                     <tbody className="divide-y divide-gray-50">
                         {filteredProducts.map((item) => (
                             <tr key={item.id} onClick={() => handleEditClick(item)} className="hover:bg-aura-gold/5 cursor-pointer transition-colors group">
@@ -662,8 +735,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <td className="p-4 text-xs text-gray-500">{formatDate(item.created_at)}</td>
                                 <td className="p-4 text-sm font-medium">{item.specs?.stock}</td>
                                 <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
-                                <td className="p-4 text-right">
-                                    <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 text-gray-300 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
+                                <td className="p-4 text-right flex justify-end gap-1">
+                                    {/* 🚀 NEW: Copy Button added to Table View */}
+                                    <button onClick={(e) => handleCopyClick(item, e)} className="p-2 text-gray-300 hover:text-blue-600 transition-colors" title="Duplicate"><Copy size={16}/></button>
+                                    <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 text-gray-300 hover:text-red-600 transition-colors" title="Delete"><Trash2 size={16}/></button>
                                 </td>
                             </tr>
                         ))}
