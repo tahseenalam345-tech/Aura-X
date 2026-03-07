@@ -6,6 +6,10 @@ import { Moon, Filter, Flame } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 
+// 🚀 THE FIX: GLOBAL MEMORY CACHE
+let cachedEidProducts: any[] = [];
+let globalSelectedEidBrand = "All";
+
 const Lantern = ({ className, delay = "0s" }: { className?: string, delay?: string }) => (
   <svg viewBox="0 0 100 100" className={`${className} drop-shadow-xl`} style={{ animationDelay: delay }}>
     <line x1="50" y1="0" x2="50" y2="20" stroke="#8B7355" strokeWidth="2" />
@@ -17,8 +21,14 @@ const Lantern = ({ className, delay = "0s" }: { className?: string, delay?: stri
 );
 
 export default function EidCollectionPage() {
-  const [eidProducts, setEidProducts] = useState<any[]>([]);
-  const [selectedBrand, setSelectedBrand] = useState("All");
+  // 🚀 Initialize state from the cache so it doesn't start empty
+  const [eidProducts, setEidProducts] = useState<any[]>(cachedEidProducts);
+  const [selectedBrand, setSelectedBrand] = useState(globalSelectedEidBrand);
+
+  // Sync brand selection to cache
+  useEffect(() => {
+      globalSelectedEidBrand = selectedBrand;
+  }, [selectedBrand]);
 
   // Fetch only the watches instantly
   useEffect(() => {
@@ -26,8 +36,11 @@ export default function EidCollectionPage() {
         const { data } = await supabase.from('products').select('*').eq('is_eid_exclusive', true).order('priority', { ascending: false });
         if (data && data.length > 0) {
             setEidProducts(data);
+            cachedEidProducts = data; // 🚀 Save to cache
         }
     };
+    
+    // Always fetch silently in the background to ensure stock numbers are fresh
     fetchEidItems();
   }, []);
 
