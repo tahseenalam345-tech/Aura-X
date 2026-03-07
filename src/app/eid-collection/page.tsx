@@ -2,7 +2,8 @@
 
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard"; 
-import { Moon, Filter, Flame } from "lucide-react";
+// 🚀 Added 'Package' icon to the imports for the new badge
+import { Moon, Filter, Flame, Package } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -112,9 +113,16 @@ export default function EidCollectionPage() {
             </span>
          </div>
          
-         <h1 className="text-4xl md:text-6xl font-serif leading-none text-[#3E3025] drop-shadow-sm mb-6">
+         <h1 className="text-4xl md:text-6xl font-serif leading-none text-[#3E3025] drop-shadow-sm mb-3">
             The <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#D4AF37] to-[#8B7355] italic">Unseen</span>
          </h1>
+
+         {/* 🚀 NEW: OPEN PARCEL TRUST BADGE */}
+         <div className="flex justify-center mb-6">
+             <p className="text-[10px] md:text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-4 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-2 shadow-sm">
+                 <Package size={14} /> Open Parcel Before Payment Available
+             </p>
+         </div>
       </div>
 
       {/* 🚀 COMPACTED GRID SPACING */}
