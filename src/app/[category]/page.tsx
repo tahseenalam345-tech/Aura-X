@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard"; 
 import { motion, AnimatePresence, Variants } from "framer-motion";
@@ -13,26 +13,53 @@ const fadeInUp: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
+// 🚀 THE FIX: GLOBAL MEMORY CACHE FOR CATEGORIES
+// These variables live outside the component to survive page unmounts
+const categoryCache: Record<string, any[]> = {};
+let lastVisitedCategory = "";
+let globalVisibleCount = 8;
+let globalSelectedBrand = "All";
+let globalPriceRange = 500000;
+let globalSelectedMovements: string[] = [];
+let globalSelectedStraps: string[] = [];
+let globalSortBy = "featured";
+
 export default function CategoryPage() {
   const params = useParams();
   const categorySlug = params.category as string; 
   const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection', 'style-quiz'];
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(8);
+  const isReturning = lastVisitedCategory === categorySlug;
+
+  // 🚀 Initialize state from cache if returning, otherwise start fresh
+  const [products, setProducts] = useState<any[]>(categoryCache[categorySlug] || []);
+  const [loading, setLoading] = useState(!categoryCache[categorySlug]); // Only load if cache is empty
+  const [visibleCount, setVisibleCount] = useState(isReturning ? globalVisibleCount : 8);
   
-  const [selectedBrand, setSelectedBrand] = useState("All"); 
-  const [priceRange, setPriceRange] = useState(500000); 
-  const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
-  const [selectedStraps, setSelectedStraps] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState("featured");
+  const [selectedBrand, setSelectedBrand] = useState(isReturning ? globalSelectedBrand : "All"); 
+  const [priceRange, setPriceRange] = useState(isReturning ? globalPriceRange : 500000); 
+  const [selectedMovements, setSelectedMovements] = useState<string[]>(isReturning ? globalSelectedMovements : []);
+  const [selectedStraps, setSelectedStraps] = useState<string[]>(isReturning ? globalSelectedStraps : []);
+  const [sortBy, setSortBy] = useState(isReturning ? globalSortBy : "featured");
   
   const [sortOpen, setSortOpen] = useState(false); 
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
+  const initialRender = useRef(true);
+
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
+
+  // 🚀 Constantly save current state to the global cache
+  useEffect(() => {
+      lastVisitedCategory = categorySlug;
+      globalVisibleCount = visibleCount;
+      globalSelectedBrand = selectedBrand;
+      globalPriceRange = priceRange;
+      globalSelectedMovements = selectedMovements;
+      globalSelectedStraps = selectedStraps;
+      globalSortBy = sortBy;
+  }, [categorySlug, visibleCount, selectedBrand, priceRange, selectedMovements, selectedStraps, sortBy]);
 
   useEffect(() => {
       if (typeof window !== 'undefined') {
@@ -49,13 +76,20 @@ export default function CategoryPage() {
         return;
       }
 
-      setLoading(true);
+      // Only show loading spinner if we don't already have the products in cache
+      if (!categoryCache[categorySlug]) {
+          setLoading(true);
+      }
+
       const { data } = await supabase
         .from('products')
         .select('*')
         .eq('category', categorySlug); 
       
-      if (data) setProducts(data);
+      if (data) {
+          setProducts(data);
+          categoryCache[categorySlug] = data; // Save to cache instantly
+      }
       setLoading(false);
     };
 
@@ -63,27 +97,29 @@ export default function CategoryPage() {
   }, [categorySlug]);
 
   useEffect(() => {
+    // Prevent resetting visible count when hitting the "Back" button
+    if (initialRender.current) {
+        initialRender.current = false;
+        return;
+    }
     setVisibleCount(8);
   }, [priceRange, selectedMovements, selectedStraps, sortBy, selectedBrand]);
 
-  // 🚀 BRAND COUNTING AND SORTING LOGIC
   const availableBrands = useMemo(() => {
       const brandCounts: Record<string, number> = {};
       const originalNames: Record<string, string> = {}; 
 
-      // Count the frequency of each brand and merge case mismatches (Hublot vs HUBLOT)
       products.forEach(p => {
           const rawBrand = (p.brand || "AURA-X").trim();
           const upperBrand = rawBrand.toUpperCase();
 
           if (!brandCounts[upperBrand]) {
               brandCounts[upperBrand] = 0;
-              originalNames[upperBrand] = rawBrand; // Save the original case to display on the pill
+              originalNames[upperBrand] = rawBrand; 
           }
           brandCounts[upperBrand]++;
       });
 
-      // Sort brands by the number of products they have (Descending)
       const sortedBrands = Object.keys(brandCounts)
           .sort((a, b) => brandCounts[b] - brandCounts[a])
           .map(upper => originalNames[upper]);
@@ -92,19 +128,15 @@ export default function CategoryPage() {
   }, [products]);
 
   const filteredProducts = products.filter((product) => {
-    // 🚀 UPDATED FILTER: Ignores case so "HUBLOT" and "Hublot" watches both show up when clicked
     if (selectedBrand !== "All" && (product.brand || "AURA-X").trim().toUpperCase() !== selectedBrand.toUpperCase()) return false;
 
-    // 2. Price Filter
     if (product.price > priceRange) return false;
     
-    // 3. Movement Filter
     if (selectedMovements.length > 0) {
         const move = product.specs?.movement || "Quartz";
         if (!selectedMovements.includes(move)) return false;
     }
 
-    // 4. Strap Filter
     if (selectedStraps.length > 0) {
         const strap = product.specs?.strap || "Leather";
         const hasStrap = selectedStraps.some(s => strap.includes(s));
@@ -203,7 +235,6 @@ export default function CategoryPage() {
         )}
       </AnimatePresence>
 
-      {/* HEADER SECTION */}
       <div className="pt-32 md:pt-40 pb-8 text-center bg-gradient-to-b from-white to-[#FDFBF7]">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <span className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase block mb-3">
@@ -215,7 +246,6 @@ export default function CategoryPage() {
         </motion.div>
       </div>
 
-      {/* QUICK BRAND SLIDER */}
       {!loading && availableBrands.length > 2 && (
           <div className="max-w-[1600px] mx-auto px-4 md:px-12 mb-8">
               <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide items-center justify-start md:justify-center">
