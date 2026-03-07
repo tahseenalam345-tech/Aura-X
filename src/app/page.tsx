@@ -15,12 +15,11 @@ const IS_EID_LIVE = true;
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
 // 🚀 THE FIX: GLOBAL MEMORY CACHE
-// These variables live outside the component. They remember the data so when you hit "Back", 
-// the page doesn't collapse into a loading state. It renders instantly!
 let cachedProducts: any[] = [];
 let cachedBrandSettings: Map<string, number> = new Map();
 let cachedReviews: any[] = [];
 let cachedCategory: "eid" | "men" | "women" | "couple" = IS_EID_LIVE ? "eid" : "men";
+let hasVisitedHomepage = false; // 🚀 NEW: Tells the page not to hide elements on Back Button
 
 const TrainProductCard = ({ product }: { product: any }) => (
     <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5">
@@ -31,20 +30,18 @@ const TrainProductCard = ({ product }: { product: any }) => (
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   
-  // 🚀 Initialize states using our memory cache
   const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(cachedCategory);
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>(cachedProducts);
   const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(cachedBrandSettings);
   const [allReviews, setAllReviews] = useState<any[]>(cachedReviews); 
   
-  // Only show the loading spinner if our cache is completely empty
   const [isLoading, setIsLoading] = useState(cachedProducts.length === 0);
-  
   const [gridCols, setGridCols] = useState<number>(2);
-  const [renderBrands, setRenderBrands] = useState(false);
-  const [showReviews, setShowReviews] = useState(false);
+  
+  // 🚀 THE FIX: If we have visited before (hitting back button), render everything instantly!
+  const [renderBrands, setRenderBrands] = useState(hasVisitedHomepage);
+  const [showReviews, setShowReviews] = useState(hasVisitedHomepage);
 
-  // Sync category changes to the cache so the back button remembers it
   const handleCategoryChange = (catId: "eid" | "men" | "women" | "couple") => {
       setActiveCategory(catId);
       cachedCategory = catId;
@@ -67,6 +64,13 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // 🚀 THE FIX: If already visited, don't wait for scroll. Just keep them visible.
+    if (hasVisitedHomepage) {
+        setRenderBrands(true);
+        setShowReviews(true);
+        return;
+    }
+
     const handleScroll = () => {
       if (window.scrollY > 50) setRenderBrands(true); 
       if (window.scrollY > 300) setShowReviews(true); 
@@ -85,10 +89,7 @@ export default function Home() {
 
   useEffect(() => {
     const fetchInTwoStages = async () => {
-      // If we don't have cached data, show the loading spinner
-      if (cachedProducts.length === 0) {
-          setIsLoading(true);
-      }
+      if (cachedProducts.length === 0) setIsLoading(true);
 
       try {
           const { data: fastData } = await supabase
@@ -99,7 +100,7 @@ export default function Home() {
 
           if (fastData) {
               setAllStoreProducts(fastData); 
-              cachedProducts = fastData; // Save to memory cache
+              cachedProducts = fastData; 
           }
           
           setIsLoading(false); 
@@ -112,12 +113,12 @@ export default function Home() {
           if (brandsResponse.data) {
               const bMap = new Map(brandsResponse.data.map(b => [b.brand_name.toUpperCase(), b.sort_order]));
               setBrandSettingsMap(bMap);
-              cachedBrandSettings = bMap; // Save to memory cache
+              cachedBrandSettings = bMap; 
           }
 
           if (productsResponse.data) {
               setAllStoreProducts(productsResponse.data); 
-              cachedProducts = productsResponse.data; // Save full list to memory cache
+              cachedProducts = productsResponse.data; 
 
               let extractedReviews: any[] = [];
               productsResponse.data.forEach(p => {
@@ -130,15 +131,16 @@ export default function Home() {
               });
               const shuffledReviews = extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15);
               setAllReviews(shuffledReviews);
-              cachedReviews = shuffledReviews; // Save reviews to memory cache
+              cachedReviews = shuffledReviews; 
           }
+          
+          hasVisitedHomepage = true; // Mark as visited so back button works perfectly
       } catch (error) {
           console.error("Store loading error:", error);
           setIsLoading(false); 
       }
     };
 
-    // Always fetch silently to get the newest stock, but don't show loading if cached!
     fetchInTwoStages();
   }, []);
 
