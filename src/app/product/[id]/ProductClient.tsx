@@ -56,9 +56,7 @@ export default function ProductClient() {
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🚀 NEW IMAGE GALLERY STATES
   const [mediaIndex, setMediaIndex] = useState(0);
-  const [viewingColor, setViewingColor] = useState(false);
   const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
   
   const [quantity, setQuantity] = useState(1);
@@ -139,19 +137,48 @@ export default function ProductClient() {
       return totalStars / productReviews.length;
   }, [productReviews]);
 
-  // 🚀 ISOLATE ONLY THE GALLERY MEDIA (Main + Video + Gallery)
-  const galleryMedia = useMemo(() => {
+  // 🚀 UNIFIED SMART GALLERY: Merges main, video, gallery, AND all color images into one master array
+  const unifiedMedia = useMemo(() => {
       if (!product) return [];
-      const media = [product.main_image];
-      if (product.specs?.video) media.push(product.specs.video);
-      if (product.specs?.gallery?.length > 0) media.push(...product.specs.gallery);
-      return media.filter((m, index, self) => m && self.indexOf(m) === index);
+      
+      const mediaList: { url: string; type: string; colorIndex?: number }[] = [];
+      
+      // 1. Add Main Image
+      if (product.main_image) mediaList.push({ url: product.main_image, type: 'main', colorIndex: 0 });
+      
+      // 2. Add Main Video
+      if (product.specs?.video) mediaList.push({ url: product.specs.video, type: 'video' });
+      
+      // 3. Add all Color Variant Images (skipping the first one if it's the main image)
+      if (product.colors && product.colors.length > 0) {
+          product.colors.forEach((c: any, idx: number) => {
+              if (c.image && c.image !== product.main_image) {
+                  mediaList.push({ url: c.image, type: 'color', colorIndex: idx });
+              }
+          });
+      }
+      
+      // 4. Add Extra Gallery Images
+      if (product.specs?.gallery?.length > 0) {
+          product.specs.gallery.forEach((gImg: string) => {
+              // Don't add if it's already in the list
+              if (!mediaList.find(m => m.url === gImg)) {
+                  mediaList.push({ url: gImg, type: 'gallery' });
+              }
+          });
+      }
+      
+      return mediaList;
   }, [product]);
 
-  // 🚀 DETERMINE WHAT IS CURRENTLY SHOWING ON THE BIG SCREEN
-  const currentDisplayImage = viewingColor && product?.colors?.[selectedColorIndex]?.image 
-      ? product.colors[selectedColorIndex].image 
-      : galleryMedia[mediaIndex] || "";
+  // Automatically sync the Color selection when swiping through the gallery
+  useEffect(() => {
+      if (unifiedMedia[mediaIndex]?.colorIndex !== undefined) {
+          setSelectedColorIndex(unifiedMedia[mediaIndex].colorIndex as number);
+      }
+  }, [mediaIndex, unifiedMedia]);
+
+  const currentDisplayMedia = unifiedMedia[mediaIndex] || null;
 
   const { totalPrice, specs, selectedColor } = useMemo(() => {
       if (!product) return { basePrice: 0, extras: 0, totalPrice: 0, specs: {}, selectedColor: null };
@@ -183,17 +210,38 @@ export default function ProductClient() {
 
   const displayShortName = product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name;
 
-  // 🚀 ARROW NAVIGATION HANDLERS
-  const handlePrevImage = (e: any) => {
-      e.stopPropagation();
-      setViewingColor(false);
-      setMediaIndex((prev) => (prev - 1 + galleryMedia.length) % galleryMedia.length);
+  // 🚀 TOUCH SWIPE LOGIC
+  let touchStartX = 0;
+  let touchEndX = 0;
+  
+  const handleTouchStart = (e: any) => { touchStartX = e.changedTouches[0].screenX; };
+  const handleTouchEnd = (e: any) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+  };
+  
+  const handleSwipe = () => {
+      if (touchEndX < touchStartX - 50) handleNextImage(); // Swipe Left (Next)
+      if (touchEndX > touchStartX + 50) handlePrevImage(); // Swipe Right (Prev)
   };
 
-  const handleNextImage = (e: any) => {
-      e.stopPropagation();
-      setViewingColor(false);
-      setMediaIndex((prev) => (prev + 1) % galleryMedia.length);
+  const handlePrevImage = (e?: any) => {
+      if (e) e.stopPropagation();
+      setMediaIndex((prev) => (prev - 1 + unifiedMedia.length) % unifiedMedia.length);
+  };
+
+  const handleNextImage = (e?: any) => {
+      if (e) e.stopPropagation();
+      setMediaIndex((prev) => (prev + 1) % unifiedMedia.length);
+  };
+
+  // Sync Color button click to Gallery Image
+  const handleColorClick = (index: number, colorImgUrl?: string) => {
+      setSelectedColorIndex(index);
+      if (colorImgUrl) {
+          const mediaIdx = unifiedMedia.findIndex(m => m.url === colorImgUrl);
+          if (mediaIdx !== -1) setMediaIndex(mediaIdx);
+      }
   };
 
   const handleWishlistToggle = () => {
@@ -230,7 +278,7 @@ export default function ProductClient() {
       id: product.id, 
       name: displayShortName, 
       price: finalPriceWithBox,
-      image: selectedColor?.image || currentDisplayImage, 
+      image: selectedColor?.image || product.main_image, 
       color: `${finalColorName}${boxLabel}`, 
       quantity: quantity, 
       isGift: isGift, 
@@ -393,9 +441,14 @@ export default function ProductClient() {
           <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start flex flex-row gap-3 md:gap-4 w-full">
             
             <div className="flex-1 flex flex-col min-w-0">
-                <div className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10 group">
+                {/* 🚀 SWIPEABLE GALLERY CONTAINER */}
+                <div 
+                    className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10 group touch-pan-y"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                >
                   
-                  {galleryMedia.length > 1 && (
+                  {unifiedMedia.length > 1 && (
                       <>
                           <button onClick={handlePrevImage} className="absolute left-3 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-md p-2 rounded-full shadow-md text-aura-brown hover:bg-aura-gold hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
                               <ChevronLeft size={24}/>
@@ -403,6 +456,11 @@ export default function ProductClient() {
                           <button onClick={handleNextImage} className="absolute right-3 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-md p-2 rounded-full shadow-md text-aura-brown hover:bg-aura-gold hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100">
                               <ChevronRight size={24}/>
                           </button>
+                          
+                          {/* Photo Counter */}
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white text-[10px] font-bold tracking-widest pointer-events-none">
+                              {mediaIndex + 1} / {unifiedMedia.length}
+                          </div>
                       </>
                   )}
 
@@ -415,61 +473,59 @@ export default function ProductClient() {
                      <button onClick={(e) => { e.stopPropagation(); handleWishlistToggle(); }} className={`pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg transition-all ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400 hover:text-red-500'}`}><Heart size={18} fill={isLiked ? "currentColor" : "none"} /></button>
                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(window.location.href); toast.success("Link Copied!"); }} className="pointer-events-auto bg-white/90 backdrop-blur-md p-3 rounded-full shadow-lg text-gray-400 hover:text-blue-500"><Share2 size={18} /></button>
                   </div>
-                  <button onClick={() => setLightboxImage(currentDisplayImage)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
+                  <button onClick={() => currentDisplayMedia && setLightboxImage(currentDisplayMedia.url)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
                   
-                  {/* 🚀 SMART VIDEO FIX: Uses poster and preload="none" */}
-                  {currentDisplayImage && (
-                    isVideoFile(currentDisplayImage) ? (
+                  {/* CURRENT DISPLAY */}
+                  {currentDisplayMedia && (
+                    isVideoFile(currentDisplayMedia.url) ? (
                         <video 
-                            key={currentDisplayImage} // Forces React to reload the video tag when switching media
+                            key={currentDisplayMedia.url} 
                             autoPlay 
                             muted 
                             loop 
                             playsInline 
-                            preload="none" // 🚀 Prevents massive background downloading!
-                            poster={product.main_image} // 🚀 Shows main picture while loading!
+                            preload="none"
+                            poster={product.main_image}
                             className="object-cover w-full h-full cursor-pointer" 
-                            onClick={() => setLightboxImage(currentDisplayImage)} 
+                            onClick={() => setLightboxImage(currentDisplayMedia.url)} 
                         >
-                            <source src={currentDisplayImage} type="video/mp4" />
+                            <source src={currentDisplayMedia.url} type="video/mp4" />
                         </video>
                     ) : (
-                        <Image src={currentDisplayImage} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 60vw" className="object-cover cursor-zoom-in" unoptimized={true} onClick={() => setLightboxImage(currentDisplayImage)} />
+                        <Image src={currentDisplayMedia.url} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 60vw" className="object-cover cursor-zoom-in transition-opacity duration-300" unoptimized={true} onClick={() => setLightboxImage(currentDisplayMedia.url)} />
                     )
                   )}
                 </div>
                 
-                <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide justify-center">
-                   {galleryMedia.map((img: string, i: number) => (
+                {/* 🚀 BOTTOM THUMBNAILS ROW */}
+                <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide justify-start md:justify-center">
+                   {unifiedMedia.map((media, i) => (
                      <button 
                          key={i} 
-                         onClick={() => { setMediaIndex(i); setViewingColor(false); }} 
-                         className={`relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-full border-2 overflow-hidden transition-all duration-300 ${!viewingColor && mediaIndex === i ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                         onClick={() => setMediaIndex(i)} 
+                         className={`relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-xl border-2 overflow-hidden transition-all duration-300 ${mediaIndex === i ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
                      >
-                         {/* 🚀 SMART THUMBNAIL FIX: Disabled autoplay to save huge amounts of CPU and data */}
-                         {isVideoFile(img) ? (
+                         {isVideoFile(media.url) ? (
                              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                                 <video src={img} preload="none" playsInline className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
-                                 <Play size={16} className="relative z-10 text-aura-brown" fill="currentColor"/>
+                                 <video src={media.url} preload="none" playsInline className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
+                                 <Play size={16} className="relative z-10 text-white drop-shadow-md" fill="currentColor"/>
                              </div>
                          ) : (
-                             <Image src={img} alt={`${seoAltText} - View ${i + 1}`} fill className="object-cover p-1.5 mix-blend-multiply" sizes="100px" quality={75} unoptimized={true} />
+                             <Image src={media.url} alt={`Thumb ${i}`} fill className="object-cover" sizes="100px" quality={75} unoptimized={true} />
                          )}
                      </button>
                    ))}
                 </div>
             </div>
 
+            {/* 🚀 RIGHT VERTICAL COLOR COLUMN */}
             {product.colors && product.colors.length > 0 && (
                 <div className="w-14 md:w-16 flex flex-col gap-3 flex-shrink-0 items-center pt-2">
                     <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Colors</span>
                     {product.colors.map((color: any, index: number) => (
                         <button 
                             key={index} 
-                            onClick={() => { 
-                                setSelectedColorIndex(index); 
-                                if(color.image) setViewingColor(true); 
-                            }} 
+                            onClick={() => handleColorClick(index, color.image)} 
                             className={`relative w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl overflow-hidden border-2 transition-all duration-300 ${
                                 selectedColorIndex === index 
                                 ? 'border-aura-gold scale-110 shadow-md z-10' 

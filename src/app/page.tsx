@@ -14,6 +14,14 @@ const IS_EID_LIVE = true;
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
+// 🚀 THE FIX: GLOBAL MEMORY CACHE
+// These variables live outside the component. They remember the data so when you hit "Back", 
+// the page doesn't collapse into a loading state. It renders instantly!
+let cachedProducts: any[] = [];
+let cachedBrandSettings: Map<string, number> = new Map();
+let cachedReviews: any[] = [];
+let cachedCategory: "eid" | "men" | "women" | "couple" = IS_EID_LIVE ? "eid" : "men";
+
 const TrainProductCard = ({ product }: { product: any }) => (
     <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5">
         <ProductCard product={product} priority={false} />
@@ -22,16 +30,25 @@ const TrainProductCard = ({ product }: { product: any }) => (
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(IS_EID_LIVE ? "eid" : "men");
   
-  const [allStoreProducts, setAllStoreProducts] = useState<any[]>([]);
-  const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(new Map());
-  const [allReviews, setAllReviews] = useState<any[]>([]); 
-  const [isLoading, setIsLoading] = useState(true);
+  // 🚀 Initialize states using our memory cache
+  const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(cachedCategory);
+  const [allStoreProducts, setAllStoreProducts] = useState<any[]>(cachedProducts);
+  const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(cachedBrandSettings);
+  const [allReviews, setAllReviews] = useState<any[]>(cachedReviews); 
+  
+  // Only show the loading spinner if our cache is completely empty
+  const [isLoading, setIsLoading] = useState(cachedProducts.length === 0);
+  
   const [gridCols, setGridCols] = useState<number>(2);
-
   const [renderBrands, setRenderBrands] = useState(false);
   const [showReviews, setShowReviews] = useState(false);
+
+  // Sync category changes to the cache so the back button remembers it
+  const handleCategoryChange = (catId: "eid" | "men" | "women" | "couple") => {
+      setActiveCategory(catId);
+      cachedCategory = catId;
+  };
 
   useEffect(() => {
     const idleTimer = setTimeout(() => {
@@ -68,7 +85,10 @@ export default function Home() {
 
   useEffect(() => {
     const fetchInTwoStages = async () => {
-      setIsLoading(true);
+      // If we don't have cached data, show the loading spinner
+      if (cachedProducts.length === 0) {
+          setIsLoading(true);
+      }
 
       try {
           const { data: fastData } = await supabase
@@ -79,6 +99,7 @@ export default function Home() {
 
           if (fastData) {
               setAllStoreProducts(fastData); 
+              cachedProducts = fastData; // Save to memory cache
           }
           
           setIsLoading(false); 
@@ -89,11 +110,14 @@ export default function Home() {
           ]);
 
           if (brandsResponse.data) {
-              setBrandSettingsMap(new Map(brandsResponse.data.map(b => [b.brand_name.toUpperCase(), b.sort_order])));
+              const bMap = new Map(brandsResponse.data.map(b => [b.brand_name.toUpperCase(), b.sort_order]));
+              setBrandSettingsMap(bMap);
+              cachedBrandSettings = bMap; // Save to memory cache
           }
 
           if (productsResponse.data) {
               setAllStoreProducts(productsResponse.data); 
+              cachedProducts = productsResponse.data; // Save full list to memory cache
 
               let extractedReviews: any[] = [];
               productsResponse.data.forEach(p => {
@@ -104,7 +128,9 @@ export default function Home() {
                       })));
                   }
               });
-              setAllReviews(extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15));
+              const shuffledReviews = extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15);
+              setAllReviews(shuffledReviews);
+              cachedReviews = shuffledReviews; // Save reviews to memory cache
           }
       } catch (error) {
           console.error("Store loading error:", error);
@@ -112,6 +138,7 @@ export default function Home() {
       }
     };
 
+    // Always fetch silently to get the newest stock, but don't show loading if cached!
     fetchInTwoStages();
   }, []);
 
@@ -145,7 +172,6 @@ export default function Home() {
           return acc;
       }, {} as Record<string, { name: string, products: any[] }>);
 
-      // 🚀 TS ERROR FIX: Added (g: any) to prevent unknown type error
       let groupedArray = Object.values(grouped).map((g: any) => ({
           brand: g.name,
           products: g.products
@@ -153,7 +179,6 @@ export default function Home() {
 
       groupedArray.sort((a, b) => b.products.length - a.products.length);
 
-      // 🚀 TS ERROR FIX: Added (group: any)
       const top3Brands = groupedArray.slice(0, 3).map((group: any) => ({
           brand: group.brand,
           products: group.products.slice(0, 4) 
@@ -186,7 +211,6 @@ export default function Home() {
         }
       `}} />
 
-      {/* 🚀 SPEED FIX: REMOVED mix-blend-color-burn. This will instantly stop the scrolling lag! */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.04] select-none">
           <div className="whitespace-nowrap animate-[pulse_5s_ease-in-out_infinite] text-[120px] md:text-[200px] font-serif font-black tracking-[0.2em] -ml-20 text-[#3A2A18]">
               AURA-X • ROLEX • RADO • PATEK PHILIPPE • AUDEMARS PIGUET
@@ -210,7 +234,7 @@ export default function Home() {
                 <div className="animate-fade-in-up">
                    <p className="text-xs font-bold text-aura-gold tracking-[0.3em] uppercase mb-4">The Art of Timing</p>
                    <h1 className="text-5xl sm:text-7xl font-serif font-bold leading-tight mb-6">
-                     Legacy in <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-aura-gold to-yellow-600 italic">Every Tick</span>
+                      Legacy in <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-aura-gold to-yellow-600 italic">Every Tick</span>
                    </h1>
                    <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto lg:mx-0">
                      Experience the pinnacle of Swiss precision. Designed for those who command their own time.
@@ -275,7 +299,7 @@ export default function Home() {
                   ].map((cat) => (
                       <button 
                           key={cat.id}
-                          onClick={() => setActiveCategory(cat.id as any)}
+                          onClick={() => handleCategoryChange(cat.id as any)}
                           className={`text-[10px] md:text-sm font-bold tracking-widest uppercase transition-all px-5 py-2.5 md:px-8 md:py-3 rounded-full border whitespace-nowrap ${
                               activeMasterCategory === cat.id && cat.special
                               ? 'bg-gradient-to-r from-aura-gold to-yellow-600 text-black border-transparent shadow-[0_0_20px_rgba(212,175,55,0.5)] scale-105 animate-[pulse_2s_ease-in-out_infinite]' 
@@ -348,7 +372,6 @@ export default function Home() {
                               </div>
 
                               <div className={`grid gap-3 md:gap-6 relative z-10 ${gridCols === 1 ? 'grid-cols-1 max-w-sm mx-auto' : gridCols === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                                  {/* 🚀 TS ERROR FIX: Added (product: any) */}
                                   {currentPinnedProducts.map((product: any) => (
                                       <div key={product.id} className="bg-white/5 rounded-2xl p-1 border border-white/10 shadow-lg">
                                           <ProductCard product={product} />
@@ -377,7 +400,6 @@ export default function Home() {
                               
                               <div className="relative w-full">
                                   <div className="flex overflow-x-auto gap-6 md:gap-8 pb-10 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                      {/* 🚀 TS ERROR FIX: Added (product: any) */}
                                       {currentPinnedProducts.map((product: any) => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
@@ -414,7 +436,6 @@ export default function Home() {
                               <div className="relative z-10 w-full">
                                   <div className="flex overflow-x-auto gap-6 md:gap-8 pb-8 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
                                       
-                                      {/* 🚀 TS ERROR FIX: Added (product: any) */}
                                       {group.products.map((product: any) => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
