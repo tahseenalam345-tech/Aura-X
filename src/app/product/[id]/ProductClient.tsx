@@ -406,7 +406,7 @@ export default function ProductClient() {
            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"><X size={30}/></button>
            <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
              {isVideoFile(lightboxImage) ? (
-                 <video src={lightboxImage} controls autoPlay playsInline className="w-full h-full object-contain" />
+                 <video src={lightboxImage} autoPlay muted loop playsInline className="w-full h-full object-contain pointer-events-none" />
              ) : (
                  <Image src={lightboxImage} alt={`Zoomed view of ${seoAltText}`} fill className="object-contain" quality={90} unoptimized={true} />
              )}
