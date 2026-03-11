@@ -17,6 +17,7 @@ import ReturnsTab from "@/components/admin/ReturnsTab";
 import MessagesTab from "@/components/admin/MessagesTab";
 import MarketingTab from "@/components/admin/MarketingTab";
 import PricingCalculator from "@/components/admin/PricingCalculator";
+import RecordsTab from "@/components/admin/RecordsTab";
 export default function AdminDashboard() {
   const { user, isLoading: authLoading } = useAuth(); 
   const router = useRouter();
@@ -189,7 +190,12 @@ export default function AdminDashboard() {
       </div>
     );
   }
-
+<button 
+    onClick={() => setActiveTab('records')} 
+    className={`px-4 py-2 font-bold ${activeTab === 'records' ? 'bg-aura-brown text-white' : 'text-gray-500'}`}
+>
+    Financial Records
+</button>
   // --- MAIN DASHBOARD RENDER ---
   // (Shows if user is logged in OR manualAuth is true)
   return (
@@ -226,6 +232,8 @@ export default function AdminDashboard() {
                     {activeTab === 'orders' && <OrdersTab orders={orders} fetchOrders={fetchOrders} />}
                     {activeTab === 'finance' && <FinanceTab orders={orders} products={products} />}
                     {activeTab === 'notes' && <NotebookTab />}
+                    {activeTab === 'notes' && <NotebookTab />}
+                    {activeTab === 'records' && <RecordsTab />}
                     {activeTab === 'returns' && <ReturnsTab returnRequests={returnRequests} refreshData={fetchSupportData} />}
                     {activeTab === 'messages' && <MessagesTab messages={contactMessages} refreshData={fetchSupportData} />}
                     {activeTab === 'marketing' && <MarketingTab data={marketingData} />}

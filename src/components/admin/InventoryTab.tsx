@@ -81,7 +81,6 @@ const processFileUpload = async (file: File, isReview: boolean = false, onProgre
 
     const targetBucket = 'product-images';
 
-    // Simulated Progress Bar for UI feedback
     let progress = 0;
     const interval = setInterval(() => {
         progress += Math.floor(Math.random() * 15) + 10;
@@ -113,7 +112,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [editId, setEditId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('grid');
   
-  // LIVE UPLOAD TRACKING STATE
   const [uploadQueue, setUploadQueue] = useState<{ id: string, progress: number, type: string }[]>([]);
 
   const [showBrandModal, setShowBrandModal] = useState(false);
@@ -135,7 +133,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", stock: 1, category: "", 
-    price: 0, originalPrice: 0, discount: 0, costPrice: 0,
+    price: 0, originalPrice: 0, discount: 0, costPrice: 0, deliveryCharge: 250, // 🚀 ADDED DC
     tags: "" as string, priority: 100, viewCount: 0, 
     isEidExclusive: false, isPinned: false, 
     movement: "Quartz (Battery)", waterResistance: "0ATM (No Resistance)", 
@@ -151,7 +149,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // MASTER UPLOAD HANDLER (Handles multiple files, drag/drop, and progress tracking)
   const processFiles = async (files: File[], type: 'main' | 'gallery' | 'color' | 'video' | 'review', index?: number) => {
       for (const file of files) {
           const id = Math.random().toString();
@@ -161,7 +158,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
               setUploadQueue(prev => prev.map(item => item.id === id ? { ...item, progress: p } : item));
           });
 
-          // Keep the 100% success message visible for 1.5 seconds before hiding it
           setTimeout(() => {
               setUploadQueue(prev => prev.filter(item => item.id !== id));
           }, 1500); 
@@ -190,7 +186,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       
       const filesToProcess = (type === 'gallery' || type === 'review') ? files : [files[0]];
       await processFiles(filesToProcess, type, index);
-      e.target.value = ''; // Reset input so you can upload the same file twice if needed
+      e.target.value = ''; 
   };
 
   const applyBulkViews = async () => {
@@ -325,6 +321,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         sku: specs.sku || item.sku || "",
         stock: specs.stock || 1,
         costPrice: specs.cost_price || 0,
+        deliveryCharge: specs.delivery_charge !== undefined ? specs.delivery_charge : (item.is_eid_exclusive ? 0 : 250), // 🚀 LOAD DC OR DEFAULT
         viewCount: specs.view_count || 0,
         movement: specs.movement || "Quartz (Battery)",
         waterResistance: specs.water_resistance || "0ATM (No Resistance)",
@@ -355,21 +352,19 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     setShowForm(true);
   };
 
-  // 🚀 NEW: EXACT COPY FUNCTION
   const handleCopyClick = (item: any, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevents the Edit click from firing at the same time
+    e.stopPropagation(); 
     
     const specs = item.specs || {};
     let singleTag = "";
     if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
     else if (typeof item.tags === 'string') singleTag = item.tags;
 
-    // Generate a fresh SKU so it doesn't overwrite the old one!
     const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
 
     setFormData({
         ...initialFormState,
-        name: `${item.name} (Copy)`, // Adds (Copy) to the name so you don't confuse them
+        name: `${item.name} (Copy)`,
         brand: item.brand || "AURA-X",
         category: item.category || "",
         price: item.price || 0,
@@ -384,9 +379,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         isPinned: item.is_pinned || false, 
         colors: item.colors?.slice(1) || [], 
         manualReviews: item.manual_reviews || [],
-        sku: randomSku, // Apply the new random SKU
+        sku: randomSku, 
         stock: specs.stock || 1,
         costPrice: specs.cost_price || 0,
+        deliveryCharge: specs.delivery_charge !== undefined ? specs.delivery_charge : (item.is_eid_exclusive ? 0 : 250), // 🚀 LOAD DC OR DEFAULT
         viewCount: specs.view_count || 0,
         movement: specs.movement || "Quartz (Battery)",
         waterResistance: specs.water_resistance || "0ATM (No Resistance)",
@@ -412,8 +408,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         video: specs.video || ""
     });
 
-    setEditId(null); // CRITICAL: Sets it as a New Item, not an Update
-    setIsEditing(false); // CRITICAL: Tells the publish button to 'insert' instead of 'update'
+    setEditId(null); 
+    setIsEditing(false); 
     setShowForm(true);
     toast.success("Copied details! Update the images and publish.");
   };
@@ -470,6 +466,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           colors: allColors, manual_reviews: formData.manualReviews, 
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
+              delivery_charge: formData.deliveryCharge, // 🚀 SAVE DC TO DATABASE
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
               case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, 
               case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
@@ -643,7 +640,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 {item.specs?.view_count > 0 && <span className="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded shadow font-bold flex items-center gap-1"><Eye size={8}/> {item.specs.view_count} VIEWS</span>}
                             </div>
 
-                            {/* 🚀 NEW: Copy Button added to Grid View */}
                             <div className="absolute top-2 right-2 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button 
                                     onClick={(e) => handleCopyClick(item, e)} 
@@ -701,7 +697,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            {/* 🚀 NEW: Copy Button added to List View */}
                             <button onClick={(e) => handleCopyClick(item, e)} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-colors" title="Duplicate"><Copy size={16}/></button>
                             <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors" title="Delete"><Trash2 size={16}/></button>
                             <div className="p-2 text-aura-gold"><Edit2 size={16} /></div>
@@ -736,7 +731,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <td className="p-4 text-sm font-medium">{item.specs?.stock}</td>
                                 <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
                                 <td className="p-4 text-right flex justify-end gap-1">
-                                    {/* 🚀 NEW: Copy Button added to Table View */}
                                     <button onClick={(e) => handleCopyClick(item, e)} className="p-2 text-gray-300 hover:text-blue-600 transition-colors" title="Duplicate"><Copy size={16}/></button>
                                     <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 text-gray-300 hover:text-red-600 transition-colors" title="Delete"><Trash2 size={16}/></button>
                                 </td>
@@ -853,14 +847,23 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     </div>
 
                                     <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* 🚀 AUTO-SET DC TO 0 WHEN CHECKED */}
                                         <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-white border-gray-200'}`}>
-                                            <input type="checkbox" className="hidden" checked={formData.isEidExclusive} onChange={e => setFormData({...formData, isEidExclusive: e.target.checked})} />
+                                            <input 
+                                                type="checkbox" 
+                                                className="hidden" 
+                                                checked={formData.isEidExclusive} 
+                                                onChange={e => {
+                                                    const isChecked = e.target.checked;
+                                                    setFormData({...formData, isEidExclusive: isChecked, deliveryCharge: isChecked ? 0 : 250});
+                                                }} 
+                                            />
                                             <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.isEidExclusive ? 'bg-aura-gold border-aura-gold text-black' : 'bg-white border-gray-300'}`}>
                                                 {formData.isEidExclusive && <Check size={14} strokeWidth={4} />}
                                             </div>
                                             <div>
                                                 <p className={`font-bold text-sm ${formData.isEidExclusive ? 'text-aura-gold' : 'text-gray-600'}`}>Mark as Eid Exclusive</p>
-                                                <p className="text-xs text-gray-400">Hidden from normal shop, only on Locked Page.</p>
+                                                <p className="text-xs text-gray-400">Hidden from normal shop, only on Locked Page. (Auto-sets DC to 0)</p>
                                             </div>
                                         </label>
 
@@ -880,11 +883,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Tag size={16}/> Pricing</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-white p-6 rounded-2xl border border-gray-200">
+                                {/* 🚀 ADDED DELIVERY CHARGE INPUT TO PRICING GRID */}
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-6 bg-white p-6 rounded-2xl border border-gray-200">
                                     <div><label className="text-xs font-bold text-gray-500">Original Price</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.originalPrice || 0} onChange={e => handlePriceChange('originalPrice', Number(e.target.value))} /></div>
                                     <div><label className="text-xs font-bold text-gray-500">Discount %</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.discount || 0} onChange={e => handlePriceChange('discount', Number(e.target.value))} /></div>
                                     <div><label className="text-xs font-bold text-aura-brown">Sale Price</label><div className="w-full p-3 bg-aura-gold/20 rounded-xl font-bold text-aura-brown">Rs {(formData.price || 0).toLocaleString()}</div></div>
                                     <div><label className="text-xs font-bold text-gray-400">Cost Price</label><input type="number" className="w-full p-3 border rounded-xl bg-gray-50" value={formData.costPrice || 0} onChange={e => setFormData({...formData, costPrice: Number(e.target.value)})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-400">Delivery (DC)</label><input type="number" className="w-full p-3 border rounded-xl bg-gray-50" value={formData.deliveryCharge} onChange={e => setFormData({...formData, deliveryCharge: Number(e.target.value)})} /></div>
                                 </div>
                             </section>
 
@@ -892,14 +897,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals & Variants</h3>
                                 <div className="flex flex-col md:flex-row gap-6 mb-6">
                                     
-                                    {/* 🚀 IMAGE & COLOR BLOCK */}
                                     <div className="w-full md:w-40 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Main Image</label>
                                             <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'main')} onPaste={(e) => handlePaste(e, 'main')} tabIndex={0}>
                                                 
-                                                {/* Loading Overlay */}
                                                 {uploadQueue.filter(u => u.type === 'main').map(u => (
                                                     <div key={u.id} className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
                                                         <Loader2 className="animate-spin text-aura-gold mb-2" size={24} />
@@ -926,14 +929,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         </div>
                                     </div>
 
-                                    {/* 🚀 DEDICATED VIDEO UPLOAD BLOCK */}
                                     <div className="w-full md:w-40 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Product Video (MP4)</label>
                                             <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.video ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'video')} onPaste={(e) => handlePaste(e, 'video')} tabIndex={0}>
                                                 
-                                                {/* Loading Overlay */}
                                                 {uploadQueue.filter(u => u.type === 'video').map(u => (
                                                     <div key={u.id} className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
                                                         <Loader2 className="animate-spin text-aura-gold mb-2" size={24} />
@@ -961,7 +962,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         </div>
                                     </div>
 
-                                    {/* 🚀 MULTI-UPLOAD GALLERY (Supports Images & Videos via Drag/Drop/Select) */}
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-gray-500 mb-2">Gallery (Drag & Drop Multiple Images/Videos)</label>
                                         <div className="flex flex-wrap gap-4 p-4 bg-white border border-gray-200 rounded-2xl min-h-[190px]"
@@ -974,7 +974,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 </div>
                                             ))}
 
-                                            {/* LIVE PROGRESS BOXES FOR MULTIPLE UPLOADS */}
                                             {uploadQueue.filter(u => u.type === 'gallery').map(u => (
                                                 <div key={u.id} className="w-24 h-24 rounded-xl border-2 border-aura-gold flex flex-col items-center justify-center bg-gray-50 flex-shrink-0">
                                                     <Loader2 className="animate-spin text-aura-gold mb-1" size={16} />
