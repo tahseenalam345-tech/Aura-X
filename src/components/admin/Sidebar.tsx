@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { 
   LayoutGrid, ShoppingCart, DollarSign, FileText, 
-  RotateCcw, MessageSquare, Calculator, Users, Home, LogOut 
+  RotateCcw, MessageSquare, Calculator, Users, Home, LogOut, BookOpen 
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -22,14 +22,14 @@ interface SidebarProps {
 export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen, counts }: SidebarProps) {
   const { logout } = useAuth();
 
-  // ADDED 'calculator' TO THE ARRAY INSTEAD OF A HARDCODED BUTTON
   const menuItems = [
     { id: 'inventory', label: 'Inventory', icon: LayoutGrid },
     { id: 'orders', label: 'Orders', icon: ShoppingCart, count: counts.orders, color: 'bg-red-500' },
     { id: 'finance', label: 'Finance', icon: DollarSign },
-    { id: 'calculator', label: 'Pricing Calculator', icon: Calculator }, // <--- ADDED HERE
+    { id: 'records', label: 'Financial Records', icon: BookOpen }, // 🚀 NEW TAB ADDED HERE
+    { id: 'calculator', label: 'Pricing Calculator', icon: Calculator }, 
     { id: 'notes', label: 'Notebook & Data', icon: FileText },
-    // Divider logic applies before Returns (Index 5 now)
+    // 🚀 We update the index logic below to draw the line after 'notes' (which is now index 5)
     { id: 'returns', label: 'Returns', icon: RotateCcw, count: counts.returns, color: 'bg-blue-500' },
     { id: 'messages', label: 'Messages', icon: MessageSquare, count: counts.messages, color: 'bg-purple-500' },
     { id: 'marketing', label: 'Marketing', icon: Users },
@@ -55,11 +55,11 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSideb
         </div>
 
         {/* NAVIGATION */}
-        <nav className="flex-1 p-4 space-y-1 mt-16 md:mt-0 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 mt-16 md:mt-0 overflow-y-auto scrollbar-hide">
             {menuItems.map((item, index) => (
                 <div key={item.id}>
-                    {/* Updated index to 5 because we added Calculator before it */}
-                    {index === 5 && <div className="h-[1px] bg-white/10 my-4"></div>}
+                    {/* Draw dividing line right before the 'Returns' tab */}
+                    {index === 6 && <div className="h-[1px] bg-white/10 my-4"></div>}
                     
                     <button 
                         onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }} 
