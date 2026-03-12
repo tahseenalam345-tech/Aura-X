@@ -137,19 +137,15 @@ export default function ProductClient() {
       return totalStars / productReviews.length;
   }, [productReviews]);
 
-  // 🚀 UNIFIED SMART GALLERY: Merges main, video, gallery, AND all color images into one master array
   const unifiedMedia = useMemo(() => {
       if (!product) return [];
       
       const mediaList: { url: string; type: string; colorIndex?: number }[] = [];
       
-      // 1. Add Main Image
       if (product.main_image) mediaList.push({ url: product.main_image, type: 'main', colorIndex: 0 });
       
-      // 2. Add Main Video
       if (product.specs?.video) mediaList.push({ url: product.specs.video, type: 'video' });
       
-      // 3. Add all Color Variant Images (skipping the first one if it's the main image)
       if (product.colors && product.colors.length > 0) {
           product.colors.forEach((c: any, idx: number) => {
               if (c.image && c.image !== product.main_image) {
@@ -158,10 +154,8 @@ export default function ProductClient() {
           });
       }
       
-      // 4. Add Extra Gallery Images
       if (product.specs?.gallery?.length > 0) {
           product.specs.gallery.forEach((gImg: string) => {
-              // Don't add if it's already in the list
               if (!mediaList.find(m => m.url === gImg)) {
                   mediaList.push({ url: gImg, type: 'gallery' });
               }
@@ -171,7 +165,6 @@ export default function ProductClient() {
       return mediaList;
   }, [product]);
 
-  // Automatically sync the Color selection when swiping through the gallery
   useEffect(() => {
       if (unifiedMedia[mediaIndex]?.colorIndex !== undefined) {
           setSelectedColorIndex(unifiedMedia[mediaIndex].colorIndex as number);
@@ -210,7 +203,6 @@ export default function ProductClient() {
 
   const displayShortName = product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name;
 
-  // 🚀 TOUCH SWIPE LOGIC
   let touchStartX = 0;
   let touchEndX = 0;
   
@@ -221,8 +213,8 @@ export default function ProductClient() {
   };
   
   const handleSwipe = () => {
-      if (touchEndX < touchStartX - 50) handleNextImage(); // Swipe Left (Next)
-      if (touchEndX > touchStartX + 50) handlePrevImage(); // Swipe Right (Prev)
+      if (touchEndX < touchStartX - 50) handleNextImage(); 
+      if (touchEndX > touchStartX + 50) handlePrevImage(); 
   };
 
   const handlePrevImage = (e?: any) => {
@@ -235,7 +227,6 @@ export default function ProductClient() {
       setMediaIndex((prev) => (prev + 1) % unifiedMedia.length);
   };
 
-  // Sync Color button click to Gallery Image
   const handleColorClick = (index: number, colorImgUrl?: string) => {
       setSelectedColorIndex(index);
       if (colorImgUrl) {
@@ -405,8 +396,9 @@ export default function ProductClient() {
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-300">
            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"><X size={30}/></button>
            <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
+             {/* 🚀 LIGHTBOX VIDEO PREVIEW FIX */}
              {isVideoFile(lightboxImage) ? (
-                 <video src={lightboxImage} autoPlay muted loop playsInline className="w-full h-full object-contain pointer-events-none" />
+                 <video src={lightboxImage} autoPlay muted loop playsInline poster={product.main_image} className="w-full h-full object-contain pointer-events-none" />
              ) : (
                  <Image src={lightboxImage} alt={`Zoomed view of ${seoAltText}`} fill className="object-contain" quality={90} unoptimized={true} />
              )}
@@ -441,7 +433,6 @@ export default function ProductClient() {
           <div className="lg:col-span-7 h-fit lg:sticky lg:top-32 self-start flex flex-row gap-3 md:gap-4 w-full">
             
             <div className="flex-1 flex flex-col min-w-0">
-                {/* 🚀 SWIPEABLE GALLERY CONTAINER */}
                 <div 
                     className="relative aspect-square w-full bg-white rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(212,175,55,0.1)] border border-aura-gold/10 group touch-pan-y"
                     onTouchStart={handleTouchStart}
@@ -457,7 +448,6 @@ export default function ProductClient() {
                               <ChevronRight size={24}/>
                           </button>
                           
-                          {/* Photo Counter */}
                           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white text-[10px] font-bold tracking-widest pointer-events-none">
                               {mediaIndex + 1} / {unifiedMedia.length}
                           </div>
@@ -475,7 +465,7 @@ export default function ProductClient() {
                   </div>
                   <button onClick={() => currentDisplayMedia && setLightboxImage(currentDisplayMedia.url)} className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-lg text-gray-500 hover:text-aura-gold"><Maximize2 size={18} /></button>
                   
-                  {/* CURRENT DISPLAY */}
+                  {/* MAIN DISPLAY */}
                   {currentDisplayMedia && (
                     isVideoFile(currentDisplayMedia.url) ? (
                         <video 
@@ -485,7 +475,7 @@ export default function ProductClient() {
                             loop 
                             playsInline 
                             preload="none"
-                            poster={product.main_image}
+                            poster={product.main_image} // 🚀 Ensure main image shows while loading
                             className="object-cover w-full h-full cursor-pointer" 
                             onClick={() => setLightboxImage(currentDisplayMedia.url)} 
                         >
@@ -497,7 +487,7 @@ export default function ProductClient() {
                   )}
                 </div>
                 
-                {/* 🚀 BOTTOM THUMBNAILS ROW */}
+                {/* 🚀 THUMBNAIL ROW (VIDEO PREVIEW FIX) */}
                 <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide justify-start md:justify-center">
                    {unifiedMedia.map((media, i) => (
                      <button 
@@ -506,9 +496,11 @@ export default function ProductClient() {
                          className={`relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-xl border-2 overflow-hidden transition-all duration-300 ${mediaIndex === i ? 'border-aura-gold scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
                      >
                          {isVideoFile(media.url) ? (
-                             <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                                 <video src={media.url} preload="none" playsInline className="object-cover w-full h-full absolute inset-0 opacity-80" muted />
-                                 <Play size={16} className="relative z-10 text-white drop-shadow-md" fill="currentColor"/>
+                             <div className="w-full h-full flex items-center justify-center relative">
+                                 {/* 🚀 Use Image tag to load the watch picture instantly behind the play button */}
+                                 <Image src={product.main_image} alt="Video Preview" fill className="object-cover" sizes="100px" unoptimized={true} />
+                                 <div className="absolute inset-0 bg-black/30"></div> {/* Dark overlay so white button pops */}
+                                 <Play size={24} className="relative z-10 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" fill="currentColor"/>
                              </div>
                          ) : (
                              <Image src={media.url} alt={`Thumb ${i}`} fill className="object-cover" sizes="100px" quality={75} unoptimized={true} />
@@ -518,7 +510,7 @@ export default function ProductClient() {
                 </div>
             </div>
 
-            {/* 🚀 RIGHT VERTICAL COLOR COLUMN */}
+            {/* RIGHT VERTICAL COLOR COLUMN */}
             {product.colors && product.colors.length > 0 && (
                 <div className="w-14 md:w-16 flex flex-col gap-3 flex-shrink-0 items-center pt-2">
                     <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Colors</span>
@@ -695,7 +687,7 @@ export default function ProductClient() {
                     <AccordionItem title="Description" id="description"><p>{product.description}</p></AccordionItem>
                     <AccordionItem title="Technical Specifications" id="specs">
                         <ul className="grid grid-cols-2 gap-y-2 gap-x-2 text-xs">
-                           {specs && Object.entries(specs).filter(([key]) => !['gallery', 'stock', 'view_count', 'warranty', 'cost_price', 'shipping_text', 'return_policy', 'box_included', 'luminous', 'date_display', 'adjustable', 'type', 'style', 'video'].includes(key)).map(([key, value]) => (
+                           {specs && Object.entries(specs).filter(([key]) => !['gallery', 'stock', 'view_count', 'warranty', 'cost_price', 'shipping_text', 'return_policy', 'box_included', 'luminous', 'date_display', 'adjustable', 'type', 'style', 'video', 'delivery_charge'].includes(key)).map(([key, value]) => (
                              <li key={key} className="flex flex-col pb-1 border-b border-dashed border-gray-100">
                                  <span className="font-bold text-aura-gold uppercase text-[10px]">{key.replace(/_/g, " ")}</span>
                                  <span className="text-gray-600 truncate">{value === true ? "Yes" : value === false ? "No" : String(value)}</span>
