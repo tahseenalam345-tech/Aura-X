@@ -144,7 +144,8 @@ export default function ProductClient() {
       
       if (product.main_image) mediaList.push({ url: product.main_image, type: 'main', colorIndex: 0 });
       
-      if (product.specs?.video) mediaList.push({ url: product.specs.video, type: 'video' });
+   // TEMPORARILY DISABLED TO SAVE SUPABASE BANDWIDTH
+// if (product.specs?.video) mediaList.push({ url: product.specs.video, type: 'video' });
       
       if (product.colors && product.colors.length > 0) {
           product.colors.forEach((c: any, idx: number) => {
