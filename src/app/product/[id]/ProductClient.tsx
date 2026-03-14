@@ -16,7 +16,12 @@ import {
 import toast from "react-hot-toast"; 
 import * as fbq from "@/lib/fpixel";
 
-const isVideoFile = (url: string) => url?.toLowerCase().includes('.mp4') || url?.toLowerCase().includes('.webm');
+// 🚀 UPDATED: Smarter check for Cloudinary videos vs images
+const isVideoFile = (url: string) => {
+    if (!url) return false;
+    const lowerUrl = url.toLowerCase();
+    return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
+};
 
 // --- AGGRESSIVE CLIENT-SIDE IMAGE COMPRESSOR ---
 const compressClientImage = (file: File): Promise<File> => {
@@ -144,8 +149,8 @@ export default function ProductClient() {
       
       if (product.main_image) mediaList.push({ url: product.main_image, type: 'main', colorIndex: 0 });
       
-   // TEMPORARILY DISABLED TO SAVE SUPABASE BANDWIDTH
-// if (product.specs?.video) mediaList.push({ url: product.specs.video, type: 'video' });
+      // 🚀 VIDEOS ARE TURNED BACK ON HERE!
+      if (product.specs?.video) mediaList.push({ url: product.specs.video, type: 'video' });
       
       if (product.colors && product.colors.length > 0) {
           product.colors.forEach((c: any, idx: number) => {
@@ -397,7 +402,7 @@ export default function ProductClient() {
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-300">
            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"><X size={30}/></button>
            <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
-             {/* 🚀 LIGHTBOX VIDEO PREVIEW FIX */}
+             {/* 🚀 LIGHTBOX VIDEO PREVIEW FIX (Ensured MUTED is present) */}
              {isVideoFile(lightboxImage) ? (
                  <video src={lightboxImage} autoPlay muted loop playsInline poster={product.main_image} className="w-full h-full object-contain pointer-events-none" />
              ) : (
@@ -472,7 +477,7 @@ export default function ProductClient() {
                         <video 
                             key={currentDisplayMedia.url} 
                             autoPlay 
-                            muted 
+                            muted // 🚀 Explicitly muted here
                             loop 
                             playsInline 
                             preload="none"

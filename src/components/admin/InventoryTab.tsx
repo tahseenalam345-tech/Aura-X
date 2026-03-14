@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Video, Loader2, Copy } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Video, Loader2, Copy, Link as LinkIcon } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
@@ -18,7 +18,12 @@ const COLOR_MAP: Record<string, string> = {
 const POPULAR_COLORS = Object.keys(COLOR_MAP);
 
 // --- HELPER FUNCTIONS ---
-const isVideoFile = (url: string) => url?.toLowerCase().includes('.mp4') || url?.toLowerCase().includes('.webm');
+// 🚀 UPDATED: Smarter check for Cloudinary videos vs images
+const isVideoFile = (url: string) => {
+    if (!url) return false;
+    const lowerUrl = url.toLowerCase();
+    return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
+};
 
 const formatDate = (dateString: string) => {
     if (!dateString) return "Unknown Date";
@@ -130,10 +135,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [dateFilter, setDateFilter] = useState<{ start: string, end: string }>({ start: "", end: "" });
 
   const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", images: [] as string[] });
+  
+  // 🚀 New State for temporary gallery external link
+  const [externalGalleryLink, setExternalGalleryLink] = useState("");
 
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", stock: 1, category: "", 
-    price: 0, originalPrice: 0, discount: 0, costPrice: 0, deliveryCharge: 250, // 🚀 ADDED DC
+    price: 0, originalPrice: 0, discount: 0, costPrice: 0, deliveryCharge: 250,
     tags: "" as string, priority: 100, viewCount: 0, 
     isEidExclusive: false, isPinned: false, 
     movement: "Quartz (Battery)", waterResistance: "0ATM (No Resistance)", 
@@ -321,7 +329,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         sku: specs.sku || item.sku || "",
         stock: specs.stock || 1,
         costPrice: specs.cost_price || 0,
-        deliveryCharge: specs.delivery_charge !== undefined ? specs.delivery_charge : (item.is_eid_exclusive ? 0 : 250), // 🚀 LOAD DC OR DEFAULT
+        deliveryCharge: specs.delivery_charge !== undefined ? specs.delivery_charge : (item.is_eid_exclusive ? 0 : 250),
         viewCount: specs.view_count || 0,
         movement: specs.movement || "Quartz (Battery)",
         waterResistance: specs.water_resistance || "0ATM (No Resistance)",
@@ -382,7 +390,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         sku: randomSku, 
         stock: specs.stock || 1,
         costPrice: specs.cost_price || 0,
-        deliveryCharge: specs.delivery_charge !== undefined ? specs.delivery_charge : (item.is_eid_exclusive ? 0 : 250), // 🚀 LOAD DC OR DEFAULT
+        deliveryCharge: specs.delivery_charge !== undefined ? specs.delivery_charge : (item.is_eid_exclusive ? 0 : 250),
         viewCount: specs.view_count || 0,
         movement: specs.movement || "Quartz (Battery)",
         waterResistance: specs.water_resistance || "0ATM (No Resistance)",
@@ -466,7 +474,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           colors: allColors, manual_reviews: formData.manualReviews, 
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
-              delivery_charge: formData.deliveryCharge, // 🚀 SAVE DC TO DATABASE
+              delivery_charge: formData.deliveryCharge, 
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
               case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, 
               case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
@@ -847,7 +855,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     </div>
 
                                     <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* 🚀 AUTO-SET DC TO 0 WHEN CHECKED */}
                                         <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-white border-gray-200'}`}>
                                             <input 
                                                 type="checkbox" 
@@ -883,7 +890,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Tag size={16}/> Pricing</h3>
-                                {/* 🚀 ADDED DELIVERY CHARGE INPUT TO PRICING GRID */}
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-6 bg-white p-6 rounded-2xl border border-gray-200">
                                     <div><label className="text-xs font-bold text-gray-500">Original Price</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.originalPrice || 0} onChange={e => handlePriceChange('originalPrice', Number(e.target.value))} /></div>
                                     <div><label className="text-xs font-bold text-gray-500">Discount %</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.discount || 0} onChange={e => handlePriceChange('discount', Number(e.target.value))} /></div>
@@ -897,10 +903,11 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals & Variants</h3>
                                 <div className="flex flex-col md:flex-row gap-6 mb-6">
                                     
-                                    <div className="w-full md:w-40 space-y-4">
+                                    {/* 🚀 MAIN IMAGE SECTION */}
+                                    <div className="w-full md:w-48 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Main Image</label>
-                                            <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}
+                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage && !formData.mainImage.includes('cloudinary') ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'main')} onPaste={(e) => handlePaste(e, 'main')} tabIndex={0}>
                                                 
                                                 {uploadQueue.filter(u => u.type === 'main').map(u => (
@@ -911,13 +918,40 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     </div>
                                                 ))}
 
-                                                {formData.mainImage ? (
+                                                {formData.mainImage && !formData.mainImage.includes('cloudinary') ? (
                                                     <>
                                                         {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <Image src={formData.mainImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" unoptimized={true} />}
                                                         <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
                                                     </>
                                                 ) : (
-                                                    <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-xs text-gray-400 mt-1">Upload/Paste</span><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'main')}/></label>
+                                                    <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-[10px] text-gray-400 mt-1">Upload/Paste File</span><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'main')}/></label>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Cloudinary Paste Box for Main Image */}
+                                            <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2 rounded-xl relative">
+                                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
+                                                    <LinkIcon size={12}/> EXTERNAL IMAGE LINK
+                                                </div>
+                                                <div className="relative">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Paste Cloudinary URL..." 
+                                                        value={formData.mainImage && formData.mainImage.includes('http') ? formData.mainImage : ""} 
+                                                        onChange={(e) => setFormData({...formData, mainImage: e.target.value})}
+                                                        className="w-full p-2 pr-8 text-xs border border-gray-200 rounded-lg outline-none focus:border-blue-400 bg-white"
+                                                    />
+                                                    {formData.mainImage && formData.mainImage.includes('http') && (
+                                                        <button type="button" onClick={() => setFormData({...formData, mainImage: ""})} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
+                                                            <X size={14}/>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {/* Instant Preview for Main Image Link */}
+                                                {formData.mainImage && formData.mainImage.includes('http') && (
+                                                    <div className="mt-2 h-16 w-full rounded border border-blue-200 overflow-hidden relative">
+                                                        <Image src={formData.mainImage} alt="Preview" fill className="object-cover" unoptimized={true} />
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -929,42 +963,69 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         </div>
                                     </div>
 
-                                    <div className="w-full md:w-40 space-y-4">
+                                    {/* 🚀 PRODUCT VIDEO SECTION WITH URL PASTE BOX */}
+                                    <div className="w-full md:w-48 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Product Video (MP4)</label>
-                                            <div className={`w-full h-40 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.video ? 'border-aura-gold' : 'border-gray-300'}`}
+                                            
+                                            {/* Dropzone */}
+                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.video && !formData.video.includes('cloudinary') ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'video')} onPaste={(e) => handlePaste(e, 'video')} tabIndex={0}>
                                                 
                                                 {uploadQueue.filter(u => u.type === 'video').map(u => (
                                                     <div key={u.id} className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
                                                         <Loader2 className="animate-spin text-aura-gold mb-2" size={24} />
                                                         <div className="text-xs font-bold text-aura-brown">{u.progress}%</div>
-                                                        <div className="w-20 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden"><div className="h-full bg-aura-gold transition-all duration-300" style={{ width: `${u.progress}%` }}></div></div>
                                                     </div>
                                                 ))}
 
-                                                {formData.video ? (
+                                                {formData.video && !formData.video.includes('cloudinary') ? (
                                                     <>
                                                         <video src={formData.video} className="object-cover w-full h-full" autoPlay muted loop playsInline />
                                                         <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('video');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
                                                     </>
                                                 ) : (
                                                     <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
-                                                        <Video size={24} className="mx-auto text-gray-300"/>
-                                                        <span className="text-xs text-gray-400 mt-1">Upload Video</span>
+                                                        <Video size={20} className="mx-auto text-gray-300"/>
+                                                        <span className="text-[10px] text-gray-400 mt-1">Upload to Supabase</span>
                                                         <input type="file" accept="video/mp4,video/webm" className="hidden" onChange={(e) => handleImageUpload(e as any, 'video')}/>
                                                     </label>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div>
-                                            <p className="text-[9px] text-gray-400 italic text-center mt-2 leading-tight">Must compress via Handbrake before uploading!</p>
+
+                                            {/* Cloudinary Paste Box */}
+                                            <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2 rounded-xl relative">
+                                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
+                                                    <LinkIcon size={12}/> EXTERNAL VIDEO LINK
+                                                </div>
+                                                <div className="relative">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Paste Cloudinary URL..." 
+                                                        value={formData.video && formData.video.includes('http') ? formData.video : ""} 
+                                                        onChange={(e) => setFormData({...formData, video: e.target.value})}
+                                                        className="w-full p-2 pr-8 text-xs border border-gray-200 rounded-lg outline-none focus:border-blue-400 bg-white"
+                                                    />
+                                                    {formData.video && formData.video.includes('http') && (
+                                                        <button type="button" onClick={() => setFormData({...formData, video: ""})} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
+                                                            <X size={14}/>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {/* Instant Preview for Video Link */}
+                                                {formData.video && formData.video.includes('http') && (
+                                                    <div className="mt-2 h-16 w-full rounded border border-blue-200 overflow-hidden relative bg-black">
+                                                        <video src={formData.video} className="object-cover w-full h-full" autoPlay muted loop playsInline />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
+                                    {/* 🚀 MULTI-UPLOAD GALLERY */}
                                     <div className="flex-1">
-                                        <label className="block text-xs font-bold text-gray-500 mb-2">Gallery (Drag & Drop Multiple Images/Videos)</label>
-                                        <div className="flex flex-wrap gap-4 p-4 bg-white border border-gray-200 rounded-2xl min-h-[190px]"
+                                        <label className="block text-xs font-bold text-gray-500 mb-2">Gallery (Multiple Images/Videos)</label>
+                                        <div className="flex flex-wrap gap-4 p-4 bg-white border border-gray-200 rounded-2xl min-h-[160px]"
                                             onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'gallery')} onPaste={(e) => handlePaste(e, 'gallery')} tabIndex={0}>
                                             
                                             {formData.gallery.map((img, i) => (
@@ -989,6 +1050,47 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     <input type="file" multiple accept="image/*,video/mp4,video/webm" className="hidden" onChange={(e) => handleImageUpload(e as any, 'gallery')}/>
                                                 </label>
                                             </div>
+                                        </div>
+                                        
+                                        {/* 🚀 NEW: EXTERNAL GALLERY LINK ADDER */}
+                                        <div className="mt-3 bg-blue-50/50 border border-blue-100 p-3 rounded-xl flex flex-col md:flex-row items-start md:items-center gap-3">
+                                            <div className="flex-1 w-full">
+                                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
+                                                    <LinkIcon size={12}/> ADD EXTERNAL GALLERY MEDIA (IMAGE/VIDEO)
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Paste Cloudinary URL here..." 
+                                                        value={externalGalleryLink} 
+                                                        onChange={(e) => setExternalGalleryLink(e.target.value)}
+                                                        className="flex-1 p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-blue-400 bg-white"
+                                                    />
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => {
+                                                            if (!externalGalleryLink) return;
+                                                            setFormData(prev => ({ ...prev, gallery: [...prev.gallery, externalGalleryLink] }));
+                                                            setExternalGalleryLink("");
+                                                            toast.success("Added to gallery!");
+                                                        }}
+                                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors"
+                                                    >
+                                                        Add
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Live Preview before adding */}
+                                            {externalGalleryLink && (
+                                                <div className="w-14 h-14 rounded-lg border border-blue-200 overflow-hidden relative bg-black flex-shrink-0 shadow-sm">
+                                                    {isVideoFile(externalGalleryLink) ? (
+                                                        <video src={externalGalleryLink} className="object-cover w-full h-full" autoPlay muted loop playsInline />
+                                                    ) : (
+                                                        <Image src={externalGalleryLink} alt="Preview" fill className="object-cover" unoptimized={true} />
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                         
                                         <div className="mt-6 bg-white p-6 rounded-2xl border border-gray-200">
