@@ -16,11 +16,20 @@ import {
 import toast from "react-hot-toast"; 
 import * as fbq from "@/lib/fpixel";
 
-// 🚀 UPDATED: Smarter check for Cloudinary videos vs images
+// 🚀 Smarter check for Cloudinary videos vs images
 const isVideoFile = (url: string) => {
     if (!url) return false;
     const lowerUrl = url.toLowerCase();
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
+};
+
+// 🚀 NEW: AUTO-COMPRESSION ROBOT
+// This automatically crushes Cloudinary files sizes without you doing anything!
+const optimizeCloudinaryUrl = (url: string) => {
+    if (!url || !url.includes('cloudinary.com')) return url; // If it's not Cloudinary, leave it alone
+    if (url.includes('f_auto') || url.includes('q_auto')) return url; // If already optimized, skip
+    // Automatically inject the compression command right after /upload/
+    return url.replace('/upload/', '/upload/f_auto,q_auto/');
 };
 
 // --- AGGRESSIVE CLIENT-SIDE IMAGE COMPRESSOR ---
@@ -147,23 +156,24 @@ export default function ProductClient() {
       
       const mediaList: { url: string; type: string; colorIndex?: number }[] = [];
       
-      if (product.main_image) mediaList.push({ url: product.main_image, type: 'main', colorIndex: 0 });
+      // 🚀 Now wrapping EVERY image/video URL with optimizeCloudinaryUrl()
+      if (product.main_image) mediaList.push({ url: optimizeCloudinaryUrl(product.main_image), type: 'main', colorIndex: 0 });
       
-      // 🚀 VIDEOS ARE TURNED BACK ON HERE!
-      if (product.specs?.video) mediaList.push({ url: product.specs.video, type: 'video' });
+      if (product.specs?.video) mediaList.push({ url: optimizeCloudinaryUrl(product.specs.video), type: 'video' });
       
       if (product.colors && product.colors.length > 0) {
           product.colors.forEach((c: any, idx: number) => {
               if (c.image && c.image !== product.main_image) {
-                  mediaList.push({ url: c.image, type: 'color', colorIndex: idx });
+                  mediaList.push({ url: optimizeCloudinaryUrl(c.image), type: 'color', colorIndex: idx });
               }
           });
       }
       
       if (product.specs?.gallery?.length > 0) {
           product.specs.gallery.forEach((gImg: string) => {
-              if (!mediaList.find(m => m.url === gImg)) {
-                  mediaList.push({ url: gImg, type: 'gallery' });
+              const optimizedImg = optimizeCloudinaryUrl(gImg);
+              if (!mediaList.find(m => m.url === optimizedImg)) {
+                  mediaList.push({ url: optimizedImg, type: 'gallery' });
               }
           });
       }
@@ -236,7 +246,7 @@ export default function ProductClient() {
   const handleColorClick = (index: number, colorImgUrl?: string) => {
       setSelectedColorIndex(index);
       if (colorImgUrl) {
-          const mediaIdx = unifiedMedia.findIndex(m => m.url === colorImgUrl);
+          const mediaIdx = unifiedMedia.findIndex(m => m.url === optimizeCloudinaryUrl(colorImgUrl));
           if (mediaIdx !== -1) setMediaIndex(mediaIdx);
       }
   };
@@ -402,9 +412,8 @@ export default function ProductClient() {
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-300">
            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"><X size={30}/></button>
            <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
-             {/* 🚀 LIGHTBOX VIDEO PREVIEW FIX (Ensured MUTED is present) */}
              {isVideoFile(lightboxImage) ? (
-                 <video src={lightboxImage} autoPlay muted loop playsInline poster={product.main_image} className="w-full h-full object-contain pointer-events-none" />
+                 <video src={lightboxImage} autoPlay muted loop playsInline poster={optimizeCloudinaryUrl(product.main_image)} className="w-full h-full object-contain pointer-events-none" />
              ) : (
                  <Image src={lightboxImage} alt={`Zoomed view of ${seoAltText}`} fill className="object-contain" quality={90} unoptimized={true} />
              )}
@@ -477,11 +486,11 @@ export default function ProductClient() {
                         <video 
                             key={currentDisplayMedia.url} 
                             autoPlay 
-                            muted // 🚀 Explicitly muted here
+                            muted 
                             loop 
                             playsInline 
                             preload="none"
-                            poster={product.main_image} // 🚀 Ensure main image shows while loading
+                            poster={optimizeCloudinaryUrl(product.main_image)} // 🚀 Keep poster lightweight
                             className="object-cover w-full h-full cursor-pointer" 
                             onClick={() => setLightboxImage(currentDisplayMedia.url)} 
                         >
@@ -493,7 +502,6 @@ export default function ProductClient() {
                   )}
                 </div>
                 
-                {/* 🚀 THUMBNAIL ROW (VIDEO PREVIEW FIX) */}
                 <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-hide justify-start md:justify-center">
                    {unifiedMedia.map((media, i) => (
                      <button 
@@ -503,9 +511,8 @@ export default function ProductClient() {
                      >
                          {isVideoFile(media.url) ? (
                              <div className="w-full h-full flex items-center justify-center relative">
-                                 {/* 🚀 Use Image tag to load the watch picture instantly behind the play button */}
-                                 <Image src={product.main_image} alt="Video Preview" fill className="object-cover" sizes="100px" unoptimized={true} />
-                                 <div className="absolute inset-0 bg-black/30"></div> {/* Dark overlay so white button pops */}
+                                 <Image src={optimizeCloudinaryUrl(product.main_image)} alt="Video Preview" fill className="object-cover" sizes="100px" unoptimized={true} />
+                                 <div className="absolute inset-0 bg-black/30"></div> 
                                  <Play size={24} className="relative z-10 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" fill="currentColor"/>
                              </div>
                          ) : (
@@ -516,35 +523,36 @@ export default function ProductClient() {
                 </div>
             </div>
 
-            {/* RIGHT VERTICAL COLOR COLUMN */}
-            {product.colors && product.colors.length > 0 && (
-                <div className="w-14 md:w-16 flex flex-col gap-3 flex-shrink-0 items-center pt-2">
-                    <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Colors</span>
-                    {product.colors.map((color: any, index: number) => (
-                        <button 
-                            key={index} 
-                            onClick={() => handleColorClick(index, color.image)} 
-                            className={`relative w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl overflow-hidden border-2 transition-all duration-300 ${
-                                selectedColorIndex === index 
-                                ? 'border-aura-gold scale-110 shadow-md z-10' 
-                                : 'border-white shadow-sm opacity-70 hover:opacity-100 hover:scale-105'
-                            }`}
-                            title={color.name}
-                        >
-                            {color.image ? (
-                                <Image src={color.image} alt={color.name} fill className="object-cover" unoptimized={true} />
-                            ) : (
-                                <div className="w-full h-full" style={{ backgroundColor: color.hex }}></div>
-                            )}
-                            {selectedColorIndex === index && (
-                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
-                                    <Check size={16} className="text-white drop-shadow-md" />
-                                </div>
-                            )}
-                        </button>
-                    ))}
-                </div>
-            )}
+            <div className="w-14 md:w-16 flex flex-col gap-3 flex-shrink-0 items-center pt-2">
+                {product.colors && product.colors.length > 0 && (
+                    <>
+                        <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Colors</span>
+                        {product.colors.map((color: any, index: number) => (
+                            <button 
+                                key={index} 
+                                onClick={() => handleColorClick(index, color.image)} 
+                                className={`relative w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl overflow-hidden border-2 transition-all duration-300 ${
+                                    selectedColorIndex === index 
+                                    ? 'border-aura-gold scale-110 shadow-md z-10' 
+                                    : 'border-white shadow-sm opacity-70 hover:opacity-100 hover:scale-105'
+                                }`}
+                                title={color.name}
+                            >
+                                {color.image ? (
+                                    <Image src={optimizeCloudinaryUrl(color.image)} alt={color.name} fill className="object-cover" unoptimized={true} />
+                                ) : (
+                                    <div className="w-full h-full" style={{ backgroundColor: color.hex }}></div>
+                                )}
+                                {selectedColorIndex === index && (
+                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
+                                        <Check size={16} className="text-white drop-shadow-md" />
+                                    </div>
+                                )}
+                            </button>
+                        ))}
+                    </>
+                )}
+            </div>
           </div>
 
           <div className="lg:col-span-5 flex flex-col">
@@ -805,11 +813,11 @@ export default function ProductClient() {
                                    <div className="flex gap-2 mt-2">
                                        {review.images ? review.images.map((img: string, idx: number) => (
                                            <div key={idx} className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/20 cursor-zoom-in" onClick={() => setLightboxImage(img)}>
-                                               <Image src={img} alt="Customer Review" fill className="object-cover" unoptimized={true} />
+                                               <Image src={optimizeCloudinaryUrl(img)} alt="Customer Review" fill className="object-cover" unoptimized={true} />
                                            </div>
                                        )) : review.image && (
                                            <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/20 cursor-zoom-in" onClick={() => setLightboxImage(review.image)}>
-                                               <Image src={review.image} alt="Customer Review" fill className="object-cover" unoptimized={true} />
+                                               <Image src={optimizeCloudinaryUrl(review.image)} alt="Customer Review" fill className="object-cover" unoptimized={true} />
                                            </div>
                                        )}
                                    </div>
