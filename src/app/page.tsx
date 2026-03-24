@@ -9,8 +9,8 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
 
-// 🚀 EID IS LIVE
-const IS_EID_LIVE = true; 
+// 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content. Set to true next year!
+const IS_EID_LIVE = false; 
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
@@ -239,10 +239,10 @@ export default function Home() {
                       Legacy in <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-aura-gold to-yellow-600 italic">Every Tick</span>
                    </h1>
                    <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto lg:mx-0">
-                     Experience the pinnacle of Swiss precision. Designed for those who command their own time.
+                      Experience the pinnacle of Swiss precision. Designed for those who command their own time.
                    </p>
                    <button onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })} className="bg-aura-brown text-white px-10 py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold transition-all shadow-xl">
-                     SHOP THE VAULT
+                      SHOP THE VAULT
                    </button>
                 </div>
               </div>

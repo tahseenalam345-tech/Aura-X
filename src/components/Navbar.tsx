@@ -11,12 +11,12 @@ import { supabase } from "@/lib/supabase";
 
 export function Navbar() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   
   // --- SEARCH STATES ---
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
 
   const { user, isAdmin, logout } = useAuth(); 
   const { totalItems } = useCart(); 
@@ -76,7 +76,8 @@ export function Navbar() {
     { name: 'Men', href: '/men' },
     { name: 'Women', href: '/women' },
     { name: 'Couple', href: '/couple' },
-    { name: 'Eid Edit', href: '/eid-collection', isSpecial: true } 
+    // 🚀 TEMPORARILY DISABLED POST-EID:
+    // { name: 'Eid Edit', href: '/eid-collection', isSpecial: true } 
   ], []);
 
   const handleTagClick = useCallback((tag: string) => {
@@ -100,11 +101,11 @@ export function Navbar() {
                 animate={{ x: ["0%", "-100%"] }}
                 transition={{ repeat: Infinity, ease: "linear", duration: 80 }}
              >
-                  {[...announcements, ...announcements, ...announcements].map((text, i) => (
+                 {[...announcements, ...announcements, ...announcements].map((text, i) => (
                     <span key={i} className="text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase flex items-center gap-2">
                        {text}
                     </span>
-                  ))}
+                 ))}
              </motion.div>
            </div>
         </div>

@@ -23,12 +23,10 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
-// 🚀 NEW: AUTO-COMPRESSION ROBOT
-// This automatically crushes Cloudinary files sizes without you doing anything!
+// 🚀 AUTO-COMPRESSION ROBOT
 const optimizeCloudinaryUrl = (url: string) => {
-    if (!url || !url.includes('cloudinary.com')) return url; // If it's not Cloudinary, leave it alone
-    if (url.includes('f_auto') || url.includes('q_auto')) return url; // If already optimized, skip
-    // Automatically inject the compression command right after /upload/
+    if (!url || !url.includes('cloudinary.com')) return url; 
+    if (url.includes('f_auto') || url.includes('q_auto')) return url; 
     return url.replace('/upload/', '/upload/f_auto,q_auto/');
 };
 
@@ -156,7 +154,6 @@ export default function ProductClient() {
       
       const mediaList: { url: string; type: string; colorIndex?: number }[] = [];
       
-      // 🚀 Now wrapping EVERY image/video URL with optimizeCloudinaryUrl()
       if (product.main_image) mediaList.push({ url: optimizeCloudinaryUrl(product.main_image), type: 'main', colorIndex: 0 });
       
       if (product.specs?.video) mediaList.push({ url: optimizeCloudinaryUrl(product.specs.video), type: 'video' });
@@ -421,6 +418,7 @@ export default function ProductClient() {
         </div>
       )}
 
+      {/* 🚀 POST-EID UPDATE: Banner is hidden.
       <div className="pt-24 md:pt-32"> 
           <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
@@ -433,8 +431,10 @@ export default function ProductClient() {
             </div>
           </div>
       </div>
+      */}
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 md:pt-12">
+      {/* 🚀 POST-EID UPDATE: Increased padding (pt-24 md:pt-32) so content doesn't hit navbar since banner is hidden */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-24 md:pt-32">
         <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-400 mb-4 md:mb-6 font-medium">
             <Link href="/" className="hover:text-aura-gold flex items-center gap-1"><Home size={14}/> Home</Link>
             <span>/</span>
@@ -490,7 +490,7 @@ export default function ProductClient() {
                             loop 
                             playsInline 
                             preload="none"
-                            poster={optimizeCloudinaryUrl(product.main_image)} // 🚀 Keep poster lightweight
+                            poster={optimizeCloudinaryUrl(product.main_image)} 
                             className="object-cover w-full h-full cursor-pointer" 
                             onClick={() => setLightboxImage(currentDisplayMedia.url)} 
                         >
