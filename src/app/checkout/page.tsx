@@ -171,7 +171,7 @@ export default function CheckoutPage() {
                 <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4 mb-6 custom-scrollbar">
                   {cart.map((item, index) => (
                     <div key={`${item.id}-${item.color}-${index}`} className="flex gap-4 items-center">
-                      <div className="relative w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0"><Image src={item.image} alt={item.name} fill className="object-contain p-1 mix-blend-multiply" decoding="async" /><span className="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-bl-lg">x{item.quantity}</span></div>
+                      <div className="relative w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0"><Image src={item.image} alt={item.name} fill className="object-contain p-1 mix-blend-multiply" decoding="async" unoptimized={true} /><span className="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-bl-lg">x{item.quantity}</span></div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm text-aura-brown truncate">{item.name}</p>
                         <p className="text-xs text-gray-400">{item.color || "Standard"}</p>
@@ -189,12 +189,13 @@ export default function CheckoutPage() {
 
                   <div className="flex justify-between items-center">
                     <span>Shipping</span>
+                    {/* 🚀 POST-EID UPDATE: Swapped Ramzan text for standard FREE text */}
                     {shippingCost === 0 ? (
-                      <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded text-[10px] uppercase tracking-widest flex items-center gap-1 shadow-sm animate-pulse">
-                        <Flame size={12} /> Ramzan Offer: FREE
-                      </span>
+                        <span className="text-aura-brown font-bold text-xs uppercase tracking-widest">
+                            FREE
+                        </span>
                     ) : (
-                      <span className="font-bold text-aura-brown">Rs {shippingCost}</span>
+                        <span className="font-bold text-aura-brown">Rs {shippingCost}</span>
                     )}
                   </div>
                 </div>

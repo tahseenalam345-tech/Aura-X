@@ -7,6 +7,7 @@ import { Star, ShoppingBag, Moon } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import toast from "react-hot-toast";
 import * as fbq from "@/lib/fpixel";
+
 interface Product {
   id: string;
   name: string;
@@ -115,6 +116,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                     sizes="(max-width: 768px) 50vw, 300px" 
                     priority={priority}
                     loading={priority ? "eager" : "lazy"}
+                    unoptimized={true} 
                 />
             </div>
         </Link>
@@ -134,6 +136,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   )}
                 </div>
 
+                {/* 🚀 POST-EID UPDATE: Commented out the Eid Edit Pill
                 {product.is_eid_exclusive && (
                     <div className="mb-1.5 flex items-center">
                         <span className="bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-white text-[8px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest flex items-center gap-1">
@@ -141,6 +144,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                         </span>
                     </div>
                 )}
+                */}
 
                 <Link href={`/product/${product.id}`} className="block">
                   <h3 className="text-[#1E1B18] font-serif font-bold text-sm md:text-base leading-snug line-clamp-2 group-hover:text-[#C5A67C] transition-colors" title={product.name}>

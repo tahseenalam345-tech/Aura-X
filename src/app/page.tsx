@@ -5,24 +5,24 @@ import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
 
-// 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content. Set to true next year!
+// 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
 const IS_EID_LIVE = false; 
 
 const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
 
-// 🚀 THE FIX: GLOBAL MEMORY CACHE
+// 🚀 GLOBAL MEMORY CACHE
 let cachedProducts: any[] = [];
 let cachedBrandSettings: Map<string, number> = new Map();
 let cachedReviews: any[] = [];
 let cachedCategory: "eid" | "men" | "women" | "couple" = IS_EID_LIVE ? "eid" : "men";
-let hasVisitedHomepage = false; // 🚀 NEW: Tells the page not to hide elements on Back Button
+let hasVisitedHomepage = false; 
 
 const TrainProductCard = ({ product }: { product: any }) => (
-    <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5">
+    <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5 hover:-translate-y-2 transition-transform duration-500">
         <ProductCard product={product} priority={false} />
     </div>
 );
@@ -38,7 +38,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(cachedProducts.length === 0);
   const [gridCols, setGridCols] = useState<number>(2);
   
-  // 🚀 THE FIX: If we have visited before (hitting back button), render everything instantly!
   const [renderBrands, setRenderBrands] = useState(hasVisitedHomepage);
   const [showReviews, setShowReviews] = useState(hasVisitedHomepage);
 
@@ -47,9 +46,10 @@ export default function Home() {
       cachedCategory = catId;
   };
 
+  // 🚀 3-Watch Carousel Logic
   useEffect(() => {
     const idleTimer = setTimeout(() => {
-      const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 4000);
+      const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 3500);
       return () => clearInterval(timer);
     }, 500); 
     return () => clearTimeout(idleTimer);
@@ -57,14 +57,13 @@ export default function Home() {
 
   const getPosition = (index: number) => {
     const diff = (index - currentIndex + watchImages.length) % watchImages.length;
-    if (diff === 0) return { x: 0, scale: 1.1, zIndex: 50, opacity: 1 };
-    if (diff === 1) return { x: "50%", scale: 0.8, zIndex: 30, opacity: 0.6 }; 
-    if (diff === watchImages.length - 1) return { x: "-50%", scale: 0.8, zIndex: 30, opacity: 0.6 };
-    return { x: 0, scale: 0.5, zIndex: 0, opacity: 0 };
+    if (diff === 0) return { x: "0%", scale: 1, zIndex: 50, opacity: 1 };
+    if (diff === 1) return { x: "48%", scale: 0.65, zIndex: 30, opacity: 0.8 }; 
+    if (diff === watchImages.length - 1) return { x: "-48%", scale: 0.65, zIndex: 30, opacity: 0.8 };
+    return { x: "0%", scale: 0.4, zIndex: 0, opacity: 0 };
   };
 
   useEffect(() => {
-    // 🚀 THE FIX: If already visited, don't wait for scroll. Just keep them visible.
     if (hasVisitedHomepage) {
         setRenderBrands(true);
         setShowReviews(true);
@@ -134,7 +133,7 @@ export default function Home() {
               cachedReviews = shuffledReviews; 
           }
           
-          hasVisitedHomepage = true; // Mark as visited so back button works perfectly
+          hasVisitedHomepage = true; 
       } catch (error) {
           console.error("Store loading error:", error);
           setIsLoading(false); 
@@ -191,7 +190,7 @@ export default function Home() {
 
 
   return (
-    <main className="min-h-screen text-aura-brown bg-gradient-to-b from-[#F9F6F0] via-[#EBE2CD] to-[#D5C6AA] relative w-full max-w-[100vw] overflow-x-hidden">
+    <main className="min-h-screen text-aura-brown bg-[#FDFBF7] relative w-full max-w-[100vw] overflow-x-hidden">
       
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
@@ -211,71 +210,143 @@ export default function Home() {
         .animate-fade-in-up {
           animation: fadeInUp 0.8s ease-out forwards;
         }
+        /* Texture overlay class */
+        .bg-noise {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        /* 🚀 NEW: PURE CSS BACKGROUND STYLES */
+        .bg-luxury-gradient {
+            background: linear-gradient(135deg, #FDFBF7 0%, #EBE2CD 40%, #D4AF37 80%, #6B4E31 100%);
+        }
+        
+        .bg-bubbles {
+            background-image: 
+              radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.6) 0%, transparent 35%),
+              radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
+              radial-gradient(circle at 50% 80%, rgba(212, 175, 55, 0.2) 0%, transparent 50%),
+              radial-gradient(circle at 85% 20%, rgba(139, 115, 85, 0.15) 0%, transparent 40%);
+        }
+
+        @keyframes slideBrandsLeft {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes slideBrandsRight {
+          0% { transform: translateX(-50%); }
+          100% { transform: translateX(0); }
+        }
+        
+        .moving-track-left {
+            display: flex;
+            white-space: nowrap;
+            width: max-content;
+            animation: slideBrandsLeft 50s linear infinite;
+        }
+        .moving-track-right {
+            display: flex;
+            white-space: nowrap;
+            width: max-content;
+            animation: slideBrandsRight 50s linear infinite;
+        }
       `}} />
 
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.04] select-none">
-          <div className="whitespace-nowrap animate-[pulse_5s_ease-in-out_infinite] text-[120px] md:text-[200px] font-serif font-black tracking-[0.2em] -ml-20 text-[#3A2A18]">
-              AURA-X • ROLEX • RADO • PATEK PHILIPPE • AUDEMARS PIGUET
-          </div>
-          <div className="whitespace-nowrap animate-[pulse_6s_ease-in-out_infinite] text-[140px] md:text-[220px] font-serif italic -ml-60 text-[#3A2A18]">
-              ARMANI • CARTIER • OMEGA • TISSOT • SEIKO
-          </div>
-          <div className="whitespace-nowrap animate-[pulse_7s_ease-in-out_infinite] text-[100px] md:text-[180px] font-serif font-black tracking-[0.3em] ml-[-10%] text-[#3A2A18]">
-              RICHARD MILLE • BREITLING • TAG HEUER • AURA-X
-          </div>
-      </div>
+      <Navbar />
 
-      <div className="relative z-10 flex flex-col min-h-screen w-full">
-          <Navbar />
+      {/* 🚀 HERO SECTION WITH LUXURY CSS BACKGROUND */}
+      <section className="relative w-full h-auto flex flex-col items-center justify-start pt-[100px] md:pt-[130px] pb-4 overflow-hidden bg-luxury-gradient">
+          
+          <div className="absolute inset-0 z-0 bg-noise pointer-events-none mix-blend-multiply opacity-50"></div>
+          
+          {/* Bubbles Effect */}
+          <div className="absolute inset-0 z-0 bg-bubbles pointer-events-none"></div>
 
-          <section className="relative min-h-[90vh] flex items-center pt-28 pb-12 px-6 overflow-hidden bg-[#F2F0E9] shadow-xl w-full">
-            <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-gradient-radial from-aura-gold/20 to-transparent opacity-50 -z-10" />
-            
-            <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div className="text-center lg:text-left z-20">
-                <div className="animate-fade-in-up">
-                   <p className="text-xs font-bold text-aura-gold tracking-[0.3em] uppercase mb-4">The Art of Timing</p>
-                   <h1 className="text-5xl sm:text-7xl font-serif font-bold leading-tight mb-6">
-                      Legacy in <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-aura-gold to-yellow-600 italic">Every Tick</span>
-                   </h1>
-                   <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto lg:mx-0">
-                      Experience the pinnacle of Swiss precision. Designed for those who command their own time.
-                   </p>
-                   <button onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })} className="bg-aura-brown text-white px-10 py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold transition-all shadow-xl">
-                      SHOP THE VAULT
-                   </button>
-                </div>
+          {/* SVG Elegant Gold Curves */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 opacity-50" preserveAspectRatio="none" viewBox="0 0 100 100">
+              <defs>
+                  <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#D4AF37" />
+                      <stop offset="50%" stopColor="#FFF2CD" />
+                      <stop offset="100%" stopColor="#8B7355" />
+                  </linearGradient>
+              </defs>
+              <path d="M-10,40 Q30,100 110,20" fill="none" stroke="url(#goldGrad)" strokeWidth="0.3"/>
+              <path d="M-10,80 Q50,-10 110,50" fill="none" stroke="url(#goldGrad)" strokeWidth="0.15" className="opacity-70"/>
+              <path d="M-20,20 Q40,120 120,30" fill="none" stroke="#ffffff" strokeWidth="1" className="opacity-60"/>
+          </svg>
+
+          {/* Moving Brands Watermark (Train Style, Medium Size, Roughly Spread) */}
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.12] select-none mix-blend-color-burn transform -rotate-6 scale-110">
+              <div className="moving-track-left">
+                  <span className="text-[30px] md:text-[50px] font-serif font-black tracking-widest text-[#3A2A18] mx-10 flex items-center gap-20">
+                      <span>ROLEX</span> <Star size={20}/> <span>OMEGA</span> <Star size={20}/> <span>PATEK PHILIPPE</span> <Star size={20}/> <span>CARTIER</span> <Star size={20}/> <span>AUDEMARS PIGUET</span> <Star size={20}/>
+                      <span>ROLEX</span> <Star size={20}/> <span>OMEGA</span> <Star size={20}/> <span>PATEK PHILIPPE</span> <Star size={20}/> <span>CARTIER</span> <Star size={20}/> <span>AUDEMARS PIGUET</span> <Star size={20}/>
+                  </span>
               </div>
+              <div className="moving-track-right">
+                  <span className="text-[35px] md:text-[60px] font-serif italic tracking-[0.2em] text-[#8B7355] mx-10 flex items-center gap-24">
+                      <span>RADO</span> <Star size={20}/> <span>HUBLOT</span> <Star size={20}/> <span>SEIKO</span> <Star size={20}/> <span>TISSOT</span> <Star size={20}/> <span>AURA-X</span> <Star size={20}/>
+                      <span>RADO</span> <Star size={20}/> <span>HUBLOT</span> <Star size={20}/> <span>SEIKO</span> <Star size={20}/> <span>TISSOT</span> <Star size={20}/> <span>AURA-X</span> <Star size={20}/>
+                  </span>
+              </div>
+              <div className="moving-track-left">
+                  <span className="text-[28px] md:text-[45px] font-serif font-black tracking-widest text-[#3A2A18] mx-10 flex items-center gap-20">
+                      <span>VACHERON CONSTANTIN</span> <Star size={20}/> <span>BREITLING</span> <Star size={20}/> <span>TAG HEUER</span> <Star size={20}/> <span>ARMANI</span> <Star size={20}/>
+                      <span>VACHERON CONSTANTIN</span> <Star size={20}/> <span>BREITLING</span> <Star size={20}/> <span>TAG HEUER</span> <Star size={20}/> <span>ARMANI</span> <Star size={20}/>
+                  </span>
+              </div>
+          </div>
+
+          {/* Top Text (Kept Exactly as it was) */}
+          <div className="relative z-20 flex flex-col items-center text-center px-4 w-full">
+              <h1 className="text-[3.2rem] sm:text-6xl md:text-7xl lg:text-[6.5rem] font-serif font-medium text-[#1E1B18] leading-[1] tracking-tight animate-fade-in-up">
+                  Legacy in <br className="md:hidden" /><span className="italic text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#8B7355] pb-1">Motion</span>
+              </h1>
+          </div>
+
+          {/* Watches and Glass Circle (Kept Exactly as it was, just added glass circle div) */}
+          <div className="relative w-full h-[280px] md:h-[450px] flex justify-center items-center z-30 mt-2 pointer-events-none">
               
-              <div className="relative h-[350px] md:h-[550px] w-full flex justify-center items-center">
-                 {watchImages.map((src, index) => {
-                  const pos = getPosition(index);
-                  if (pos.opacity === 0) return null; 
-                  return (
-                    <motion.div
-                      key={index}
-                      initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-                      animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-                      transition={{ duration: 0.8 }}
-                      className="absolute"
-                    >
-                      <div className="relative w-[200px] h-[300px] md:w-[320px] md:h-[480px]">
-                        <Image 
-                            src={src} 
-                            alt="AURA-X Premium Watch" 
-                            fill 
-                            className="object-contain drop-shadow-2xl" 
-                            priority={index === 0} 
-                            sizes="(max-width: 768px) 250px, 400px"
-                        />
-                      </div>
-                    </motion.div>
-                  );
-                })}
-                <div className="absolute -z-10 text-gray-200 font-bold text-9xl opacity-20 select-none pointer-events-none">AURA</div>
-              </div>
-            </div>
-          </section>
+              {/* 🚀 GLASSMORPHISM CIRCLE EFFECT BEHIND WATCHES */}
+              <div className="absolute w-[280px] h-[280px] md:w-[480px] md:h-[480px] bg-white/20 backdrop-blur-xl border border-white/50 shadow-[0_8px_32px_rgba(139,115,85,0.15)] rounded-full z-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}></div>
+
+              <AnimatePresence mode="wait">
+                  {watchImages.map((src, index) => {
+                      const pos = getPosition(index);
+                      if (pos.opacity === 0) return null; 
+                      return (
+                          <motion.div
+                              key={index}
+                              initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+                              animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+                              transition={{ duration: 0.8, ease: "easeOut" }}
+                              className="absolute flex justify-center items-center"
+                          >
+                              <div className="relative w-[180px] h-[250px] md:w-[320px] md:h-[450px]">
+                                  <Image 
+                                      src={src} 
+                                      alt="AURA-X Premium Watch" 
+                                      fill 
+                                      className={`object-contain transition-all duration-500 ${pos.zIndex === 50 ? 'drop-shadow-[0_20px_30px_rgba(30,27,24,0.35)]' : 'drop-shadow-[0_10px_15px_rgba(0,0,0,0.15)]'}`} 
+                                      priority={index === 0} 
+                                      sizes="(max-width: 768px) 250px, 400px"
+                                      unoptimized={true}
+                                  />
+                              </div>
+                          </motion.div>
+                      );
+                  })}
+              </AnimatePresence>
+          </div>
+          
+      </section>
+
+      {/* ---------------- REST OF THE PAGE ---------------- */}
+
+      <div className="relative z-10 flex flex-col min-h-screen w-full bg-gradient-to-b from-[#FDFBF7] via-[#F2EFE9] to-[#EBE4D8]">
+          
+          {/* Subtle noise for lower sections */}
+          <div className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply opacity-50" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }}></div>
 
           {IS_EID_LIVE && (
               <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden w-full">
@@ -291,7 +362,8 @@ export default function Home() {
               </div>
           )}
 
-          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-md py-3 md:py-5 shadow-sm border-b border-aura-gold/10 w-full overflow-x-auto scrollbar-hide">
+          {/* Category Tabs */}
+          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-xl py-3 md:py-5 shadow-sm border-b border-aura-gold/10 w-full overflow-x-auto scrollbar-hide">
               <div className="max-w-7xl mx-auto px-4 flex justify-start md:justify-center gap-2 md:gap-6 min-w-max">
                   {[
                       ...(IS_EID_LIVE ? [{ id: "eid", label: "Eid Edit 🌙", special: true }] : []),
@@ -318,7 +390,7 @@ export default function Home() {
               </div>
           </div>
 
-          <div className="max-w-[1400px] mx-auto pb-24 flex-1 min-h-[50vh] w-full">
+          <div className="max-w-[1400px] mx-auto pb-24 flex-1 min-h-[50vh] w-full relative z-30">
               
               <div className="text-center mt-8 md:mt-14 mb-4 md:mb-8 px-4">
                   {activeMasterCategory === 'eid' ? (

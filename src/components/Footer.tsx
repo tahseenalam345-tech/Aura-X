@@ -95,11 +95,13 @@ export function Footer() {
                             <li><Link href="/men" className="hover:text-white transition-colors duration-300">Men's Watches</Link></li>
                             <li><Link href="/women" className="hover:text-white transition-colors duration-300">Women's Watches</Link></li>
                             <li><Link href="/couple" className="hover:text-white transition-colors duration-300">Couple Sets</Link></li>
+                            {/* 🚀 POST-EID UPDATE: Commented out the Eid Edit link
                             <li>
                                 <Link href="/eid-collection" className="text-aura-gold font-bold flex items-center gap-2 hover:text-white transition-colors duration-300">
                                     The Eid Edit <span className="animate-pulse">✨</span>
                                 </Link>
                             </li>
+                            */}
                         </ul>
                     </div>
                     
@@ -120,8 +122,9 @@ export function Footer() {
                 {/* 3. NEWSLETTER COLUMN */}
                 <div className="lg:col-span-1 pt-4">
                     <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Newsletter</h4>
+                    {/* 🚀 POST-EID UPDATE: Changed the newsletter text to a standard luxury message */}
                     <p className="text-white/60 text-sm mb-6 font-light">
-                        Be the first to receive updates on the Eid Collection reveal and exclusive offers.
+                        Be the first to receive updates on new arrivals, VIP drops, and exclusive offers.
                     </p>
                     <div className="relative group">
                         <input 

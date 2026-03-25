@@ -8,7 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Loader2, Flame, Moon } from "lucide-react";
 
 export default function CartPage() {
-  // 🚀 FIX: Reading the smart variables (shippingCost, finalTotal) straight from Context
+  // 🚀 Reading the smart variables (shippingCost, finalTotal) straight from Context
   const { cart, updateQuantity, removeFromCart, cartTotal, shippingCost, finalTotal } = useCart();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -57,7 +57,7 @@ export default function CartPage() {
             
             <div className="lg:col-span-2 space-y-6">
               
-              {/* 🚀 NEW: DYNAMIC EID SHIPPING BANNER */}
+              {/* 🚀 POST-EID UPDATE: Hid the dynamic Eid Shipping Banner
               <div className={`border rounded-2xl p-4 md:p-5 mb-4 shadow-sm flex items-center gap-4 transition-colors ${shippingCost === 0 ? 'bg-[#FAF8F1] border-aura-gold' : 'bg-white border-gray-200'}`}>
                   <div className={`p-3 rounded-full flex-shrink-0 ${shippingCost === 0 ? 'bg-aura-gold text-white shadow-md animate-pulse' : 'bg-gray-100 text-gray-400'}`}>
                     {shippingCost === 0 ? <Moon size={24} /> : <Flame size={24} />}
@@ -76,6 +76,7 @@ export default function CartPage() {
                     )}
                   </div>
               </div>
+              */}
 
               {cart.map((item) => {
                 const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
@@ -111,8 +112,9 @@ export default function CartPage() {
                         <div className="flex gap-2 mt-2 flex-wrap">
                            {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-bold border border-purple-100">Gift Wrap (+Rs 300)</span>}
                            {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold border border-orange-100">Premium Box (+Rs 200)</span>}
-                           {/* 🚀 EID PILL FOR THE CART ITEM */}
+                           {/* 🚀 POST-EID UPDATE: Hid the Eid Exclusive pill for cart items
                            {item.isEidExclusive && <span className="text-[10px] bg-aura-gold/10 text-aura-gold px-2 py-1 rounded font-bold border border-aura-gold/20 flex items-center gap-1"><Moon size={10}/> Eid Exclusive</span>}
+                           */}
                         </div>
                       </div>
 
@@ -148,9 +150,10 @@ export default function CartPage() {
                   {/* 🚀 ACCURATE CONTEXT SHIPPING DISPLAY */}
                   <div className="flex justify-between items-center">
                     <span>Shipping</span>
+                    {/* 🚀 POST-EID UPDATE: Removed the "Ramzan Offer: FREE" red pulse text and replaced it with a simple Free Delivery label if cost is 0, or just normal Rs 250 */}
                     {shippingCost === 0 ? (
-                        <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded text-[10px] uppercase tracking-widest flex items-center gap-1 shadow-sm animate-pulse">
-                            <Flame size={12}/> Ramzan Offer: FREE
+                        <span className="text-aura-brown font-bold text-xs uppercase tracking-widest">
+                            FREE
                         </span>
                     ) : (
                         <span className="font-bold text-aura-brown">Rs {shippingCost}</span>
