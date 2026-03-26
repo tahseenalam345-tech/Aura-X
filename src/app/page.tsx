@@ -15,12 +15,12 @@ const IS_EID_LIVE = false;
 // 🚀 8 ITEMS EXACTLY FROM YOUR SCREENSHOT WITH DESCRIPTIVE TAGLINES & TITLES
 const carouselItems = [
   { src: "/pic1.webp", tag: "Premium Men's Watch", title: "Legacy in", highlight: "Motion" },       
-  { src: "/pic2.webp", tag: "Luxury Leather Wallet", title: "Refined", highlight: "Elegance" },         
+  { src: "/pic2.webp", tag: "Signature Pour Homme Scent", title: "Aura of", highlight: "Prestige" },         
   { src: "/pic3.webp", tag: "Designer Aviator Sunglasses", title: "Visionary", highlight: "Style" },        
   { src: "/pic4.webp", tag: "Classic Casual Leather Belt", title: "Signature", highlight: "Craft" },         
   { src: "/pic5.webp", tag: "Next-Gen Smartwatch", title: "Smart", highlight: "Evolution" },            
   { src: "/pic6.webp", tag: "Active Noise Cancelling acoustics", title: "Immersive", highlight: "Sound" },           
-  { src: "/pic7.webp", tag: "Signature Pour Homme Scent", title: "Aura of", highlight: "Prestige" },         
+  { src: "/pic7.webp", tag: "Luxury Leather Wallet", title: "Refined", highlight: "Elegance" },         
   { src: "/pic8.webp", tag: "Luxury Eau De Parfum Notes", title: "Timeless", highlight: "Essence" }            
 ];
 
