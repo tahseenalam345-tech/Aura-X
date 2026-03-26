@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lucide-react"; 
+import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon, Gift } from "lucide-react"; 
 
 // 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
 const IS_EID_LIVE = false; 
@@ -28,7 +28,6 @@ const carouselItems = [
 let cachedProducts: any[] = [];
 let cachedBrandSettings: Map<string, number> = new Map();
 let cachedReviews: any[] = [];
-let cachedCategory: "eid" | "men" | "women" | "couple" = IS_EID_LIVE ? "eid" : "men";
 let hasVisitedHomepage = false; 
 
 const TrainProductCard = ({ product }: { product: any }) => (
@@ -40,23 +39,17 @@ const TrainProductCard = ({ product }: { product: any }) => (
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   
-  const [activeMasterCategory, setActiveCategory] = useState<"eid" | "men" | "women" | "couple">(cachedCategory);
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>(cachedProducts);
   const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(cachedBrandSettings);
   const [allReviews, setAllReviews] = useState<any[]>(cachedReviews); 
   
   const [isLoading, setIsLoading] = useState(cachedProducts.length === 0);
-  const [gridCols, setGridCols] = useState<number>(2);
   
   const [renderBrands, setRenderBrands] = useState(hasVisitedHomepage);
   const [showReviews, setShowReviews] = useState(hasVisitedHomepage);
 
-  const handleCategoryChange = (catId: "eid" | "men" | "women" | "couple") => {
-      setActiveCategory(catId);
-      cachedCategory = catId;
-  };
 
-  // 🚀 Carousel Logic (Now correctly runs for all 8 items)
+  // 🚀 Carousel Logic (Runs for all 8 items)
   useEffect(() => {
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % carouselItems.length), 3500);
@@ -152,50 +145,12 @@ export default function Home() {
     fetchInTwoStages();
   }, []);
 
-  const { currentPinnedProducts, currentBrandGroups } = useMemo(() => {
-      if (allStoreProducts.length === 0) return { currentPinnedProducts: [], currentBrandGroups: [] };
-
-      let filtered = activeMasterCategory === "eid" 
-          ? allStoreProducts.filter(p => p.is_eid_exclusive === true)
-          : allStoreProducts.filter(p => p.category === activeMasterCategory); 
-
-      if (activeMasterCategory === "eid") {
-          const sortedEid = [...filtered].sort((a, b) => {
-              if (a.is_pinned && !b.is_pinned) return -1;
-              if (!a.is_pinned && b.is_pinned) return 1;
-              return (b.priority || 0) - (a.priority || 0);
-          });
-          return { currentPinnedProducts: sortedEid.slice(0, 12), currentBrandGroups: [] };
-      }
-
-      const pinned = filtered.filter(p => p.is_pinned === true).slice(0, 8);
-      const unpinned = filtered.filter(p => p.is_pinned !== true);
-      
-      const grouped = unpinned.reduce((acc, product: any) => {
-          const rawBrand = (product.brand || "AURA-X").trim();
-          const upperBrand = rawBrand.toUpperCase();
-          
-          if (!acc[upperBrand]) {
-              acc[upperBrand] = { name: rawBrand, products: [] };
-          }
-          acc[upperBrand].products.push(product);
-          return acc;
-      }, {} as Record<string, { name: string, products: any[] }>);
-
-      let groupedArray = Object.values(grouped).map((g: any) => ({
-          brand: g.name,
-          products: g.products
-      }));
-
-      groupedArray.sort((a, b) => b.products.length - a.products.length);
-
-      const top3Brands = groupedArray.slice(0, 3).map((group: any) => ({
-          brand: group.brand,
-          products: group.products.slice(0, 4) 
-      }));
-
-      return { currentPinnedProducts: pinned, currentBrandGroups: top3Brands };
-  }, [activeMasterCategory, allStoreProducts]);
+  // 🚀 GET MIXED TRENDING ITEMS FOR "THE VAULT"
+  const trendingVaultProducts = useMemo(() => {
+      if (allStoreProducts.length === 0) return [];
+      // Grab top 8 pinned items regardless of category to mix them up
+      return allStoreProducts.filter(p => p.is_pinned === true).slice(0, 8);
+  }, [allStoreProducts]);
 
 
   return (
@@ -219,12 +174,10 @@ export default function Home() {
         .animate-fade-in-up {
           animation: fadeInUp 0.8s ease-out forwards;
         }
-        /* Texture overlay class */
         .bg-noise {
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
         }
 
-        /* 🚀 PURE CSS BACKGROUND STYLES */
         .bg-luxury-gradient {
             background: linear-gradient(135deg, #FDFBF7 0%, #EBE2CD 40%, #D4AF37 80%, #6B4E31 100%);
         }
@@ -236,41 +189,16 @@ export default function Home() {
               radial-gradient(circle at 50% 80%, rgba(212, 175, 55, 0.2) 0%, transparent 50%),
               radial-gradient(circle at 85% 20%, rgba(139, 115, 85, 0.15) 0%, transparent 40%);
         }
-
-        @keyframes slideBrandsLeft {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        @keyframes slideBrandsRight {
-          0% { transform: translateX(-50%); }
-          100% { transform: translateX(0); }
-        }
-        
-        .moving-track-left {
-            display: flex;
-            white-space: nowrap;
-            width: max-content;
-            animation: slideBrandsLeft 50s linear infinite;
-        }
-        .moving-track-right {
-            display: flex;
-            white-space: nowrap;
-            width: max-content;
-            animation: slideBrandsRight 50s linear infinite;
-        }
       `}} />
 
       <Navbar />
 
       {/* 🚀 HERO SECTION WITH LUXURY CSS BACKGROUND */}
-      <section className="relative w-full h-auto min-h-[500px] md:min-h-[650px] flex flex-col items-center justify-start pt-[100px] md:pt-[130px] pb-12 overflow-hidden bg-luxury-gradient">
+      <section className="relative w-full h-auto flex flex-col items-center justify-start pt-[80px] md:pt-[100px] pb-4 overflow-hidden bg-luxury-gradient">
           
           <div className="absolute inset-0 z-0 bg-noise pointer-events-none mix-blend-multiply opacity-50"></div>
-          
-          {/* Bubbles Effect */}
           <div className="absolute inset-0 z-0 bg-bubbles pointer-events-none"></div>
 
-          {/* SVG Elegant Gold Curves */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 opacity-50" preserveAspectRatio="none" viewBox="0 0 100 100">
               <defs>
                   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -284,36 +212,10 @@ export default function Home() {
               <path d="M-20,20 Q40,120 120,30" fill="none" stroke="#ffffff" strokeWidth="1" className="opacity-60"/>
           </svg>
 
-          {/* Moving Brands Watermark (Train Style, Medium Size, Roughly Spread) */}
-          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-evenly opacity-[0.12] select-none mix-blend-color-burn transform -rotate-6 scale-110">
-              <div className="moving-track-left">
-                  <span className="text-[30px] md:text-[50px] font-serif font-black tracking-widest text-[#3A2A18] mx-10 flex items-center gap-20">
-                      <span>ROLEX</span> <Star size={20}/> <span>OMEGA</span> <Star size={20}/> <span>PATEK PHILIPPE</span> <Star size={20}/> <span>CARTIER</span> <Star size={20}/> <span>AUDEMARS PIGUET</span> <Star size={20}/>
-                      <span>ROLEX</span> <Star size={20}/> <span>OMEGA</span> <Star size={20}/> <span>PATEK PHILIPPE</span> <Star size={20}/> <span>CARTIER</span> <Star size={20}/> <span>AUDEMARS PIGUET</span> <Star size={20}/>
-                  </span>
-              </div>
-              <div className="moving-track-right">
-                  <span className="text-[35px] md:text-[60px] font-serif italic tracking-[0.2em] text-[#8B7355] mx-10 flex items-center gap-24">
-                      <span>RADO</span> <Star size={20}/> <span>HUBLOT</span> <Star size={20}/> <span>SEIKO</span> <Star size={20}/> <span>TISSOT</span> <Star size={20}/> <span>AURA-X</span> <Star size={20}/>
-                      <span>RADO</span> <Star size={20}/> <span>HUBLOT</span> <Star size={20}/> <span>SEIKO</span> <Star size={20}/> <span>TISSOT</span> <Star size={20}/> <span>AURA-X</span> <Star size={20}/>
-                  </span>
-              </div>
-              <div className="moving-track-left">
-                  <span className="text-[28px] md:text-[45px] font-serif font-black tracking-widest text-[#3A2A18] mx-10 flex items-center gap-20">
-                      <span>VACHERON CONSTANTIN</span> <Star size={20}/> <span>BREITLING</span> <Star size={20}/> <span>TAG HEUER</span> <Star size={20}/> <span>ARMANI</span> <Star size={20}/>
-                      <span>VACHERON CONSTANTIN</span> <Star size={20}/> <span>BREITLING</span> <Star size={20}/> <span>TAG HEUER</span> <Star size={20}/> <span>ARMANI</span> <Star size={20}/>
-                  </span>
-              </div>
-          </div>
-
-          {/* 🚀 FIXED LAYOUT: Row Wrapper for Circle Left & Text Right */}
           <div className="relative z-20 flex flex-col md:flex-row items-center justify-center gap-10 md:gap-16 w-full h-auto px-6 max-w-7xl mx-auto min-h-[400px] md:min-h-[500px] mt-4">
 
-            {/* 🚀 LEFT SIDE (DIMMED CIRCLE + ITEMS) */}
+            {/* LEFT SIDE (ITEMS ONLY, NO CIRCLE) */}
             <div className="relative w-[300px] h-[300px] md:w-[500px] md:h-[500px] flex justify-center items-center pointer-events-none flex-shrink-0">
-                {/* DImmed Glass Circle Effect BEHIND Item */}
-                <div className="absolute w-[280px] h-[280px] md:w-[480px] md:h-[480px] bg-white/20 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(139,115,85,0.03)] rounded-full z-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}></div>
-
                 <AnimatePresence initial={false}>
                     {carouselItems.map((item, index) => {
                         const pos = getPosition(index);
@@ -344,7 +246,7 @@ export default function Home() {
                 </AnimatePresence>
             </div>
 
-            {/* 🚀 RIGHT SIDE (DYNAMIC TEXT ALIGNED START) */}
+            {/* RIGHT SIDE (DYNAMIC TEXT ALIGNED START) */}
             <div className="relative flex-1 flex flex-col items-center md:items-start text-center md:text-left justify-center max-w-md md:max-w-xl h-auto md:h-full pb-4 md:pb-0">
                <AnimatePresence mode="wait">
                    <motion.div
@@ -372,214 +274,97 @@ export default function Home() {
           
       </section>
 
-      {/* ---------------- REST OF THE PAGE ---------------- */}
+      {/* ---------------- MULTI-CATEGORY DEPARTMENT STORE SECTIONS ---------------- */}
 
       <div className="relative z-10 flex flex-col min-h-screen w-full bg-gradient-to-b from-[#FDFBF7] via-[#F2EFE9] to-[#EBE4D8]">
-          
           <div className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply opacity-50" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }}></div>
 
-          {IS_EID_LIVE && (
-              <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden w-full">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
-                <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 text-[9px] md:text-sm font-bold tracking-widest uppercase text-white leading-tight">
-                  <span className="bg-red-600 text-white px-2 py-0.5 rounded-[3px] shadow-[0_0_12px_rgba(220,38,38,0.8)] flex items-center gap-1 animate-pulse">
-                    <Flame size={12} className="hidden md:block"/> BREAKING
-                  </span>
-                  <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
-                  <span>30% Off + Free Delivery on all Eid Exclusive Pieces.</span>
-                  <span className="text-aura-gold hidden sm:inline">Limited Stock 🌙</span>
-                </div>
-              </div>
-          )}
-
-          {/* Category Tabs */}
-          <div className="sticky top-16 md:top-20 z-40 bg-[#FDFBF7]/90 backdrop-blur-xl py-3 md:py-5 shadow-sm border-b border-aura-gold/10 w-full overflow-x-auto scrollbar-hide">
-              <div className="max-w-7xl mx-auto px-4 flex justify-start md:justify-center gap-2 md:gap-6 min-w-max">
-                  {[
-                      ...(IS_EID_LIVE ? [{ id: "eid", label: "Eid Edit 🌙", special: true }] : []),
-                      { id: "men", label: "Gents Collection" },
-                      { id: "women", label: "Ladies Precision" },
-                      { id: "couple", label: "Timeless Bonds" }
-                  ].map((cat) => (
-                      <button 
-                          key={cat.id}
-                          onClick={() => handleCategoryChange(cat.id as any)}
-                          className={`text-[10px] md:text-sm font-bold tracking-widest uppercase transition-all px-5 py-2.5 md:px-8 md:py-3 rounded-full border whitespace-nowrap ${
-                              activeMasterCategory === cat.id && cat.special
-                              ? 'bg-gradient-to-r from-aura-gold to-yellow-600 text-black border-transparent shadow-[0_0_20px_rgba(212,175,55,0.5)] scale-105 animate-[pulse_2s_ease-in-out_infinite]' 
-                              : activeMasterCategory === cat.id 
-                              ? 'bg-aura-brown text-white border-aura-brown shadow-[0_4px_15px_rgba(74,59,50,0.3)] scale-105'
-                              : cat.special 
-                              ? 'bg-[#1E1B18] text-aura-gold border-aura-gold hover:bg-aura-gold hover:text-black'
-                              : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold hover:text-aura-brown'
-                          }`}
-                      >
-                          {cat.label}
-                      </button>
-                  ))}
-              </div>
-          </div>
-
-          <div className="max-w-[1400px] mx-auto pb-24 flex-1 min-h-[50vh] w-full relative z-30">
+          <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-16">
               
-              <div className="text-center mt-8 md:mt-14 mb-4 md:mb-8 px-4">
-                  {activeMasterCategory === 'eid' ? (
-                      <div className="animate-fade-in-up">
-                          <p className="text-[#750000] text-[9px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1.5 flex items-center justify-center gap-1.5">
-                              <Moon size={12} className="text-aura-gold" /> The Ramzan Drop <Moon size={12} className="text-aura-gold" />
-                          </p>
-                          <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight mb-2">Eid Royal</h2>
-                          <p className="text-[10px] md:text-sm text-gray-500 max-w-[250px] md:max-w-md mx-auto leading-snug">Limited stock. Free delivery applied at checkout.</p>
-                      </div>
-                  ) : (
-                      <div className="animate-fade-in-up">
-                          <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
-                              <Sparkles size={14} className="text-aura-gold" /> The Vault <Sparkles size={14} className="text-aura-gold" />
-                          </p>
-                          <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
-                      </div>
-                  )}
+              {/* 🚀 1. THE CATEGORY HUB (Visual Grid) */}
+              <div className="mb-20">
+                  <div className="text-center mb-8 md:mb-12 animate-fade-in-up">
+                      <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
+                          <Sparkles size={14} className="text-aura-gold" /> Explore The Collections <Sparkles size={14} className="text-aura-gold" />
+                      </p>
+                      <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
+                  </div>
+
+                  {/* Visual Category Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-fade-in-up">
+                      {[
+                        { title: "Timepieces", img: "/cat-watch.jpg", link: "/category/watches" },
+                        { title: "Fragrances", img: "/cat-perfume.jpg", link: "/category/fragrances" },
+                        { title: "Leather Essentials", img: "/cat-wallet.jpg", link: "/category/accessories" },
+                        { title: "Smart Tech", img: "/cat-tech.jpg", link: "/category/smart-tech" }
+                      ].map((cat, i) => (
+                         <Link href={cat.link} key={i} className="group relative w-full aspect-[4/5] md:aspect-square overflow-hidden rounded-2xl bg-[#EBE4D8] border border-[#D4AF37]/20 shadow-md">
+                             <Image src={cat.img} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700 opacity-90 group-hover:opacity-100 mix-blend-multiply" />
+                             {/* Gradient Overlay for Text Readability */}
+                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                             <div className="absolute bottom-4 left-4 right-4 text-center">
+                                <h3 className="text-white font-serif text-lg md:text-2xl tracking-wider">{cat.title}</h3>
+                                <div className="mt-2 w-8 h-[2px] bg-[#D4AF37] mx-auto group-hover:w-full transition-all duration-500"></div>
+                             </div>
+                         </Link>
+                      ))}
+                  </div>
               </div>
 
+              {/* 🚀 2. THE VAULT / MIXED TRENDING ITEMS */}
               {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-32 opacity-50">
                       <div className="w-12 h-12 border-4 border-aura-brown border-t-transparent rounded-full animate-spin mb-4"></div>
                       <p className="font-serif text-aura-brown text-xl animate-pulse">Accessing Vault...</p>
                   </div>
               ) : (
-                  <div className="flex flex-col gap-6 md:gap-12 w-full">
-                      
-                      {activeMasterCategory === 'eid' && currentPinnedProducts.length > 0 && (
-                          <div className="w-full bg-[#1E1B18] rounded-[2rem] p-4 md:p-8 shadow-[0_20px_50px_rgba(30,27,24,0.4)] border border-[#C8A97E]/20 mt-4 relative overflow-hidden mx-4 md:mx-auto max-w-[calc(100%-2rem)] md:max-w-full">
-                              
-                              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/5 blur-[100px] rounded-full pointer-events-none"></div>
-                              
-                              <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 gap-4 border-b border-[#C8A97E]/10 pb-4 relative z-10">
-                                  <div className="text-center md:text-left">
-                                      <p className="text-aura-gold text-[10px] font-bold tracking-[0.3em] uppercase flex items-center justify-center md:justify-start gap-2 mb-1">
-                                          <Star size={12} fill="#D4AF37"/> Festive Highlights
-                                      </p>
-                                      <h2 className="text-2xl md:text-4xl font-serif text-white leading-none">The Vault Selection</h2>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
-                                      <button onClick={() => setGridCols(1)} className={`p-2 rounded-lg transition-all ${gridCols === 1 ? 'bg-[#C8A97E] text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>
-                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-                                      </button>
-                                      <button onClick={() => setGridCols(2)} className={`p-2 rounded-lg transition-all ${gridCols === 2 ? 'bg-[#C8A97E] text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>
-                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
-                                      </button>
-                                      <button onClick={() => setGridCols(3)} className={`hidden md:block p-2 rounded-lg transition-all ${gridCols === 3 ? 'bg-[#C8A97E] text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>
-                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="5" height="18" rx="1"/><rect x="9.5" y="3" width="5" height="18" rx="1"/><rect x="17" y="3" width="5" height="18" rx="1"/></svg>
-                                      </button>
-                                  </div>
-                              </div>
-
-                              <div className={`grid gap-3 md:gap-6 relative z-10 ${gridCols === 1 ? 'grid-cols-1 max-w-sm mx-auto' : gridCols === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                                  {currentPinnedProducts.map((product: any) => (
-                                      <div key={product.id} className="bg-white/5 rounded-2xl p-1 border border-white/10 shadow-lg">
-                                          <ProductCard product={product} />
-                                      </div>
-                                  ))}
-                              </div>
-                              
-                              <div className="mt-8 flex justify-center relative z-10">
-                                  <Link href="/eid-collection" className="bg-[#C8A97E] text-[#1E1B18] px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-white transition-colors shadow-[0_5px_15px_rgba(200,169,126,0.3)]">
-                                      View Full Collection <ArrowRight size={16} />
-                                  </Link>
-                              </div>
-                          </div>
-                      )}
-
-                      {activeMasterCategory !== 'eid' && currentPinnedProducts.length > 0 && (
+                  <div className="mb-20">
+                      {trendingVaultProducts.length > 0 && (
                           <div className="w-full">
-                              <div className="flex justify-between items-end mb-3 md:mb-6 px-4 md:px-8">
+                              <div className="flex justify-between items-end mb-3 md:mb-6">
                                   <div>
                                       <p className="text-aura-brown text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
                                           <Star size={12} fill="#D4AF37" className="text-aura-gold"/> Highly Coveted
                                       </p>
-                                      <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">Aura Exclusives</h2>
+                                      <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">The Luxury Vault</h2>
                                   </div>
+                                  <Link href="/all-products" className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
+                                     View All <ArrowRight size={16}/>
+                                  </Link>
                               </div>
                               
                               <div className="relative w-full">
-                                  <div className="flex overflow-x-auto gap-6 md:gap-8 pb-10 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                      {currentPinnedProducts.map((product: any) => (
+                                  <div className="flex overflow-x-auto gap-6 md:gap-8 pb-10 pt-4 scrollbar-hide snap-x snap-mandatory px-2 md:px-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                      {trendingVaultProducts.map((product: any) => (
                                           <TrainProductCard key={product.id} product={product} />
                                       ))}
                                   </div>
                               </div>
-                          </div>
-                      )}
-
-                      {renderBrands && activeMasterCategory !== 'eid' && currentBrandGroups.map((group: any) => (
-                          <div key={group.brand} className="bg-gradient-to-br from-[#2A241D] via-[#14120F] to-[#0A0908] rounded-[1.5rem] py-6 md:py-8 shadow-[inset_0_2px_4px_rgba(212,175,55,0.2),0_15px_30px_rgba(0,0,0,0.3)] border border-[#4A3B32]/50 relative ring-1 ring-black/50 w-full md:mx-8 md:w-auto animate-fade-in-up">
-                              
-                              <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] pointer-events-none z-0">
-                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[70px] md:text-[160px] font-serif italic font-black text-white/[0.04] whitespace-nowrap animate-pulse tracking-[0.1em]">
-                                      {group.brand}
-                                  </div>
-                              </div>
-
-                              <div className="relative z-10 flex flex-row justify-between items-end mb-6 px-5 md:px-8">
-                                  <div>
-                                      <p className="text-aura-gold/70 text-[9px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1">
-                                          Top Tier Showcase
-                                      </p>
-                                      <h2 className="text-2xl md:text-4xl font-serif italic tracking-wider text-white leading-tight drop-shadow-md animate-[pulse_4s_ease-in-out_infinite]">{group.brand}</h2>
-                                  </div>
-                                  
-                                  <Link 
-                                    href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} 
-                                    className="relative z-20 bg-aura-gold/10 border border-aura-gold/30 text-aura-gold px-3 py-1.5 md:px-5 md:py-2 rounded-full text-[9px] md:text-xs font-bold uppercase tracking-widest flex items-center gap-1 hover:bg-aura-gold hover:text-black transition-colors"
-                                  >
-                                      View All <ChevronRight size={14} />
-                                  </Link>
-                              </div>
-
-                              <div className="relative z-10 w-full">
-                                  <div className="flex overflow-x-auto gap-6 md:gap-8 pb-8 pt-4 scrollbar-hide snap-x snap-mandatory px-[12.5vw] md:px-8" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                      
-                                      {group.products.map((product: any) => (
-                                          <TrainProductCard key={product.id} product={product} />
-                                      ))}
-                                      
-                                      <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full flex items-center justify-center pb-2">
-                                          <Link href={`/${activeMasterCategory}?brand=${encodeURIComponent(group.brand)}`} className="w-full h-full min-h-[200px] md:min-h-[280px] border border-dashed border-aura-gold/40 rounded-[1.2rem] flex flex-col items-center justify-center text-white hover:bg-aura-gold/10 transition-colors group bg-black/20 backdrop-blur-sm shadow-inner">
-                                              <div className="w-10 h-10 md:w-12 h-12 bg-gradient-to-br from-aura-gold to-yellow-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] mb-3 md:mb-4 group-hover:scale-110 transition-transform text-black">
-                                                  <ArrowRight size={18} className="md:w-5 md:h-5" />
-                                              </div>
-                                              <p className="font-serif font-bold text-base md:text-xl mb-1 text-white drop-shadow-md">Discover</p>
-                                              <p className="text-[8px] md:text-[10px] text-aura-gold/80 uppercase tracking-widest">{group.brand}</p>
-                                          </Link>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                      ))}
-
-                      {renderBrands && activeMasterCategory !== 'eid' && (
-                          <div className="flex justify-center mt-6 animate-fade-in-up">
-                              <Link href={`/${activeMasterCategory}`} className="bg-aura-brown text-white px-10 py-4 rounded-full font-bold text-sm tracking-[0.2em] uppercase hover:bg-aura-gold transition-all shadow-[0_10px_20px_rgba(74,59,50,0.3)] flex items-center gap-3">
-                                  Explore All {activeMasterCategory} Brands <ArrowRight size={16} />
-                              </Link>
-                          </div>
-                      )}
-
-                      {currentBrandGroups.length === 0 && currentPinnedProducts.length === 0 && (
-                          <div className="text-center py-20 bg-white/50 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 shadow-sm mx-4">
-                              <p className="font-serif text-2xl text-gray-400 mb-2">
-                                  {activeMasterCategory === 'eid' ? "The Eid Vault is securely sealed." : "The Vault is empty."}
-                              </p>
-                              <p className="text-gray-400 text-sm">
-                                  {activeMasterCategory === 'eid' ? "Releasing highly exclusive pieces shortly." : "We are currently restocking this collection."}
-                              </p>
                           </div>
                       )}
                   </div>
               )}
+
+              {/* 🚀 3. THE GIFTING / COMBOS BANNER */}
+              <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-16 flex flex-col md:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/10 blur-[100px] rounded-full pointer-events-none"></div>
+                  
+                  <div className="flex flex-col text-center md:text-left z-10 max-w-lg mb-8 md:mb-0">
+                     <p className="text-[#D4AF37] text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center md:justify-start gap-2">
+                        <Gift size={14}/> Special Pairings
+                     </p>
+                     <h2 className="text-3xl md:text-5xl font-serif text-white leading-tight mb-4">The Perfect Gift Combos</h2>
+                     <p className="text-gray-400 text-sm md:text-base">Carefully curated combinations of our finest watches, wallets, and fragrances. Perfect for gifting or treating yourself.</p>
+                  </div>
+
+                  <Link href="/category/combos" className="relative z-10 px-8 py-4 bg-white hover:bg-gradient-to-r hover:from-[#D4AF37] hover:to-[#8B7355] hover:text-white text-[#1E1B18] font-bold text-xs md:text-sm tracking-widest uppercase transition-all duration-300 rounded-full shadow-[0_5px_15px_rgba(212,175,55,0.2)] flex items-center gap-3 group/btn">
+                      Explore Combos <ChevronRight size={18} className="group-hover/btn:translate-x-1 transition-transform"/>
+                  </Link>
+              </div>
+
           </div>
 
+          {/* Reviews Section */}
           {showReviews && allReviews.length > 0 && (
               <div className="w-full py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12 animate-fade-in-up">
                  <div className="text-center mb-10 px-4">

@@ -127,12 +127,13 @@ export function Navbar() {
 
   return (
     <>
-      {/* 🚀 MAIN NAVBAR CONTAINER (Announcement Bar Removed) */}
+      {/* 🚀 MAIN NAVBAR CONTAINER */}
       <nav className="fixed top-0 left-0 w-full z-50 transition-all duration-500 bg-gradient-to-r from-white/80 via-[#FDFBF7]/90 to-white/80 backdrop-blur-xl border-b border-white/50 shadow-[0_10px_40px_rgba(58,42,24,0.06)] flex flex-col">
         
-        <div className="w-full max-w-[1600px] mx-auto px-4 md:px-12 h-20 md:h-24 flex items-center justify-between relative">
+        {/* 🚀 HEIGHT REDUCED HERE: h-14 md:h-20 */}
+        <div className="w-full max-w-[1600px] mx-auto px-4 md:px-12 h-14 md:h-20 flex items-center justify-between relative">
           
-          {/* 🚀 DESKTOP LINKS (UPDATED WITH DROPDOWNS) */}
+          {/* 🚀 DESKTOP LINKS */}
           <div className="hidden md:flex items-center gap-6 h-full">
              <button 
                 onClick={() => setIsSidebarOpen(true)} 
@@ -194,9 +195,9 @@ export function Navbar() {
              </button>
           </div>
 
-          {/* LOGO */}
+          {/* 🚀 LOGO SIZE REDUCED SLIGHTLY TO MATCH NEW HEIGHT */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-auto">
-            <Link href="/" className="block relative w-32 h-14 md:w-48 md:h-20 hover:scale-105 transition-transform duration-500 drop-shadow-sm">
+            <Link href="/" className="block relative w-28 h-10 md:w-44 md:h-16 hover:scale-105 transition-transform duration-500 drop-shadow-sm">
               <Image src="/logo.png" alt="Logo" fill className="object-contain invert" priority unoptimized />
             </Link>
           </div>
@@ -374,6 +375,8 @@ export function Navbar() {
                      </div>
                    ))}
                 </div>
+
+                <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent mb-10"></div>
 
                 <div className="space-y-6">
                   <Link href="/wishlist" onClick={handleCloseAll} className="flex items-center gap-4 text-sm font-bold tracking-widest uppercase text-[#3A2A18] hover:text-[#D4AF37] hover:translate-x-2 transition-all duration-300 group">
