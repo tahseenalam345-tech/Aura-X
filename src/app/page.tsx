@@ -210,8 +210,8 @@ export default function Home() {
               <path d="M-20,20 Q40,120 120,30" fill="none" stroke="#ffffff" strokeWidth="1" className="opacity-60"/>
           </svg>
 
-          {/* 🚀 DYNAMIC TOP TEXT */}
-          <div className="relative z-20 flex flex-col items-center text-center px-4 w-full mt-2 md:mt-4 mb-4">
+          {/* 🚀 DYNAMIC TOP TEXT (Order Changed for Mobile) */}
+          <div className="relative z-20 flex flex-col items-center text-center px-4 w-full mt-2 md:mt-4 mb-4 order-2 md:order-1">
              <AnimatePresence mode="wait">
                  <motion.div
                     key={currentIndex}
@@ -221,7 +221,6 @@ export default function Home() {
                     transition={{ duration: 0.5, ease: "easeOut" }}
                     className="flex flex-col items-center"
                  >
-                    {/* 🚀 UPDATED Tagline Text: Removed wide tracking, updated font to Serif, and color to dark solid */}
                     <p className="text-[10px] md:text-xs font-bold font-serif text-[#1E1B18] tracking-normal uppercase mb-1 drop-shadow-sm">
                         {carouselItems[currentIndex].tag}
                     </p>
@@ -235,8 +234,8 @@ export default function Home() {
              </AnimatePresence>
           </div>
 
-          {/* Center Item Container */}
-          <div className="relative w-full h-[220px] md:h-[400px] flex justify-center items-center z-30 pointer-events-none">
+          {/* Center Item Container (Order Changed for Mobile) */}
+          <div className="relative w-full h-[220px] md:h-[400px] flex justify-center items-center z-30 pointer-events-none order-1 md:order-2">
               
               <AnimatePresence>
                   {carouselItems.map((item, index) => {
@@ -328,33 +327,45 @@ export default function Home() {
                                   </Link>
                               </div>
                               
-                              <div className="relative w-full">
-                                  <div className="flex overflow-x-auto gap-6 md:gap-8 pb-10 pt-4 scrollbar-hide snap-x snap-mandatory px-2 md:px-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                      {trendingVaultProducts.map((product: any) => (
-                                          <TrainProductCard key={product.id} product={product} />
-                                      ))}
-                                  </div>
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 w-full pt-4">
+                                  {trendingVaultProducts.map((product: any) => (
+                                      <div key={product.id} className="w-full h-full rounded-[1rem] md:rounded-[1.5rem] shadow-[0_8px_25px_rgba(58,42,24,0.1)] md:shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5 hover:-translate-y-1 md:hover:-translate-y-2 transition-transform duration-500">
+                                          <ProductCard product={product} priority={false} />
+                                      </div>
+                                  ))}
                               </div>
                           </div>
                       )}
                   </div>
               )}
 
-              {/* 🚀 3. THE GIFTING / COMBOS BANNER */}
-              <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-16 flex flex-col md:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group">
+              {/* 🚀 3. THE GIFTING / COMBOS BANNER WITH TAGLINE */}
+              <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-12 flex flex-col lg:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group mt-12">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/10 blur-[100px] rounded-full pointer-events-none"></div>
                   
-                  <div className="flex flex-col text-center md:text-left z-10 max-w-lg mb-8 md:mb-0">
-                     <p className="text-[#D4AF37] text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center md:justify-start gap-2">
+                  <div className="flex flex-col text-center lg:text-left z-10 max-w-xl mb-8 lg:mb-0">
+                     <p className="text-[#D4AF37] text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center lg:justify-start gap-2">
                         <Gift size={14}/> Special Pairings
                      </p>
                      <h2 className="text-3xl md:text-5xl font-serif text-white leading-tight mb-4">The Perfect Gift Combos</h2>
-                     <p className="text-gray-400 text-sm md:text-base">Carefully curated combinations of our finest watches, wallets, and fragrances. Perfect for gifting or treating yourself.</p>
+                     
+                     <p className="text-gray-400 text-sm md:text-base mb-6">Carefully curated combinations of our finest watches, wallets, and fragrances. Perfect for gifting or treating yourself.</p>
+                     
+                     <div>
+                        <span className="inline-block bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-[10px] md:text-xs tracking-widest uppercase px-4 py-2 rounded-full shadow-[0_0_15px_rgba(212,175,55,0.3)] animate-pulse border border-[#F9E596]">
+                            Extra Rs. 200 Off In Custom Combos
+                        </span>
+                     </div>
                   </div>
 
-                  <Link href="/category/combos" className="relative z-10 px-8 py-4 bg-white hover:bg-gradient-to-r hover:from-[#D4AF37] hover:to-[#8B7355] hover:text-white text-[#1E1B18] font-bold text-xs md:text-sm tracking-widest uppercase transition-all duration-300 rounded-full shadow-[0_5px_15px_rgba(212,175,55,0.2)] flex items-center gap-3 group/btn">
-                      Explore Combos <ChevronRight size={18} className="group-hover/btn:translate-x-1 transition-transform"/>
-                  </Link>
+                  <div className="flex flex-col sm:flex-row gap-4 relative z-10 w-full sm:w-auto">
+                      <Link href="/custom-combo" className="px-6 py-4 bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-xs tracking-widest uppercase transition-all duration-300 rounded-full shadow-[0_5px_15px_rgba(212,175,55,0.3)] flex items-center justify-center gap-2 hover:scale-105 border border-[#F9E596]/50">
+                          <Sparkles size={16} className="text-[#1E1B18]"/> Create Custom Combo 
+                      </Link>
+                      <Link href="/category/combos" className="px-6 py-4 bg-transparent border border-[#D4AF37]/50 text-white hover:bg-white hover:text-[#1E1B18] font-bold text-xs tracking-widest uppercase transition-all duration-300 rounded-full flex items-center justify-center gap-2 group/btn">
+                          Pre-Made Combos <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform"/>
+                      </Link>
+                  </div>
               </div>
 
           </div>
