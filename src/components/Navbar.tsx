@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/lib/supabase"; 
 
-// 🚀 UPDATED: Multi-Category Structure with Sub-categories
+// 🚀 UPDATED: Multi-Category Structure with Bracelets & Rings added under Accessories
 const categoryStructure = [
   {
     name: "Watches",
@@ -27,6 +27,7 @@ const categoryStructure = [
       { name: "Premium Wallets", href: "/category/wallets" },
       { name: "Leather Belts", href: "/category/belts" },
       { name: "Sunglasses", href: "/category/sunglasses" },
+      { name: "Bracelets & Rings", href: "/category/jewelry" }, // 🚀 NAYI CATEGORY ADD HO GAYI
     ]
   },
   {
@@ -130,7 +131,6 @@ export function Navbar() {
       {/* 🚀 MAIN NAVBAR CONTAINER */}
       <nav className="fixed top-0 left-0 w-full z-50 transition-all duration-500 bg-gradient-to-r from-white/80 via-[#FDFBF7]/90 to-white/80 backdrop-blur-xl border-b border-white/50 shadow-[0_10px_40px_rgba(58,42,24,0.06)] flex flex-col">
         
-        {/* 🚀 HEIGHT REDUCED HERE: h-14 md:h-20 */}
         <div className="w-full max-w-[1600px] mx-auto px-4 md:px-12 h-14 md:h-20 flex items-center justify-between relative">
           
           {/* 🚀 DESKTOP LINKS */}
@@ -195,7 +195,7 @@ export function Navbar() {
              </button>
           </div>
 
-          {/* 🚀 LOGO SIZE REDUCED SLIGHTLY TO MATCH NEW HEIGHT */}
+          {/* LOGO */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-auto">
             <Link href="/" className="block relative w-28 h-10 md:w-44 md:h-16 hover:scale-105 transition-transform duration-500 drop-shadow-sm">
               <Image src="/logo.png" alt="Logo" fill className="object-contain invert" priority unoptimized />
@@ -294,7 +294,8 @@ export function Navbar() {
                       <div className="mb-10">
                           <h3 className="text-[10px] font-bold text-[#8B7355]/70 uppercase tracking-[0.3em] mb-6 flex items-center gap-2"><Star size={12} className="text-[#D4AF37]"/> Trending Now</h3>
                           <div className="flex flex-wrap gap-3">
-                             {["Rolex", "Wallets", "Smartwatches", "Perfumes", "Leather", "Sunglasses"].map(tag => (
+                             {/* 🚀 BRACELETS AND RINGS ADDED TO TRENDING SEARCHES */}
+                             {["Rolex", "Wallets", "Smartwatches", "Perfumes", "Bracelets", "Sunglasses"].map(tag => (
                                 <button key={tag} onClick={() => handleTagClick(tag)} className="px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-full border border-[#D4AF37]/20 text-[#3A2A18] text-xs font-bold tracking-widest uppercase hover:bg-gradient-to-r hover:from-[#D4AF37] hover:to-[#8B7355] hover:text-white hover:border-transparent hover:shadow-[0_5px_15px_rgba(212,175,55,0.3)] transition-all duration-300 transform hover:-translate-y-1">
                                    {tag}
                                 </button>

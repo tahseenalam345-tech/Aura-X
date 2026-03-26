@@ -48,7 +48,6 @@ export default function Home() {
   const [renderBrands, setRenderBrands] = useState(hasVisitedHomepage);
   const [showReviews, setShowReviews] = useState(hasVisitedHomepage);
 
-
   // 🚀 Carousel Logic (Runs for all 8 items)
   useEffect(() => {
     const idleTimer = setTimeout(() => {
@@ -174,10 +173,8 @@ export default function Home() {
         .animate-fade-in-up {
           animation: fadeInUp 0.8s ease-out forwards;
         }
-        .bg-noise {
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-        }
 
+        /* 🚀 PURE CSS BACKGROUND STYLES (Lag-free) */
         .bg-luxury-gradient {
             background: linear-gradient(135deg, #FDFBF7 0%, #EBE2CD 40%, #D4AF37 80%, #6B4E31 100%);
         }
@@ -193,12 +190,13 @@ export default function Home() {
 
       <Navbar />
 
-      {/* 🚀 HERO SECTION WITH LUXURY CSS BACKGROUND */}
-      <section className="relative w-full h-auto flex flex-col items-center justify-start pt-[80px] md:pt-[100px] pb-4 overflow-hidden bg-luxury-gradient">
+      {/* 🚀 HERO SECTION */}
+      <section className="relative w-full flex flex-col items-center justify-start pt-[76px] md:pt-[90px] pb-8 overflow-hidden bg-luxury-gradient">
           
-          <div className="absolute inset-0 z-0 bg-noise pointer-events-none mix-blend-multiply opacity-50"></div>
+          {/* Bubbles Effect */}
           <div className="absolute inset-0 z-0 bg-bubbles pointer-events-none"></div>
 
+          {/* SVG Elegant Gold Curves */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 opacity-50" preserveAspectRatio="none" viewBox="0 0 100 100">
               <defs>
                   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -212,64 +210,61 @@ export default function Home() {
               <path d="M-20,20 Q40,120 120,30" fill="none" stroke="#ffffff" strokeWidth="1" className="opacity-60"/>
           </svg>
 
-          <div className="relative z-20 flex flex-col md:flex-row items-center justify-center gap-10 md:gap-16 w-full h-auto px-6 max-w-7xl mx-auto min-h-[400px] md:min-h-[500px] mt-4">
-
-            {/* LEFT SIDE (ITEMS ONLY, NO CIRCLE) */}
-            <div className="relative w-[300px] h-[300px] md:w-[500px] md:h-[500px] flex justify-center items-center pointer-events-none flex-shrink-0">
-                <AnimatePresence initial={false}>
-                    {carouselItems.map((item, index) => {
-                        const pos = getPosition(index);
-                        if (pos.opacity === 0) return null; 
-                        return (
-                            <motion.div
-                                key={index}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.8, ease: "easeInOut" }}
-                                className="absolute flex justify-center items-center"
-                            >
-                                <div className="relative w-[220px] h-[220px] md:w-[400px] md:h-[400px]">
-                                    <Image 
-                                        src={item.src} 
-                                        alt={`AURA-X Premium ${item.highlight}`} 
-                                        fill 
-                                        className={`object-contain transition-all duration-500 drop-shadow-[0_20px_30px_rgba(30,27,24,0.35)]`} 
-                                        priority={index === 0} 
-                                        sizes="(max-width: 768px) 300px, 500px"
-                                        unoptimized={true}
-                                    />
-                                </div>
-                            </motion.div>
-                        );
-                    })}
-                </AnimatePresence>
-            </div>
-
-            {/* RIGHT SIDE (DYNAMIC TEXT ALIGNED START) */}
-            <div className="relative flex-1 flex flex-col items-center md:items-start text-center md:text-left justify-center max-w-md md:max-w-xl h-auto md:h-full pb-4 md:pb-0">
-               <AnimatePresence mode="wait">
-                   <motion.div
-                      key={currentIndex}
-                      initial={{ opacity: 0, x: 15 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -15 }}
-                      transition={{ duration: 0.5, ease: "easeOut" }}
-                      className="flex flex-col items-center md:items-start"
-                   >
-                      <p className="text-[10px] md:text-xs font-bold text-[#8B7355] tracking-[0.4em] uppercase mb-1 drop-shadow-sm">
-                          {carouselItems[currentIndex].tag}
-                      </p>
-                      <h1 className="text-[3.2rem] sm:text-6xl md:text-7xl lg:text-[6.5rem] font-serif font-medium text-[#1E1B18] leading-[1] tracking-tight">
-                          {carouselItems[currentIndex].title} <br className="md:hidden" />
-                          <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#8B7355] pb-1">
-                              {carouselItems[currentIndex].highlight}
+          {/* 🚀 DYNAMIC TOP TEXT */}
+          <div className="relative z-20 flex flex-col items-center text-center px-4 w-full mt-2 md:mt-4 mb-4">
+             <AnimatePresence mode="wait">
+                 <motion.div
+                    key={currentIndex}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="flex flex-col items-center"
+                 >
+                    {/* 🚀 UPDATED Tagline Text: Removed wide tracking, updated font to Serif, and color to dark solid */}
+                    <p className="text-[10px] md:text-xs font-bold font-serif text-[#1E1B18] tracking-normal uppercase mb-1 drop-shadow-sm">
+                        {carouselItems[currentIndex].tag}
+                    </p>
+                    <h1 className="text-[3.2rem] sm:text-6xl md:text-7xl lg:text-[6.5rem] font-serif font-medium text-[#1E1B18] leading-[1] tracking-tight">
+                        {carouselItems[currentIndex].title} <br className="md:hidden" />
+                        <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#8B7355] pb-1">
+                            {carouselItems[currentIndex].highlight}
                         </span>
-                      </h1>
-                   </motion.div>
-               </AnimatePresence>
-            </div>
+                    </h1>
+                 </motion.div>
+             </AnimatePresence>
+          </div>
 
+          {/* Center Item Container */}
+          <div className="relative w-full h-[220px] md:h-[400px] flex justify-center items-center z-30 pointer-events-none">
+              
+              <AnimatePresence>
+                  {carouselItems.map((item, index) => {
+                      const pos = getPosition(index);
+                      if (pos.opacity === 0) return null; 
+                      return (
+                          <motion.div
+                              key={index}
+                              initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+                              animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+                              transition={{ duration: 0.5, ease: "easeOut" }}
+                              className="absolute flex justify-center items-center"
+                          >
+                              <div className="relative w-[220px] h-[220px] md:w-[400px] md:h-[400px]">
+                                  <Image 
+                                      src={item.src} 
+                                      alt={`AURA-X Premium ${item.highlight}`} 
+                                      fill 
+                                      className={`object-contain transition-all duration-500 drop-shadow-[0_20px_30px_rgba(30,27,24,0.35)]`} 
+                                      priority={index === 0} 
+                                      sizes="(max-width: 768px) 300px, 500px"
+                                      unoptimized={true}
+                                  />
+                              </div>
+                          </motion.div>
+                      );
+                  })}
+              </AnimatePresence>
           </div>
           
       </section>
@@ -279,7 +274,7 @@ export default function Home() {
       <div className="relative z-10 flex flex-col min-h-screen w-full bg-gradient-to-b from-[#FDFBF7] via-[#F2EFE9] to-[#EBE4D8]">
           <div className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply opacity-50" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }}></div>
 
-          <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-16">
+          <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-12 md:mt-16">
               
               {/* 🚀 1. THE CATEGORY HUB (Visual Grid) */}
               <div className="mb-20">
