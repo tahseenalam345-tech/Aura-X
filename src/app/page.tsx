@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon, Gift } from "lucide-react"; 
+import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Moon, Gift } from "lucide-react"; 
 
 // 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
 const IS_EID_LIVE = false; 
@@ -26,27 +26,13 @@ const carouselItems = [
 
 // 🚀 GLOBAL MEMORY CACHE
 let cachedProducts: any[] = [];
-let cachedBrandSettings: Map<string, number> = new Map();
-let cachedReviews: any[] = [];
 let hasVisitedHomepage = false; 
-
-const TrainProductCard = ({ product }: { product: any }) => (
-    <div className="flex-none snap-center w-[75vw] sm:w-[45vw] md:w-[320px] lg:w-[30vw] max-w-[360px] h-full rounded-[1.5rem] shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5 hover:-translate-y-2 transition-transform duration-500">
-        <ProductCard product={product} priority={false} />
-    </div>
-);
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>(cachedProducts);
-  const [brandSettingsMap, setBrandSettingsMap] = useState<Map<string, number>>(cachedBrandSettings);
-  const [allReviews, setAllReviews] = useState<any[]>(cachedReviews); 
-  
   const [isLoading, setIsLoading] = useState(cachedProducts.length === 0);
-  
-  const [renderBrands, setRenderBrands] = useState(hasVisitedHomepage);
-  const [showReviews, setShowReviews] = useState(hasVisitedHomepage);
 
   // 🚀 Carousel Logic (Runs for all 8 items)
   useEffect(() => {
@@ -57,7 +43,7 @@ export default function Home() {
     return () => clearTimeout(idleTimer);
   }, []);
 
-  // 🚀 Position Fix: Show ONLY current image (no overlapping side items)
+  // 🚀 Position Fix: Show ONLY current image
   const getPosition = (index: number) => {
     const diff = (index - currentIndex + carouselItems.length) % carouselItems.length;
     if (diff === 0) return { x: "0%", scale: 1, zIndex: 50, opacity: 1 };
@@ -65,75 +51,23 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (hasVisitedHomepage) {
-        setRenderBrands(true);
-        setShowReviews(true);
-        return;
-    }
+    if (hasVisitedHomepage) return;
 
-    const handleScroll = () => {
-      if (window.scrollY > 50) setRenderBrands(true); 
-      if (window.scrollY > 300) setShowReviews(true); 
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    const t1 = setTimeout(() => setRenderBrands(true), 1500);
-    const t2 = setTimeout(() => setShowReviews(true), 2500);
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, []);
-
-  useEffect(() => {
-    const fetchInTwoStages = async () => {
+    const fetchFastData = async () => {
       if (cachedProducts.length === 0) setIsLoading(true);
 
       try {
-          const { data: fastData } = await supabase
+          const { data: productsData } = await supabase
             .from('products')
             .select('*')
-            .order('priority', { ascending: false })
-            .limit(20);
+            .order('priority', { ascending: false });
 
-          if (fastData) {
-              setAllStoreProducts(fastData); 
-              cachedProducts = fastData; 
+          if (productsData) {
+              setAllStoreProducts(productsData); 
+              cachedProducts = productsData; 
           }
           
           setIsLoading(false); 
-
-          const [brandsResponse, productsResponse] = await Promise.all([
-              supabase.from('brand_settings').select('*'),
-              supabase.from('products').select('*').order('priority', { ascending: false })
-          ]);
-
-          if (brandsResponse.data) {
-              const bMap = new Map(brandsResponse.data.map(b => [b.brand_name.toUpperCase(), b.sort_order]));
-              setBrandSettingsMap(bMap);
-              cachedBrandSettings = bMap; 
-          }
-
-          if (productsResponse.data) {
-              setAllStoreProducts(productsResponse.data); 
-              cachedProducts = productsResponse.data; 
-
-              let extractedReviews: any[] = [];
-              productsResponse.data.forEach(p => {
-                  if (p.manual_reviews && p.manual_reviews.length > 0) {
-                      const shortName = p.name?.includes('|') ? p.name.split('|')[0].trim() : p.name;
-                      extractedReviews.push(...p.manual_reviews.map((r: any) => ({ 
-                          ...r, productName: shortName, productImage: p.main_image 
-                      })));
-                  }
-              });
-              const shuffledReviews = extractedReviews.sort(() => 0.5 - Math.random()).slice(0, 15);
-              setAllReviews(shuffledReviews);
-              cachedReviews = shuffledReviews; 
-          }
-          
           hasVisitedHomepage = true; 
       } catch (error) {
           console.error("Store loading error:", error);
@@ -141,7 +75,7 @@ export default function Home() {
       }
     };
 
-    fetchInTwoStages();
+    fetchFastData();
   }, []);
 
   // 🚀 GET MIXED TRENDING ITEMS FOR "THE VAULT"
@@ -156,16 +90,6 @@ export default function Home() {
     <main className="min-h-screen text-aura-brown bg-[#FDFBF7] relative w-full max-w-[100vw] overflow-x-hidden">
       
       <style dangerouslySetInnerHTML={{__html: `
-        @keyframes scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-scroll {
-          display: flex;
-          width: max-content;
-          animation: scroll 35s linear infinite; 
-        }
-        .animate-scroll:hover { animation-play-state: paused; }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(30px); }
           to { opacity: 1; transform: translateY(0); }
@@ -327,9 +251,10 @@ export default function Home() {
                                   </Link>
                               </div>
                               
+                              {/* 🚀 FIXED LAG: Removed backdrop-blur, added bg-white and will-change-transform for buttery smooth performance */}
                               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 w-full pt-4">
                                   {trendingVaultProducts.map((product: any) => (
-                                      <div key={product.id} className="w-full h-full rounded-[1rem] md:rounded-[1.5rem] shadow-[0_8px_25px_rgba(58,42,24,0.1)] md:shadow-[0_15px_35px_rgba(58,42,24,0.15)] bg-white/30 backdrop-blur-sm border border-[#3A2A18]/5 hover:-translate-y-1 md:hover:-translate-y-2 transition-transform duration-500">
+                                      <div key={product.id} className="w-full h-full rounded-[1rem] md:rounded-[1.5rem] shadow-sm hover:shadow-md bg-white border border-[#3A2A18]/5 hover:-translate-y-1 transition-transform duration-300 will-change-transform">
                                           <ProductCard product={product} priority={false} />
                                       </div>
                                   ))}
@@ -369,57 +294,6 @@ export default function Home() {
               </div>
 
           </div>
-
-          {/* Reviews Section */}
-          {showReviews && allReviews.length > 0 && (
-              <div className="w-full py-16 md:py-24 relative z-10 bg-gradient-to-b from-[#1A1612] to-[#0A0908] text-white border-t border-aura-gold/20 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] mt-12 animate-fade-in-up">
-                 <div className="text-center mb-10 px-4">
-                     <p className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex justify-center items-center gap-2">
-                        <Quote size={14} className="text-aura-gold/50" /> Word on the Street <Quote size={14} className="text-aura-gold/50" />
-                     </p>
-                     <h2 className="text-3xl md:text-5xl font-serif text-white drop-shadow-lg">Client Testimonials</h2>
-                 </div>
-                 
-                 <div className="relative w-full overflow-hidden flex py-4">
-                    <div className="absolute left-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-r from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
-                    <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-[#1A1612] to-transparent z-10 pointer-events-none"></div>
-
-                    <div className="animate-scroll gap-4 md:gap-6 px-4">
-                        {(() => {
-                            let repeated = [...allReviews];
-                            if (repeated.length > 0) {
-                                while (repeated.length < 10) {
-                                    repeated = [...repeated, ...allReviews];
-                                }
-                            }
-                            const finalScrollingReviews = [...repeated, ...repeated]; 
-
-                            return finalScrollingReviews.map((review, i) => (
-                                <div key={i} className="w-[260px] md:w-[350px] p-5 md:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex flex-col gap-3 flex-shrink-0 hover:bg-white/10 transition-colors shadow-lg">
-                                   <div className="flex justify-between items-start mb-1">
-                                      <div className="flex items-center gap-3">
-                                          {review.productImage && (
-                                              <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 border border-white/20 flex-shrink-0 relative">
-                                                  <Image src={review.productImage} alt="product" fill className="object-cover" unoptimized={true} loading="lazy" />
-                                              </div>
-                                          )}
-                                          <div>
-                                              <p className="font-bold text-sm text-white">{review.user}</p>
-                                              <p className="text-[9px] text-aura-gold/80 uppercase tracking-widest line-clamp-1">{review.productName}</p>
-                                          </div>
-                                      </div>
-                                      <div className="flex text-aura-gold mt-1">
-                                          {[...Array(5)].map((_, starIdx) => <Star key={starIdx} size={10} fill={starIdx < (review.rating || 5) ? "currentColor" : "none"} />)}
-                                      </div>
-                                   </div>
-                                   <p className="text-xs md:text-sm text-gray-300 italic line-clamp-4 leading-relaxed">"{review.comment}"</p>
-                                </div>
-                            ));
-                        })()}
-                    </div>
-                 </div>
-              </div>
-          )}
       </div>
     </main>
   );
