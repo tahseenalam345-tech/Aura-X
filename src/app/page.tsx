@@ -12,7 +12,17 @@ import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Quote, Moon } from "lu
 // 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
 const IS_EID_LIVE = false; 
 
-const watchImages = ["/pic1.webp", "/pic2.webp", "/pic3.webp", "/pic4.webp"]; 
+// 🚀 8 ITEMS EXACTLY FROM YOUR SCREENSHOT WITH DESCRIPTIVE TAGLINES & TITLES
+const carouselItems = [
+  { src: "/pic1.webp", tag: "Premium Men's Watch", title: "Legacy in", highlight: "Motion" },       
+  { src: "/pic2.webp", tag: "Luxury Leather Wallet", title: "Refined", highlight: "Elegance" },         
+  { src: "/pic3.webp", tag: "Designer Aviator Sunglasses", title: "Visionary", highlight: "Style" },        
+  { src: "/pic4.webp", tag: "Classic Casual Leather Belt", title: "Signature", highlight: "Craft" },         
+  { src: "/pic5.webp", tag: "Next-Gen Smartwatch", title: "Smart", highlight: "Evolution" },            
+  { src: "/pic6.webp", tag: "Active Noise Cancelling acoustics", title: "Immersive", highlight: "Sound" },           
+  { src: "/pic7.webp", tag: "Signature Pour Homme Scent", title: "Aura of", highlight: "Prestige" },         
+  { src: "/pic8.webp", tag: "Luxury Eau De Parfum Notes", title: "Timeless", highlight: "Essence" }            
+];
 
 // 🚀 GLOBAL MEMORY CACHE
 let cachedProducts: any[] = [];
@@ -46,21 +56,20 @@ export default function Home() {
       cachedCategory = catId;
   };
 
-  // 🚀 3-Watch Carousel Logic
+  // 🚀 Carousel Logic (Now correctly runs for all 8 items)
   useEffect(() => {
     const idleTimer = setTimeout(() => {
-      const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % watchImages.length), 3500);
+      const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % carouselItems.length), 3500);
       return () => clearInterval(timer);
     }, 500); 
     return () => clearTimeout(idleTimer);
   }, []);
 
+  // 🚀 Position Fix: Show ONLY current image (no overlapping side items)
   const getPosition = (index: number) => {
-    const diff = (index - currentIndex + watchImages.length) % watchImages.length;
+    const diff = (index - currentIndex + carouselItems.length) % carouselItems.length;
     if (diff === 0) return { x: "0%", scale: 1, zIndex: 50, opacity: 1 };
-    if (diff === 1) return { x: "48%", scale: 0.65, zIndex: 30, opacity: 0.8 }; 
-    if (diff === watchImages.length - 1) return { x: "-48%", scale: 0.65, zIndex: 30, opacity: 0.8 };
-    return { x: "0%", scale: 0.4, zIndex: 0, opacity: 0 };
+    return { x: "0%", scale: 0.8, zIndex: 0, opacity: 0 };
   };
 
   useEffect(() => {
@@ -215,7 +224,7 @@ export default function Home() {
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
         }
 
-        /* 🚀 NEW: PURE CSS BACKGROUND STYLES */
+        /* 🚀 PURE CSS BACKGROUND STYLES */
         .bg-luxury-gradient {
             background: linear-gradient(135deg, #FDFBF7 0%, #EBE2CD 40%, #D4AF37 80%, #6B4E31 100%);
         }
@@ -254,7 +263,7 @@ export default function Home() {
       <Navbar />
 
       {/* 🚀 HERO SECTION WITH LUXURY CSS BACKGROUND */}
-      <section className="relative w-full h-auto flex flex-col items-center justify-start pt-[100px] md:pt-[130px] pb-4 overflow-hidden bg-luxury-gradient">
+      <section className="relative w-full h-auto min-h-[500px] md:min-h-[650px] flex flex-col items-center justify-start pt-[100px] md:pt-[130px] pb-12 overflow-hidden bg-luxury-gradient">
           
           <div className="absolute inset-0 z-0 bg-noise pointer-events-none mix-blend-multiply opacity-50"></div>
           
@@ -297,46 +306,68 @@ export default function Home() {
               </div>
           </div>
 
-          {/* Top Text (Kept Exactly as it was) */}
-          <div className="relative z-20 flex flex-col items-center text-center px-4 w-full">
-              <h1 className="text-[3.2rem] sm:text-6xl md:text-7xl lg:text-[6.5rem] font-serif font-medium text-[#1E1B18] leading-[1] tracking-tight animate-fade-in-up">
-                  Legacy in <br className="md:hidden" /><span className="italic text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#8B7355] pb-1">Motion</span>
-              </h1>
-          </div>
+          {/* 🚀 FIXED LAYOUT: Row Wrapper for Circle Left & Text Right */}
+          <div className="relative z-20 flex flex-col md:flex-row items-center justify-center gap-10 md:gap-16 w-full h-auto px-6 max-w-7xl mx-auto min-h-[400px] md:min-h-[500px] mt-4">
 
-          {/* Watches and Glass Circle (Kept Exactly as it was, just added glass circle div) */}
-          <div className="relative w-full h-[280px] md:h-[450px] flex justify-center items-center z-30 mt-2 pointer-events-none">
-              
-              {/* 🚀 GLASSMORPHISM CIRCLE EFFECT BEHIND WATCHES */}
-              <div className="absolute w-[280px] h-[280px] md:w-[480px] md:h-[480px] bg-white/20 backdrop-blur-xl border border-white/50 shadow-[0_8px_32px_rgba(139,115,85,0.15)] rounded-full z-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}></div>
+            {/* 🚀 LEFT SIDE (DIMMED CIRCLE + ITEMS) */}
+            <div className="relative w-[300px] h-[300px] md:w-[500px] md:h-[500px] flex justify-center items-center pointer-events-none flex-shrink-0">
+                {/* DImmed Glass Circle Effect BEHIND Item */}
+                <div className="absolute w-[280px] h-[280px] md:w-[480px] md:h-[480px] bg-white/20 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(139,115,85,0.03)] rounded-full z-0 animate-fade-in-up" style={{ animationDelay: '0.2s' }}></div>
 
-              <AnimatePresence mode="wait">
-                  {watchImages.map((src, index) => {
-                      const pos = getPosition(index);
-                      if (pos.opacity === 0) return null; 
-                      return (
-                          <motion.div
-                              key={index}
-                              initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-                              animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-                              transition={{ duration: 0.8, ease: "easeOut" }}
-                              className="absolute flex justify-center items-center"
-                          >
-                              <div className="relative w-[180px] h-[250px] md:w-[320px] md:h-[450px]">
-                                  <Image 
-                                      src={src} 
-                                      alt="AURA-X Premium Watch" 
-                                      fill 
-                                      className={`object-contain transition-all duration-500 ${pos.zIndex === 50 ? 'drop-shadow-[0_20px_30px_rgba(30,27,24,0.35)]' : 'drop-shadow-[0_10px_15px_rgba(0,0,0,0.15)]'}`} 
-                                      priority={index === 0} 
-                                      sizes="(max-width: 768px) 250px, 400px"
-                                      unoptimized={true}
-                                  />
-                              </div>
-                          </motion.div>
-                      );
-                  })}
-              </AnimatePresence>
+                <AnimatePresence initial={false}>
+                    {carouselItems.map((item, index) => {
+                        const pos = getPosition(index);
+                        if (pos.opacity === 0) return null; 
+                        return (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.8, ease: "easeInOut" }}
+                                className="absolute flex justify-center items-center"
+                            >
+                                <div className="relative w-[220px] h-[220px] md:w-[400px] md:h-[400px]">
+                                    <Image 
+                                        src={item.src} 
+                                        alt={`AURA-X Premium ${item.highlight}`} 
+                                        fill 
+                                        className={`object-contain transition-all duration-500 drop-shadow-[0_20px_30px_rgba(30,27,24,0.35)]`} 
+                                        priority={index === 0} 
+                                        sizes="(max-width: 768px) 300px, 500px"
+                                        unoptimized={true}
+                                    />
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </AnimatePresence>
+            </div>
+
+            {/* 🚀 RIGHT SIDE (DYNAMIC TEXT ALIGNED START) */}
+            <div className="relative flex-1 flex flex-col items-center md:items-start text-center md:text-left justify-center max-w-md md:max-w-xl h-auto md:h-full pb-4 md:pb-0">
+               <AnimatePresence mode="wait">
+                   <motion.div
+                      key={currentIndex}
+                      initial={{ opacity: 0, x: 15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -15 }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
+                      className="flex flex-col items-center md:items-start"
+                   >
+                      <p className="text-[10px] md:text-xs font-bold text-[#8B7355] tracking-[0.4em] uppercase mb-1 drop-shadow-sm">
+                          {carouselItems[currentIndex].tag}
+                      </p>
+                      <h1 className="text-[3.2rem] sm:text-6xl md:text-7xl lg:text-[6.5rem] font-serif font-medium text-[#1E1B18] leading-[1] tracking-tight">
+                          {carouselItems[currentIndex].title} <br className="md:hidden" />
+                          <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#8B7355] pb-1">
+                              {carouselItems[currentIndex].highlight}
+                        </span>
+                      </h1>
+                   </motion.div>
+               </AnimatePresence>
+            </div>
+
           </div>
           
       </section>
@@ -345,7 +376,6 @@ export default function Home() {
 
       <div className="relative z-10 flex flex-col min-h-screen w-full bg-gradient-to-b from-[#FDFBF7] via-[#F2EFE9] to-[#EBE4D8]">
           
-          {/* Subtle noise for lower sections */}
           <div className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply opacity-50" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }}></div>
 
           {IS_EID_LIVE && (
