@@ -13,8 +13,7 @@ const fadeInUp: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
-// 🚀 THE FIX: GLOBAL MEMORY CACHE FOR CATEGORIES
-// These variables live outside the component to survive page unmounts
+// 🚀 GLOBAL MEMORY CACHE
 const categoryCache: Record<string, any[]> = {};
 let lastVisitedCategory = "";
 let globalVisibleCount = 8;
@@ -24,6 +23,28 @@ let globalSelectedMovements: string[] = [];
 let globalSelectedStraps: string[] = [];
 let globalSortBy = "featured";
 
+// 🚀 SMART TITLES MAP
+const getCategoryTitle = (slug: string) => {
+  const titles: Record<string, string> = {
+    'watches': 'Luxury Timepieces',
+    'accessories': 'Premium Accessories',
+    'smart-tech': 'Smart Technology',
+    'fragrances': 'Signature Fragrances',
+    'wallets': 'Premium Wallets',
+    'belts': 'Classic Leather Belts',
+    'sunglasses': 'Designer Sunglasses',
+    'jewelry': 'Bracelets & Rings',
+    'smartwatches': 'Advanced Smartwatches',
+    'earbuds': 'Wireless Earbuds',
+    'perfume-men': "Men's Fragrances",
+    'perfume-women': "Women's Fragrances",
+    'men': "Men's Collection",
+    'women': "Women's Precision",
+    'couple': "Couple's Bonds"
+  };
+  return titles[slug.toLowerCase()] || slug.replace('-', ' ');
+};
+
 export default function CategoryPage() {
   const params = useParams();
   const categorySlug = params.category as string; 
@@ -31,9 +52,8 @@ export default function CategoryPage() {
 
   const isReturning = lastVisitedCategory === categorySlug;
 
-  // 🚀 Initialize state from cache if returning, otherwise start fresh
   const [products, setProducts] = useState<any[]>(categoryCache[categorySlug] || []);
-  const [loading, setLoading] = useState(!categoryCache[categorySlug]); // Only load if cache is empty
+  const [loading, setLoading] = useState(!categoryCache[categorySlug]); 
   const [visibleCount, setVisibleCount] = useState(isReturning ? globalVisibleCount : 8);
   
   const [selectedBrand, setSelectedBrand] = useState(isReturning ? globalSelectedBrand : "All"); 
@@ -47,10 +67,12 @@ export default function CategoryPage() {
 
   const initialRender = useRef(true);
 
+  // 🚀 CHECK IF CATEGORY IS WATCH-RELATED TO SHOW/HIDE SPECIFIC FILTERS
+  const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(categorySlug.toLowerCase());
+
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
-  // 🚀 Constantly save current state to the global cache
   useEffect(() => {
       lastVisitedCategory = categorySlug;
       globalVisibleCount = visibleCount;
@@ -76,19 +98,19 @@ export default function CategoryPage() {
         return;
       }
 
-      // Only show loading spinner if we don't already have the products in cache
       if (!categoryCache[categorySlug]) {
           setLoading(true);
       }
 
+      // 🚀 SMART QUERY: Checks both 'category' and 'sub_category' columns
       const { data } = await supabase
         .from('products')
         .select('*')
-        .eq('category', categorySlug); 
+        .or(`category.ilike.${categorySlug},sub_category.ilike.${categorySlug}`); 
       
       if (data) {
           setProducts(data);
-          categoryCache[categorySlug] = data; // Save to cache instantly
+          categoryCache[categorySlug] = data; 
       }
       setLoading(false);
     };
@@ -97,7 +119,6 @@ export default function CategoryPage() {
   }, [categorySlug]);
 
   useEffect(() => {
-    // Prevent resetting visible count when hitting the "Back" button
     if (initialRender.current) {
         initialRender.current = false;
         return;
@@ -132,15 +153,18 @@ export default function CategoryPage() {
 
     if (product.price > priceRange) return false;
     
-    if (selectedMovements.length > 0) {
-        const move = product.specs?.movement || "Quartz";
-        if (!selectedMovements.includes(move)) return false;
-    }
+    // Only apply watch filters if it's a watch category
+    if (isWatchCategory) {
+        if (selectedMovements.length > 0) {
+            const move = product.specs?.movement || "Quartz";
+            if (!selectedMovements.includes(move)) return false;
+        }
 
-    if (selectedStraps.length > 0) {
-        const strap = product.specs?.strap || "Leather";
-        const hasStrap = selectedStraps.some(s => strap.includes(s));
-        if (!hasStrap) return false;
+        if (selectedStraps.length > 0) {
+            const strap = product.specs?.strap || "Leather";
+            const hasStrap = selectedStraps.some(s => strap.includes(s));
+            if (!hasStrap) return false;
+        }
     }
 
     return true;
@@ -179,33 +203,38 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      <div>
-        <h3 className="text-xs font-bold tracking-widest uppercase mb-4 text-aura-brown/70">Movement</h3>
-        <div className="space-y-3">
-          {movements.map((move) => (
-            <div key={move} onClick={() => toggleFilter(move, selectedMovements, setSelectedMovements)} className="flex items-center gap-3 cursor-pointer group">
-              <div className={`w-5 h-5 border border-aura-brown rounded flex items-center justify-center transition-all ${selectedMovements.includes(move) ? 'bg-aura-brown' : 'bg-transparent'}`}>
-                {selectedMovements.includes(move) && <div className="w-2 h-2 bg-white rounded-full"></div>}
+      {/* 🚀 ONLY SHOW THESE FILTERS IF IT IS A WATCH CATEGORY */}
+      {isWatchCategory && (
+          <>
+            <div>
+              <h3 className="text-xs font-bold tracking-widest uppercase mb-4 text-aura-brown/70">Movement</h3>
+              <div className="space-y-3">
+                {movements.map((move) => (
+                  <div key={move} onClick={() => toggleFilter(move, selectedMovements, setSelectedMovements)} className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-5 h-5 border border-aura-brown rounded flex items-center justify-center transition-all ${selectedMovements.includes(move) ? 'bg-aura-brown' : 'bg-transparent'}`}>
+                      {selectedMovements.includes(move) && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                    </div>
+                    <span className="text-sm font-medium text-gray-600 group-hover:text-aura-brown">{move}</span>
+                  </div>
+                ))}
               </div>
-              <span className="text-sm font-medium text-gray-600 group-hover:text-aura-brown">{move}</span>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <div>
-        <h3 className="text-xs font-bold tracking-widest uppercase mb-4 text-aura-brown/70">Strap Material</h3>
-        <div className="space-y-3">
-          {straps.map((strap) => (
-            <div key={strap} onClick={() => toggleFilter(strap, selectedStraps, setSelectedStraps)} className="flex items-center gap-3 cursor-pointer group">
-              <div className={`w-5 h-5 border border-aura-brown rounded flex items-center justify-center transition-all ${selectedStraps.includes(strap) ? 'bg-aura-brown' : 'bg-transparent'}`}>
-                {selectedStraps.includes(strap) && <div className="w-2 h-2 bg-white rounded-full"></div>}
+            <div>
+              <h3 className="text-xs font-bold tracking-widest uppercase mb-4 text-aura-brown/70">Strap Material</h3>
+              <div className="space-y-3">
+                {straps.map((strap) => (
+                  <div key={strap} onClick={() => toggleFilter(strap, selectedStraps, setSelectedStraps)} className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-5 h-5 border border-aura-brown rounded flex items-center justify-center transition-all ${selectedStraps.includes(strap) ? 'bg-aura-brown' : 'bg-transparent'}`}>
+                      {selectedStraps.includes(strap) && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                    </div>
+                    <span className="text-sm font-medium text-gray-600 group-hover:text-aura-brown">{strap}</span>
+                  </div>
+                ))}
               </div>
-              <span className="text-sm font-medium text-gray-600 group-hover:text-aura-brown">{strap}</span>
             </div>
-          ))}
-        </div>
-      </div>
+          </>
+      )}
     </div>
   );
 
@@ -241,7 +270,8 @@ export default function CategoryPage() {
             {selectedBrand !== "All" ? 'Brand Showcase' : 'Collection'}
           </span>
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-aura-brown capitalize px-4">
-            {selectedBrand !== "All" ? `${selectedBrand} Masterpieces` : (categorySlug === 'couple' ? "Couple's Timepieces" : `${categorySlug}'s Collection`)}
+            {/* 🚀 SMART DYNAMIC TITLE IMPLEMENTED HERE */}
+            {selectedBrand !== "All" ? `${selectedBrand} Masterpieces` : getCategoryTitle(categorySlug)}
           </h1>
         </motion.div>
       </div>
