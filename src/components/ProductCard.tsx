@@ -16,6 +16,7 @@ interface Product {
   image?: string;       
   main_image?: string; 
   category?: string;
+  sub_category?: string;
   original_price?: number; 
   discount?: number;       
   rating?: number;
@@ -24,18 +25,19 @@ interface Product {
   manual_reviews?: { rating: number }[]; 
   colors?: { name: string; hex: string; image: string }[]; 
   specs?: any; 
+  variants?: any; // 🚀 ADDED TO HANDLE SIZES
   is_eid_exclusive?: boolean; 
 }
 
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const { addToCart } = useCart();
 
-  // 🚀 FIX: Smart Initialization. If colors exist, default to the first color and its image!
   const initialColor = product.colors && product.colors.length > 0 ? product.colors[0] : null;
   const [activeImage, setActiveImage] = useState(initialColor?.image || product.main_image || product.image || "/placeholder.jpg");
   const [activeColorName, setActiveColorName] = useState(initialColor?.name || "");
   
   const hasVariants = product.colors && product.colors.length > 1;
+  const hasSizes = product.variants?.sizes && product.variants.sizes.length > 0;
   const isOutOfStock = product.specs?.stock !== undefined && Number(product.specs.stock) <= 0;
 
   const originalPrice = product.original_price && product.original_price > product.price
@@ -54,14 +56,32 @@ export function ProductCard({ product, priority = false }: { product: Product; p
     ? (realReviews.reduce((acc, r) => acc + r.rating, 0) / realReviews.length).toFixed(1)
     : (product.rating && product.rating <= 5 ? product.rating : 5.0); 
 
+  // 🚀 SMART TAGS: Changes label based on category
+  const getCategoryLabel = () => {
+      const cat = product.category?.toLowerCase() || '';
+      const sub = product.sub_category?.toLowerCase() || '';
+      if (['fragrances', 'perfume-men', 'perfume-women'].includes(cat)) return "FRAGRANCE";
+      if (['wallets', 'belts'].includes(sub)) return "PREMIUM LEATHER";
+      if (sub === 'sunglasses') return "EYEWEAR";
+      if (sub === 'jewelry') return "JEWELRY";
+      if (['smart-tech', 'smartwatches', 'earbuds'].includes(cat)) return "SMART TECH";
+      return "TIMEPIECE";
+  };
+
   const seoCategory = product.category?.toLowerCase() === 'women' ? "Women's" : product.category?.toLowerCase() === 'couple' ? "Couple" : "Men's";
-  const seoAltText = `${product.name} - Premium Luxury ${seoCategory} Watch in Pakistan | AURA-X`;
+  const seoAltText = `${product.name} - Premium ${getCategoryLabel()} in Pakistan | AURA-X`;
   
   const displayShortName = product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name;
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); 
     e.stopPropagation(); 
+
+    // 🚀 If sizes exist, force user to product page to select size instead of direct add-to-cart
+    if (hasSizes) {
+       toast.error("Please select a size first!");
+       return;
+    }
 
     addToCart({
         id: product.id,
@@ -75,7 +95,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
         isEidExclusive: product.is_eid_exclusive || false 
     });
 
-    // 🚀 FIRE META PIXEL EVENT
     fbq.event('AddToCart', {
         content_name: displayShortName,
         content_ids: [product.id],
@@ -136,26 +155,21 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   )}
                 </div>
 
-                {/* 🚀 POST-EID UPDATE: Commented out the Eid Edit Pill
-                {product.is_eid_exclusive && (
-                    <div className="mb-1.5 flex items-center">
-                        <span className="bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-white text-[8px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest flex items-center gap-1">
-                            <Moon size={8} /> Eid Edit
-                        </span>
-                    </div>
-                )}
-                */}
-
                 <Link href={`/product/${product.id}`} className="block">
                   <h3 className="text-[#1E1B18] font-serif font-bold text-sm md:text-base leading-snug line-clamp-2 group-hover:text-[#C5A67C] transition-colors" title={product.name}>
                       {displayShortName}
                   </h3>
-                  <p className="text-[9px] text-[#8B6E4E] font-medium tracking-wide uppercase mt-0.5 min-h-[14px] truncate">
-                      {product.category || "LUXURY"} {activeColorName && `• ${activeColorName}`}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] text-[#8B6E4E] font-medium tracking-wide uppercase mt-0.5 min-h-[14px] truncate">
+                        {getCategoryLabel()} {activeColorName && `• ${activeColorName}`}
+                    </p>
+                    {/* 🚀 If product has sizes, show a tiny indicator */}
+                    {hasSizes && !hasVariants && (
+                       <span className="text-[8px] bg-white/50 px-1.5 py-0.5 rounded border border-aura-gold/20 text-aura-brown font-bold tracking-widest uppercase">Sizes</span>
+                    )}
+                  </div>
                 </Link>
 
-                {/* 🚀 NEW: COLOR SWATCHES */}
                 {hasVariants && product.colors && (
                     <div className="flex flex-wrap items-center gap-2 mt-2.5">
                         {product.colors.map((color, idx) => (
@@ -201,15 +215,25 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                     </span>
                 </div>
                 
-                <button 
-                  type="button"
-                  onClick={isOutOfStock ? undefined : handleAddToCart}
-                  disabled={isOutOfStock}
-                  className={`w-8 h-8 md:w-10 md:h-10 flex-shrink-0 rounded-full flex items-center justify-center shadow-md transition-all duration-300 z-20 ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#1E1B18] text-white hover:bg-aura-gold hover:text-black hover:scale-110 cursor-pointer'}`}
-                  aria-label={isOutOfStock ? "Out of stock" : `Add ${displayShortName} to cart`}
-                >
-                    <ShoppingBag size={14} className="md:w-5 md:h-5" />
-                </button>
+                {/* 🚀 Changed to Link if sizes exist so user goes to detail page to select size */}
+                {hasSizes ? (
+                  <Link 
+                    href={`/product/${product.id}`}
+                    className={`w-8 h-8 md:w-10 md:h-10 flex-shrink-0 rounded-full flex items-center justify-center shadow-md transition-all duration-300 z-20 ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#1E1B18] text-white hover:bg-aura-gold hover:text-black hover:scale-110'}`}
+                  >
+                      <ShoppingBag size={14} className="md:w-5 md:h-5" />
+                  </Link>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={isOutOfStock ? undefined : handleAddToCart}
+                    disabled={isOutOfStock}
+                    className={`w-8 h-8 md:w-10 md:h-10 flex-shrink-0 rounded-full flex items-center justify-center shadow-md transition-all duration-300 z-20 ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#1E1B18] text-white hover:bg-aura-gold hover:text-black hover:scale-110 cursor-pointer'}`}
+                    aria-label={isOutOfStock ? "Out of stock" : `Add ${displayShortName} to cart`}
+                  >
+                      <ShoppingBag size={14} className="md:w-5 md:h-5" />
+                  </button>
+                )}
             </div>
         </div>
       </div>

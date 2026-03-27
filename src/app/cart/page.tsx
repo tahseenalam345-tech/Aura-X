@@ -5,10 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
-import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Loader2, Flame, Moon } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Loader2 } from "lucide-react";
 
 export default function CartPage() {
-  // 🚀 Reading the smart variables (shippingCost, finalTotal) straight from Context
   const { cart, updateQuantity, removeFromCart, cartTotal, shippingCost, finalTotal } = useCart();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -43,47 +42,25 @@ export default function CartPage() {
 
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center py-20 animate-in fade-in zoom-in duration-500">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6 text-gray-400">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6 text-gray-400 shadow-inner">
                <ShoppingBag size={40} />
             </div>
-            <h2 className="text-2xl font-serif mb-2">Your bag is empty</h2>
+            <h2 className="text-2xl font-serif mb-2 font-bold">Your bag is empty</h2>
             <p className="text-gray-500 mb-8">Looks like you haven't made your choice yet.</p>
-            <Link href="/men" className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold transition-colors shadow-lg">
-               START SHOPPING
+            <Link href="/" className="bg-aura-brown text-white px-8 py-4 rounded-full font-bold text-xs tracking-widest uppercase hover:bg-aura-gold hover:shadow-xl transition-all shadow-lg flex items-center gap-2">
+               START SHOPPING <ArrowRight size={16}/>
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
             
-            <div className="lg:col-span-2 space-y-6">
-              
-              {/* 🚀 POST-EID UPDATE: Hid the dynamic Eid Shipping Banner
-              <div className={`border rounded-2xl p-4 md:p-5 mb-4 shadow-sm flex items-center gap-4 transition-colors ${shippingCost === 0 ? 'bg-[#FAF8F1] border-aura-gold' : 'bg-white border-gray-200'}`}>
-                  <div className={`p-3 rounded-full flex-shrink-0 ${shippingCost === 0 ? 'bg-aura-gold text-white shadow-md animate-pulse' : 'bg-gray-100 text-gray-400'}`}>
-                    {shippingCost === 0 ? <Moon size={24} /> : <Flame size={24} />}
-                  </div>
-                  <div>
-                    {shippingCost === 0 ? (
-                      <>
-                        <p className="font-bold text-aura-brown md:text-lg">✨ Ramzan Offer Activated!</p>
-                        <p className="text-xs md:text-sm text-gray-500">Your entire order qualifies for Free Premium Delivery.</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-bold text-aura-brown md:text-lg">Unlock Free Delivery</p>
-                        <p className="text-xs md:text-sm text-gray-500">Add any <span className="text-aura-gold font-bold">Eid Exclusive</span> item to your bag to instantly remove shipping fees.</p>
-                      </>
-                    )}
-                  </div>
-              </div>
-              */}
-
+            <div className="lg:col-span-2 space-y-4 md:space-y-6">
               {cart.map((item) => {
                 const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
                 const itemTotalPrice = (item.price + extras) * item.quantity;
 
                 return (
-                  <div key={`${item.id}-${item.color}`} className="flex gap-4 md:gap-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group hover:border-aura-gold/30 transition-all">
+                  <div key={`${item.id}-${item.color}`} className="flex gap-4 md:gap-6 bg-white p-4 md:p-5 rounded-2xl border border-gray-100 shadow-sm relative group hover:border-aura-gold/30 hover:shadow-md transition-all">
                     <div className="relative w-24 h-24 md:w-32 md:h-32 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
                       <Image 
                         src={item.image} 
@@ -96,37 +73,39 @@ export default function CartPage() {
                       />
                     </div>
 
-                    <div className="flex-1 flex flex-col justify-between py-1">
+                    <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
                       <div>
-                        <div className="flex justify-between items-start">
-                           <h3 className="font-serif font-bold text-lg md:text-xl text-aura-brown line-clamp-1">{item.name}</h3>
+                        <div className="flex justify-between items-start gap-2">
+                           <h3 className="font-serif font-bold text-base md:text-xl text-aura-brown line-clamp-2 leading-tight">{item.name}</h3>
                            <button 
                              onClick={() => removeFromCart(item.id, item.color)} 
-                             className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                             className="text-gray-300 hover:text-red-500 transition-colors p-1 flex-shrink-0"
                            >
                              <Trash2 size={18} />
                            </button>
                         </div>
-                        {item.color && <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">Color: {item.color}</p>}
+                        
+                        {item.color && (
+                            <p className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-wider mt-1.5 md:mt-2 truncate">
+                                Variant: <span className="text-aura-gold">{item.color}</span>
+                            </p>
+                        )}
                         
                         <div className="flex gap-2 mt-2 flex-wrap">
-                           {item.isGift && <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-bold border border-purple-100">Gift Wrap (+Rs 300)</span>}
-                           {item.addBox && <span className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold border border-orange-100">Premium Box (+Rs 200)</span>}
-                           {/* 🚀 POST-EID UPDATE: Hid the Eid Exclusive pill for cart items
-                           {item.isEidExclusive && <span className="text-[10px] bg-aura-gold/10 text-aura-gold px-2 py-1 rounded font-bold border border-aura-gold/20 flex items-center gap-1"><Moon size={10}/> Eid Exclusive</span>}
-                           */}
+                           {item.isGift && <span className="text-[9px] md:text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded-md font-bold border border-purple-100">Gift Wrap (+Rs 300)</span>}
+                           {item.addBox && <span className="text-[9px] md:text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded-md font-bold border border-orange-100">Premium Box (+Rs 200)</span>}
                         </div>
                       </div>
 
                       <div className="flex justify-between items-end mt-4">
                         <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full h-8 md:h-10">
                           <button onClick={() => updateQuantity(item.id, item.color, -1)} className="w-8 md:w-10 flex items-center justify-center hover:text-aura-gold hover:bg-white rounded-l-full transition-colors"><Minus size={14} /></button>
-                          <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                          <span className="text-xs font-bold w-6 text-center">{item.quantity}</span>
                           <button onClick={() => updateQuantity(item.id, item.color, 1)} className="w-8 md:w-10 flex items-center justify-center hover:text-aura-gold hover:bg-white rounded-r-full transition-colors"><Plus size={14} /></button>
                         </div>
                         
                         <div className="text-right">
-                           <p className="text-sm font-bold text-aura-brown">
+                           <p className="text-sm md:text-base font-bold text-aura-brown">
                              Rs {itemTotalPrice.toLocaleString()}
                            </p>
                         </div>
@@ -138,21 +117,21 @@ export default function CartPage() {
             </div>
 
             <div className="lg:col-span-1">
-              <div className="bg-white p-6 md:p-8 rounded-2xl border border-aura-gold/20 shadow-lg sticky top-32">
-                <h3 className="font-serif text-xl font-bold mb-6 pb-4 border-b border-gray-100">Order Summary</h3>
+              <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-aura-gold/20 shadow-xl sticky top-32">
+                <h3 className="font-serif text-xl md:text-2xl font-bold mb-6 pb-4 border-b border-gray-100 flex items-center gap-2">
+                    <ShoppingBag className="text-aura-gold" size={24}/> Order Summary
+                </h3>
                 
-                <div className="space-y-3 text-sm text-gray-600 mb-6">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span className="font-bold text-aura-brown">Rs {cartTotal.toLocaleString()}</span>
+                <div className="space-y-4 text-sm text-gray-600 mb-6">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Subtotal ({cart.length} items)</span>
+                    <span className="font-bold text-aura-brown text-base">Rs {cartTotal.toLocaleString()}</span>
                   </div>
                   
-                  {/* 🚀 ACCURATE CONTEXT SHIPPING DISPLAY */}
                   <div className="flex justify-between items-center">
-                    <span>Shipping</span>
-                    {/* 🚀 POST-EID UPDATE: Removed the "Ramzan Offer: FREE" red pulse text and replaced it with a simple Free Delivery label if cost is 0, or just normal Rs 250 */}
+                    <span className="font-medium">Delivery</span>
                     {shippingCost === 0 ? (
-                        <span className="text-aura-brown font-bold text-xs uppercase tracking-widest">
+                        <span className="text-green-500 font-bold text-xs uppercase tracking-widest bg-green-50 px-2 py-1 rounded">
                             FREE
                         </span>
                     ) : (
@@ -162,17 +141,17 @@ export default function CartPage() {
                 </div>
 
                 <div className="flex justify-between items-end border-t border-dashed border-gray-200 pt-6 mb-8">
-                   <span className="font-bold text-lg">Total</span>
-                   <span className="font-serif text-2xl font-bold text-aura-brown">Rs {finalTotal.toLocaleString()}</span>
+                   <span className="font-bold text-lg text-gray-500 uppercase tracking-widest">Total</span>
+                   <span className="font-serif text-3xl font-bold text-aura-brown">Rs {finalTotal.toLocaleString()}</span>
                 </div>
 
-                <Link href="/checkout" className="block w-full bg-aura-brown text-white text-center py-4 rounded-full font-bold text-sm tracking-widest hover:bg-aura-gold hover:shadow-xl transition-all flex items-center justify-center gap-2 group shadow-md">
-                   PROCEED TO CHECKOUT <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                <Link href="/checkout" className="block w-full bg-gradient-to-r from-aura-brown to-[#2A241D] text-white text-center py-4 rounded-full font-bold text-xs tracking-widest hover:shadow-2xl transition-all flex items-center justify-center gap-2 group shadow-lg uppercase hover:scale-[1.02]">
+                   PROCEED TO SECURE CHECKOUT <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
 
-                <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
-                   <ShieldCheck size={14} />
-                   <span>Secure Checkout Guaranteed</span>
+                <div className="mt-6 flex items-center justify-center gap-2 text-[10px] md:text-xs text-gray-400 uppercase tracking-widest font-bold">
+                   <ShieldCheck size={14} className="text-aura-gold" />
+                   <span>100% Secure Checkout Guaranteed</span>
                 </div>
               </div>
             </div>

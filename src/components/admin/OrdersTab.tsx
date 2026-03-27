@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import { 
   Clock, Check, Trash2, MessageCircle, 
-  Phone, Mail, MapPin, X 
+  Phone, Mail, MapPin, X, Sparkles
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -69,7 +69,7 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
   const sendWhatsApp = () => {
       if (!selectedOrder) return;
       const displayId = selectedOrder.order_code || selectedOrder.id.slice(0,8).toUpperCase();
-      const text = `Hi ${selectedOrder.customer_name}, regarding your order #${displayId}...`;
+      const text = `Hello ${selectedOrder.customer_name}, this is regarding your order #${displayId} from AURA-X...`;
       
       const rawNumber = selectedOrder.phone || "";
       const fmtNumber = rawNumber.replace(/\D/g, '').replace(/^0/, '92');
@@ -78,24 +78,39 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
       window.open(url, '_blank');
   };
 
-  // --- CALCULATION HELPER ---
+  // --- 🚀 NEW CALCULATION HELPER ---
   const getOrderTotals = (order: any) => {
-      if (!order || !order.items) return { subtotal: 0, shipping: 0, isFree: false };
+      if (!order || !order.items) return { subtotal: 0, shipping: 250, comboDiscount: 0 };
       
-      const subtotal = order.items.reduce((acc: number, item: any) => {
+      let itemTotal = 0;
+      let itemCount = 0;
+      
+      order.items.forEach((item: any) => {
           const giftCost = item.isGift ? 300 : 0;
           const boxCost = item.addBox ? 200 : 0;
-          return acc + ((item.price + giftCost + boxCost) * (item.quantity || 1));
-      }, 0);
+          const qty = item.quantity || 1;
+          
+          itemTotal += ((item.price + giftCost + boxCost) * qty);
+          itemCount += qty;
+      });
 
-      // Free shipping rule: >= 5000
-      const isFree = subtotal >= 5000;
-      const shipping = isFree ? 0 : 250;
+      // Standard Flat Rate
+      const shipping = 250;
+      
+      // Calculate if they applied a Combo Discount (Admin view helper to match final total)
+      const expectedTotalWithoutShipping = itemTotal;
+      const actualDatabaseTotal = Number(order.total); 
+      
+      // Check if actual total is less than what it should be (meaning a combo discount of 200 was applied)
+      let comboDiscount = 0;
+      if (actualDatabaseTotal < (expectedTotalWithoutShipping + shipping)) {
+         comboDiscount = (expectedTotalWithoutShipping + shipping) - actualDatabaseTotal;
+      }
 
-      return { subtotal, shipping, isFree };
+      return { subtotal: itemTotal, shipping, comboDiscount };
   };
 
-  const { subtotal, shipping, isFree } = selectedOrder ? getOrderTotals(selectedOrder) : { subtotal: 0, shipping: 0, isFree: false };
+  const { subtotal, shipping, comboDiscount } = selectedOrder ? getOrderTotals(selectedOrder) : { subtotal: 0, shipping: 250, comboDiscount: 0 };
 
   return (
     <>
@@ -212,9 +227,10 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                     </div>
 
                     {/* RIGHT SIDE: ITEMS */}
-                    <div className="w-full md:w-[400px] bg-white border-l border-gray-100 p-6 md:p-8">
+                    <div className="w-full md:w-[400px] bg-white border-l border-gray-100 p-6 md:p-8 flex flex-col max-h-[100dvh]">
                         <h4 className="font-bold text-aura-brown mb-4">Items ({selectedOrder.items?.length})</h4>
-                        <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2">
+                        
+                        <div className="space-y-4 mb-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             {selectedOrder.items?.map((item: any, i: number) => {
                                 const giftCost = item.isGift ? 300 : 0;
                                 const boxCost = item.addBox ? 200 : 0;
@@ -229,8 +245,9 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                                                     src={item.image} 
                                                     alt="" 
                                                     fill 
+                                                    sizes="60px"
                                                     className="object-contain p-1" 
-                                                    unoptimized={true} // <--- SAVES VERCEL TRANSFORMATION QUOTA
+                                                    unoptimized={true}
                                                 />
                                             ) : (
                                                 <div className="w-full h-full bg-gray-200 flex items-center justify-center text-xs text-gray-400">No Img</div>
@@ -238,12 +255,11 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-sm text-aura-brown line-clamp-1">{item.name || "Unknown Item"}</p>
-                                            <p className="text-xs text-gray-500">{(item.color || "Standard")}</p>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Variant: <span className="text-aura-gold">{(item.color || "Standard")}</span></p>
                                             
-                                            {/* Detailed Breakdown */}
-                                            <div className="flex flex-col mt-1 text-[10px] text-gray-400">
-                                                <span>Watch: Rs {item.price.toLocaleString()}</span>
-                                                {item.addBox && <span className="text-orange-600">+ Box (Rs 200)</span>}
+                                            <div className="flex flex-col mt-1 text-[10px] text-gray-400 font-medium">
+                                                <span>Base: Rs {item.price.toLocaleString()}</span>
+                                                {item.addBox && <span className="text-orange-600">+ Premium Box (Rs 200)</span>}
                                                 {item.isGift && <span className="text-purple-600">+ Gift Wrap (Rs 300)</span>}
                                             </div>
                                         </div>
@@ -257,21 +273,26 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                         </div>
                         
                         {/* TOTALS SUMMARY */}
-                        <div className="pt-4 border-t border-gray-100 space-y-2">
+                        <div className="pt-4 border-t border-gray-100 space-y-2 mt-auto">
                             <div className="flex justify-between text-sm text-gray-500">
                                 <span>Subtotal</span> 
                                 <span>Rs {subtotal.toLocaleString()}</span>
                             </div>
+                            
+                            {comboDiscount > 0 && (
+                              <div className="flex justify-between text-sm text-green-600 font-bold">
+                                  <span className="flex items-center gap-1"><Sparkles size={14}/> Combo Discount</span> 
+                                  <span>- Rs {comboDiscount.toLocaleString()}</span>
+                              </div>
+                            )}
+
                             <div className="flex justify-between text-sm text-gray-500">
                                 <span>Shipping</span> 
-                                {isFree ? (
-                                    <span className="text-green-600 font-bold">Free</span>
-                                ) : (
-                                    <span>Rs 250</span>
-                                )}
+                                <span>Rs {shipping}</span>
                             </div>
+                            
                             <div className="flex justify-between text-xl font-bold text-aura-brown mt-2 pt-2 border-t border-gray-100">
-                                <span>Total</span> 
+                                <span>Final Paid</span> 
                                 <span>Rs {Number(selectedOrder.total).toLocaleString()}</span>
                             </div>
                         </div>

@@ -45,14 +45,16 @@ export function Footer() {
                     <Link href="/" className="block relative w-48 h-24 opacity-90 hover:opacity-100 transition-opacity">
                          <Image 
                             src="/logo.png" 
-                            alt="AURA-X Luxury Timepieces Brand Logo" 
+                            alt="AURA-X Luxury Brand Logo" 
                             fill 
                             sizes="(max-width: 768px) 50vw, 200px" 
                             className="object-contain object-left" 
+                            unoptimized
                         />
                     </Link>
+                    {/* 🚀 UPDATED: Brand Description */}
                     <p className="text-white/60 text-sm leading-relaxed font-light font-serif max-w-xs">
-                        Defining the essence of luxury timepieces. Precision, elegance, and timeless heritage crafted for the modern era.
+                        Defining the essence of a luxury lifestyle. Precision timepieces, signature fragrances, and premium accessories crafted for the modern era.
                     </p>
                     
                     {/* Social Icons */}
@@ -88,20 +90,19 @@ export function Footer() {
                 {/* 2. LINKS COLUMNS */}
                 <div className="lg:col-span-2 grid grid-cols-2 gap-8 pt-4">
                     
-                    {/* Col A: COLLECTIONS */}
+                    {/* Col A: COLLECTIONS (🚀 UPDATED LINKS) */}
                     <div>
-                        <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Collections</h4>
+                        <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Departments</h4>
                         <ul className="space-y-4 text-sm text-white/60 font-light">
-                            <li><Link href="/men" className="hover:text-white transition-colors duration-300">Men's Watches</Link></li>
-                            <li><Link href="/women" className="hover:text-white transition-colors duration-300">Women's Watches</Link></li>
-                            <li><Link href="/couple" className="hover:text-white transition-colors duration-300">Couple Sets</Link></li>
-                            {/* 🚀 POST-EID UPDATE: Commented out the Eid Edit link
+                            <li><Link href="/watches" className="hover:text-white transition-colors duration-300">Luxury Timepieces</Link></li>
+                            <li><Link href="/fragrances" className="hover:text-white transition-colors duration-300">Signature Fragrances</Link></li>
+                            <li><Link href="/accessories" className="hover:text-white transition-colors duration-300">Premium Accessories</Link></li>
+                            <li><Link href="/smart-tech" className="hover:text-white transition-colors duration-300">Smart Technology</Link></li>
                             <li>
-                                <Link href="/eid-collection" className="text-aura-gold font-bold flex items-center gap-2 hover:text-white transition-colors duration-300">
-                                    The Eid Edit <span className="animate-pulse">✨</span>
+                                <Link href="/custom-combo" className="text-aura-gold font-bold flex items-center gap-2 hover:text-white transition-colors duration-300 mt-2">
+                                    Craft a Combo <span className="animate-pulse">✨</span>
                                 </Link>
                             </li>
-                            */}
                         </ul>
                     </div>
                     
@@ -122,7 +123,6 @@ export function Footer() {
                 {/* 3. NEWSLETTER COLUMN */}
                 <div className="lg:col-span-1 pt-4">
                     <h4 className="text-aura-gold font-bold tracking-[0.2em] uppercase text-xs mb-6">Newsletter</h4>
-                    {/* 🚀 POST-EID UPDATE: Changed the newsletter text to a standard luxury message */}
                     <p className="text-white/60 text-sm mb-6 font-light">
                         Be the first to receive updates on new arrivals, VIP drops, and exclusive offers.
                     </p>
@@ -174,7 +174,7 @@ export function Footer() {
             {/* --- BOTTOM SECTION --- */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                 
-                {/* Copyright (Admin Link Removed) */}
+                {/* Copyright */}
                 <div className="text-white/40 text-xs tracking-wider flex gap-6">
                     <span>© 2026 AURA-X</span>
                     <Link href="/privacy-policy" className="hover:text-white transition">Privacy Policy</Link>
@@ -197,6 +197,7 @@ export function Footer() {
                             fill 
                             sizes="40px" 
                             className="object-contain p-1" 
+                            unoptimized
                         />
                     </div>
                 </Link>

@@ -9,7 +9,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/lib/supabase"; 
 
-// 🚀 FIXED: Removed "/category/" so it perfectly matches your src/app/[category]/page.tsx dynamic route
 const categoryStructure = [
   {
     name: "Watches",
@@ -48,8 +47,13 @@ const categoryStructure = [
   },
   {
     name: "Combos",
-    href: "/combos",
+    href: "/combos", // This goes to the page showing pre-made combos
     isSpecial: true,
+    // 🚀 ADDED: Custom Combo link directly in the Navbar dropdown
+    subItems: [
+      { name: "Pre-Made Combos", href: "/combos" },
+      { name: "Craft Custom Combo ✨", href: "/custom-combo" },
+    ]
   }
 ];
 
@@ -106,7 +110,6 @@ export function Navbar() {
 
   return (
     <>
-      {/* 🚀 MAIN NAVBAR CONTAINER */}
       <nav className="fixed top-0 left-0 w-full z-50 transition-all duration-500 bg-gradient-to-r from-white/80 via-[#FDFBF7]/90 to-white/80 backdrop-blur-xl border-b border-white/50 shadow-[0_10px_40px_rgba(58,42,24,0.06)] flex flex-col">
         <div className="w-full max-w-[1600px] mx-auto px-4 md:px-12 h-14 md:h-20 flex items-center justify-between relative">
           
@@ -166,7 +169,6 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* MOBILE SEARCH & SIDEBAR (Kept same as before) */}
       <AnimatePresence>
         {isSearchOpen && (
           <>

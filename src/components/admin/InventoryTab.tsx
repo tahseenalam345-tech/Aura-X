@@ -18,7 +18,6 @@ const COLOR_MAP: Record<string, string> = {
 const POPULAR_COLORS = Object.keys(COLOR_MAP);
 
 // --- HELPER FUNCTIONS ---
-// 🚀 UPDATED: Smarter check for Cloudinary videos vs images
 const isVideoFile = (url: string) => {
     if (!url) return false;
     const lowerUrl = url.toLowerCase();
@@ -70,7 +69,6 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
   });
 };
 
-// 🚀 Handles Uploads and simulates accurate progress
 const processFileUpload = async (file: File, isReview: boolean = false, onProgress?: (p: number) => void) => {
     const isVideo = file.type.startsWith('video/');
     let fileToUpload: File | Blob = file;
@@ -136,11 +134,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", images: [] as string[] });
   
-  // 🚀 New State for temporary gallery external link
   const [externalGalleryLink, setExternalGalleryLink] = useState("");
+  // 🚀 New State for Sizes (comma separated string for easy input)
+  const [sizesInput, setSizesInput] = useState("");
 
   const initialFormState = {
-    name: "", brand: "AURA-X", sku: "", stock: 1, category: "", 
+    name: "", brand: "AURA-X", sku: "", stock: 1, category: "", sub_category: "", 
     price: 0, originalPrice: 0, discount: 0, costPrice: 0, deliveryCharge: 250,
     tags: "" as string, priority: 100, viewCount: 0, 
     isEidExclusive: false, isPinned: false, 
@@ -153,9 +152,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     shippingText: "2-4 Working Days", returnPolicy: "7 Days Return Policy", boxIncluded: false, 
     mainImage: "", baseColorName: "Silver",
     gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
-    video: "", manualReviews: [] as any[] 
+    video: "", manualReviews: [] as any[], variants: { sizes: [] as string[] }
   };
   const [formData, setFormData] = useState(initialFormState);
+
+  const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(formData.category.toLowerCase());
+  const needsSizes = ['jewelry', 'belts'].includes(formData.sub_category.toLowerCase());
 
   const processFiles = async (files: File[], type: 'main' | 'gallery' | 'color' | 'video' | 'review', index?: number) => {
       for (const file of files) {
@@ -299,12 +301,14 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const handleAddNewClick = () => {
     const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
     setFormData({ ...initialFormState, sku: randomSku });
+    setSizesInput("");
     setIsEditing(false);
     setShowForm(true);
   };
 
   const handleEditClick = (item: any) => {
     const specs = item.specs || {};
+    const variants = item.variants || { sizes: [] };
     let singleTag = "";
     if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
     else if (typeof item.tags === 'string') singleTag = item.tags;
@@ -314,6 +318,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         name: item.name || "",
         brand: item.brand || "AURA-X",
         category: item.category || "",
+        sub_category: item.sub_category || "",
         price: item.price || 0,
         originalPrice: item.original_price || 0,
         discount: item.discount || 0,
@@ -326,6 +331,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         isPinned: item.is_pinned || false, 
         colors: item.colors?.slice(1) || [], 
         manualReviews: item.manual_reviews || [],
+        variants: variants,
         sku: specs.sku || item.sku || "",
         stock: specs.stock || 1,
         costPrice: specs.cost_price || 0,
@@ -354,7 +360,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         gallery: specs.gallery || [],
         video: specs.video || ""
     });
-
+    
+    setSizesInput(variants.sizes ? variants.sizes.join(", ") : "");
     setEditId(item.id);
     setIsEditing(true);
     setShowForm(true);
@@ -364,6 +371,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     e.stopPropagation(); 
     
     const specs = item.specs || {};
+    const variants = item.variants || { sizes: [] };
     let singleTag = "";
     if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
     else if (typeof item.tags === 'string') singleTag = item.tags;
@@ -375,6 +383,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         name: `${item.name} (Copy)`,
         brand: item.brand || "AURA-X",
         category: item.category || "",
+        sub_category: item.sub_category || "",
         price: item.price || 0,
         originalPrice: item.original_price || 0,
         discount: item.discount || 0,
@@ -387,6 +396,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         isPinned: item.is_pinned || false, 
         colors: item.colors?.slice(1) || [], 
         manualReviews: item.manual_reviews || [],
+        variants: variants,
         sku: randomSku, 
         stock: specs.stock || 1,
         costPrice: specs.cost_price || 0,
@@ -415,7 +425,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         gallery: specs.gallery || [],
         video: specs.video || ""
     });
-
+    
+    setSizesInput(variants.sizes ? variants.sizes.join(", ") : "");
     setEditId(null); 
     setIsEditing(false); 
     setShowForm(true);
@@ -460,11 +471,18 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           hex: COLOR_MAP[formData.baseColorName] || "#C0C0C0",
           image: formData.mainImage
       };
-      const allColors = [mainColorVariant, ...formData.colors];
+      
+      // 🚀 Clean up colors if they are empty
+      const additionalColors = formData.colors.filter(c => c.name && c.image);
+      const allColors = [mainColorVariant, ...additionalColors];
+      
       const tagsArray = formData.tags ? [formData.tags] : [];
 
+      // 🚀 Format sizes array from input string
+      const sizesArray = sizesInput.split(',').map(s => s.trim()).filter(s => s !== "");
+
       const productPayload = {
-          name: formData.name, brand: formData.brand, category: formData.category, 
+          name: formData.name, brand: formData.brand, category: formData.category, sub_category: formData.sub_category, 
           price: formData.price, original_price: formData.originalPrice, discount: formData.discount, 
           description: formData.description, main_image: formData.mainImage, tags: tagsArray, 
           rating: formData.priority, is_sale: formData.discount > 0, 
@@ -472,6 +490,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           is_eid_exclusive: formData.isEidExclusive, 
           is_pinned: formData.isPinned, 
           colors: allColors, manual_reviews: formData.manualReviews, 
+          variants: { sizes: sizesArray }, // 🚀 Save sizes to variants
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
               delivery_charge: formData.deliveryCharge, 
@@ -570,9 +589,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             className="bg-transparent text-sm font-bold text-gray-600 outline-none cursor-pointer py-1.5"
                         >
                             <option value="All">All Categories</option>
-                            <option value="men">Men</option>
-                            <option value="women">Women</option>
-                            <option value="couple">Couple</option>
+                            <option value="men">Men's Watches</option>
+                            <option value="women">Women's Watches</option>
+                            <option value="couple">Couple Watches</option>
+                            <option value="accessories">Accessories</option>
+                            <option value="fragrances">Fragrances</option>
+                            <option value="smart-tech">Smart Tech</option>
                         </select>
                     </div>
 
@@ -585,6 +607,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         </div>
 
+        {/* Views Modal (Unchanged) */}
         {showViewsModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col relative border-t-8 border-red-500">
@@ -602,7 +625,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <option value="All">All Categories (Entire Store)</option>
                                 <option value="men">Men's Watches Only</option>
                                 <option value="women">Women's Watches Only</option>
-                                <option value="couple">Couple's Watches Only</option>
+                                <option value="accessories">Accessories Only</option>
+                                <option value="fragrances">Fragrances Only</option>
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -630,6 +654,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
+        {/* View Modes (Unchanged) */}
         {viewMode === 'grid' && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-20">
                 {filteredProducts.map((item) => (
@@ -671,9 +696,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <p className="text-aura-gold font-bold text-xs">Rs {item.price.toLocaleString()}</p>
                                 <span className="text-[10px] text-gray-400">Stock: {item.specs?.stock}</span>
                             </div>
-                            <div className="flex items-center gap-1 text-[9px] text-gray-400 border-t pt-1.5">
-                                <Calendar size={10} /> 
-                                <span>{formatDate(item.created_at)}</span>
+                            <div className="flex items-center gap-1 text-[9px] text-gray-400 border-t pt-1.5 mt-1 truncate">
+                                <span className="font-bold uppercase">{item.sub_category || item.category}</span>
                             </div>
                         </div>
                     </div>
@@ -698,16 +722,15 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 {item.is_pinned && <Star size={12} className="text-aura-gold" fill="currentColor"/>}
                             </h3>
                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mt-0.5">
+                                <span>{item.sub_category || item.category}</span>
                                 <span>SKU: {item.specs?.sku}</span>
                                 <span className={item.specs?.stock > 0 ? "text-green-600 font-bold" : "text-red-600 font-bold"}>Stock: {item.specs?.stock}</span>
                                 <span className="font-bold text-aura-gold">Rs {item.price.toLocaleString()}</span>
-                                {item.specs?.view_count > 0 && <span className="text-red-500 font-bold flex items-center gap-1"><Eye size={10}/> {item.specs.view_count}</span>}
                             </div>
                         </div>
                         <div className="flex gap-2">
                             <button onClick={(e) => handleCopyClick(item, e)} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-colors" title="Duplicate"><Copy size={16}/></button>
                             <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors" title="Delete"><Trash2 size={16}/></button>
-                            <div className="p-2 text-aura-gold"><Edit2 size={16} /></div>
                         </div>
                     </div>
                 ))}
@@ -717,7 +740,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         {viewMode === 'table' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto pb-20">
                 <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Uploaded</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Actions</th></tr></thead>
+                    <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-4 text-xs font-bold text-gray-400 uppercase">Product</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Category</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Stock</th><th className="p-4 text-xs font-bold text-gray-400 uppercase">Price</th><th className="p-4 text-xs font-bold text-gray-400 uppercase text-right">Actions</th></tr></thead>
                     <tbody className="divide-y divide-gray-50">
                         {filteredProducts.map((item) => (
                             <tr key={item.id} onClick={() => handleEditClick(item)} className="hover:bg-aura-gold/5 cursor-pointer transition-colors group">
@@ -729,13 +752,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <p className="font-bold text-aura-brown text-sm group-hover:text-aura-gold transition-colors flex items-center gap-1">
                                             {item.name} {item.is_pinned && <Star size={10} className="text-aura-gold" fill="currentColor"/>}
                                         </p>
-                                        <div className="flex items-center gap-1">
-                                            {item.is_eid_exclusive && <span className="text-[9px] bg-black text-aura-gold px-2 py-0.5 rounded-full border border-aura-gold">EID</span>}
-                                            {item.specs?.view_count > 0 && <span className="text-[9px] text-red-500 font-bold flex items-center gap-0.5"><Eye size={8}/> {item.specs.view_count} views</span>}
-                                        </div>
                                     </div>
                                 </td>
-                                <td className="p-4 text-xs text-gray-500">{formatDate(item.created_at)}</td>
+                                <td className="p-4 text-xs text-gray-500 uppercase">{item.sub_category || item.category}</td>
                                 <td className="p-4 text-sm font-medium">{item.specs?.stock}</td>
                                 <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
                                 <td className="p-4 text-right flex justify-end gap-1">
@@ -749,6 +768,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
+        {/* Brand Modal (Unchanged) */}
         {showBrandModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
@@ -804,11 +824,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
+        {/* 🚀 MAIN ADD/EDIT FORM */}
         {showForm && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-none md:rounded-[2rem] w-full max-w-6xl h-[100dvh] md:h-[90vh] flex flex-col shadow-2xl relative overflow-hidden">
                     <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
-                         <h2 className="text-2xl font-bold font-serif text-aura-brown">{isEditing ? "Edit Timepiece" : "Add New Timepiece"}</h2>
+                         <h2 className="text-2xl font-bold font-serif text-aura-brown">{isEditing ? "Edit Masterpiece" : "Add New Masterpiece"}</h2>
                          <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><X /></button>
                     </div>
                     
@@ -820,15 +841,50 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Product Name</label><input required className="w-full p-4 bg-white border rounded-xl focus:border-aura-gold outline-none" value={formData.name || ""} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Royal Oak Rose Gold" /></div>
                                     <div><label className="text-xs font-bold text-gray-500">Brand</label><input className="w-full p-4 bg-white border rounded-xl" value={formData.brand || ""} onChange={e => setFormData({...formData, brand: e.target.value})} /></div>
                                     <div><label className="text-xs font-bold text-gray-500">SKU (Auto)</label><input className="w-full p-4 bg-gray-100 border rounded-xl text-gray-500" readOnly value={formData.sku || ""} /></div>
+                                    
+                                    {/* 🚀 SMART CATEGORY SELECTOR */}
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500">Category</label>
-                                        <select className="w-full p-4 bg-white border rounded-xl" value={formData.category || ""} onChange={e => setFormData({...formData, category: e.target.value})}>
-                                            <option value="">Select Category</option>
-                                            <option value="men">Men's</option>
-                                            <option value="women">Women's</option>
-                                            <option value="couple">Couple</option>
+                                        <label className="text-xs font-bold text-gray-500">Main Category</label>
+                                        <select className="w-full p-4 bg-white border rounded-xl" value={formData.category || ""} onChange={e => setFormData({...formData, category: e.target.value, sub_category: ""})}>
+                                            <option value="">Select Main Category</option>
+                                            <option value="men">Men's Watches</option>
+                                            <option value="women">Women's Watches</option>
+                                            <option value="couple">Couple Watches</option>
+                                            <option value="accessories">Accessories</option>
+                                            <option value="fragrances">Fragrances</option>
+                                            <option value="smart-tech">Smart Tech</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500">Sub Category</label>
+                                        <select className="w-full p-4 bg-white border rounded-xl" value={formData.sub_category || ""} onChange={e => setFormData({...formData, sub_category: e.target.value})}>
+                                            <option value="">Select Sub Category</option>
+                                            {formData.category === 'accessories' && (
+                                                <>
+                                                <option value="wallets">Wallets</option>
+                                                <option value="belts">Belts</option>
+                                                <option value="sunglasses">Sunglasses</option>
+                                                <option value="jewelry">Jewelry (Rings/Bracelets)</option>
+                                                </>
+                                            )}
+                                            {formData.category === 'fragrances' && (
+                                                <>
+                                                <option value="perfume-men">Men's Perfume</option>
+                                                <option value="perfume-women">Women's Perfume</option>
+                                                </>
+                                            )}
+                                            {formData.category === 'smart-tech' && (
+                                                <>
+                                                <option value="smartwatches">Smartwatches</option>
+                                                <option value="earbuds">Earbuds</option>
+                                                </>
+                                            )}
+                                            {['men', 'women', 'couple'].includes(formData.category) && (
+                                                <option value="watches">Standard Watches</option>
+                                            )}
+                                        </select>
+                                    </div>
+
                                     <div><label className="text-xs font-bold text-gray-500">Stock Qty</label><input type="number" className="w-full p-4 bg-white border rounded-xl" value={formData.stock} onChange={e => setFormData({...formData, stock: Number(e.target.value)})} /></div>
                                 </div>
                             </section>
@@ -870,7 +926,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             </div>
                                             <div>
                                                 <p className={`font-bold text-sm ${formData.isEidExclusive ? 'text-aura-gold' : 'text-gray-600'}`}>Mark as Eid Exclusive</p>
-                                                <p className="text-xs text-gray-400">Hidden from normal shop, only on Locked Page. (Auto-sets DC to 0)</p>
+                                                <p className="text-xs text-gray-400">Hidden from normal shop, only on Locked Page.</p>
                                             </div>
                                         </label>
 
@@ -880,7 +936,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 {formData.isPinned && <Check size={14} strokeWidth={4} />}
                                             </div>
                                             <div>
-                                                <p className={`font-bold text-sm flex items-center gap-1 ${formData.isPinned ? 'text-aura-brown' : 'text-gray-600'}`}><Star size={14} fill={formData.isPinned ? "currentColor" : "none"}/> Pin to Top (Best Seller)</p>
+                                                <p className={`font-bold text-sm flex items-center gap-1 ${formData.isPinned ? 'text-aura-brown' : 'text-gray-600'}`}><Star size={14} fill={formData.isPinned ? "currentColor" : "none"}/> Pin to Top</p>
                                                 <p className="text-xs text-gray-400">Shows in the top exclusive row on the home page.</p>
                                             </div>
                                         </label>
@@ -899,11 +955,28 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 </div>
                             </section>
 
+                            {/* 🚀 SMART SIZES SECTION (Only shows if category needs it) */}
+                            {needsSizes && (
+                                <section className="space-y-6">
+                                    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Size Variants</h3>
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                                        <label className="block text-xs font-bold text-gray-500 mb-2">Available Sizes (Comma Separated)</label>
+                                        <input 
+                                            type="text" 
+                                            className="w-full p-4 bg-white border rounded-xl focus:border-aura-gold outline-none" 
+                                            value={sizesInput} 
+                                            onChange={e => setSizesInput(e.target.value)} 
+                                            placeholder="e.g. Small, Medium, Large OR 40, 42, 44" 
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-2">Leave blank if this item does not have size options.</p>
+                                    </div>
+                                </section>
+                            )}
+
                             <section className="space-y-6">
-                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals & Variants</h3>
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals & Color Variants</h3>
                                 <div className="flex flex-col md:flex-row gap-6 mb-6">
                                     
-                                    {/* 🚀 MAIN IMAGE SECTION */}
                                     <div className="w-full md:w-48 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Main Image</label>
@@ -928,7 +1001,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 )}
                                             </div>
                                             
-                                            {/* Cloudinary Paste Box for Main Image */}
                                             <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2 rounded-xl relative">
                                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
                                                     <LinkIcon size={12}/> EXTERNAL IMAGE LINK
@@ -947,7 +1019,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                         </button>
                                                     )}
                                                 </div>
-                                                {/* Instant Preview for Main Image Link */}
                                                 {formData.mainImage && formData.mainImage.includes('http') && (
                                                     <div className="mt-2 h-16 w-full rounded border border-blue-200 overflow-hidden relative">
                                                         <Image src={formData.mainImage} alt="Preview" fill className="object-cover" unoptimized={true} />
@@ -956,19 +1027,16 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-bold text-aura-gold flex items-center gap-1 uppercase tracking-tight"><Palette size={10}/> Main Color</label>
+                                            <label className="text-[10px] font-bold text-aura-gold flex items-center gap-1 uppercase tracking-tight"><Palette size={10}/> Main Color Variant</label>
                                             <select className="w-full p-2 bg-aura-gold/5 border border-aura-gold/20 rounded-lg text-xs font-bold text-aura-brown" value={formData.baseColorName} onChange={e => setFormData({...formData, baseColorName: e.target.value})}>
                                                 {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                         </div>
                                     </div>
 
-                                    {/* 🚀 PRODUCT VIDEO SECTION WITH URL PASTE BOX */}
                                     <div className="w-full md:w-48 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Product Video (MP4)</label>
-                                            
-                                            {/* Dropzone */}
                                             <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.video && !formData.video.includes('cloudinary') ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'video')} onPaste={(e) => handlePaste(e, 'video')} tabIndex={0}>
                                                 
@@ -993,7 +1061,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 )}
                                             </div>
 
-                                            {/* Cloudinary Paste Box */}
                                             <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2 rounded-xl relative">
                                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
                                                     <LinkIcon size={12}/> EXTERNAL VIDEO LINK
@@ -1012,7 +1079,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                         </button>
                                                     )}
                                                 </div>
-                                                {/* Instant Preview for Video Link */}
                                                 {formData.video && formData.video.includes('http') && (
                                                     <div className="mt-2 h-16 w-full rounded border border-blue-200 overflow-hidden relative bg-black">
                                                         <video src={formData.video} className="object-cover w-full h-full" autoPlay muted loop playsInline />
@@ -1022,7 +1088,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         </div>
                                     </div>
 
-                                    {/* 🚀 MULTI-UPLOAD GALLERY */}
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-gray-500 mb-2">Gallery (Multiple Images/Videos)</label>
                                         <div className="flex flex-wrap gap-4 p-4 bg-white border border-gray-200 rounded-2xl min-h-[160px]"
@@ -1039,7 +1104,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 <div key={u.id} className="w-24 h-24 rounded-xl border-2 border-aura-gold flex flex-col items-center justify-center bg-gray-50 flex-shrink-0">
                                                     <Loader2 className="animate-spin text-aura-gold mb-1" size={16} />
                                                     <div className="text-[10px] font-bold text-aura-gold">{u.progress}%</div>
-                                                    <div className="w-12 h-1 bg-gray-200 rounded-full mt-1 overflow-hidden"><div className="h-full bg-aura-gold transition-all duration-300" style={{ width: `${u.progress}%` }}></div></div>
                                                 </div>
                                             ))}
 
@@ -1052,7 +1116,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             </div>
                                         </div>
                                         
-                                        {/* 🚀 NEW: EXTERNAL GALLERY LINK ADDER */}
                                         <div className="mt-3 bg-blue-50/50 border border-blue-100 p-3 rounded-xl flex flex-col md:flex-row items-start md:items-center gap-3">
                                             <div className="flex-1 w-full">
                                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
@@ -1081,7 +1144,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 </div>
                                             </div>
                                             
-                                            {/* Live Preview before adding */}
                                             {externalGalleryLink && (
                                                 <div className="w-14 h-14 rounded-lg border border-blue-200 overflow-hidden relative bg-black flex-shrink-0 shadow-sm">
                                                     {isVideoFile(externalGalleryLink) ? (
@@ -1122,25 +1184,36 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Specifications</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Case & Dial</h4></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Case Material</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.caseMaterial || ""} onChange={e => setFormData({...formData, caseMaterial: e.target.value})}><option value="">Select Material</option><option>Stainless Steel</option><option>Alloy</option><option>Titanium</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Case Diameter</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.caseDiameter} onChange={e => setFormData({...formData, caseDiameter: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Case Thickness</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.caseThickness} onChange={e => setFormData({...formData, caseThickness: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Glass Type</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.glass || ""} onChange={e => setFormData({...formData, glass: e.target.value})}><option value="">Select Glass</option><option>Mineral</option><option>Sapphire</option><option>Hardlex</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Dial Color</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.dialColor || ""} onChange={e => setFormData({...formData, dialColor: e.target.value})}><option value="">Select Color</option>{POPULAR_COLORS.map(c => <option key={c}>{c}</option>)}</select></div>
+                                    {isWatchCategory ? (
+                                        <>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Case & Dial (Watches)</h4></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Case Material</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.caseMaterial || ""} onChange={e => setFormData({...formData, caseMaterial: e.target.value})}><option value="">Select Material</option><option>Stainless Steel</option><option>Alloy</option><option>Titanium</option></select></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Case Diameter</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.caseDiameter} onChange={e => setFormData({...formData, caseDiameter: e.target.value})} /></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Case Thickness</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.caseThickness} onChange={e => setFormData({...formData, caseThickness: e.target.value})} /></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Glass Type</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.glass || ""} onChange={e => setFormData({...formData, glass: e.target.value})}><option value="">Select Glass</option><option>Mineral</option><option>Sapphire</option><option>Hardlex</option></select></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Dial Color</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.dialColor || ""} onChange={e => setFormData({...formData, dialColor: e.target.value})}><option value="">Select Color</option>{POPULAR_COLORS.map(c => <option key={c}>{c}</option>)}</select></div>
 
-                                    <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Strap & Movement</h4></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Strap Material</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.strapMaterial || ""} onChange={e => setFormData({...formData, strapMaterial: e.target.value})}><option value="">Select Material</option><option>Leather</option><option>Metal</option><option>Chain</option><option>Silicon</option><option>Stainless Steel</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Strap Color</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.strapColor || ""} onChange={e => setFormData({...formData, strapColor: e.target.value})}><option value="">Select Color</option>{POPULAR_COLORS.map(c=><option key={c}>{c}</option>)}</select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Movement</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.movement || "Quartz (Battery)"} onChange={e => setFormData({...formData, movement: e.target.value})}><option>Quartz (Battery)</option><option>Automatic (Mechanical)</option><option>Digital</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Water Resistance</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.waterResistance || "0ATM (No Resistance)"} onChange={e => setFormData({...formData, waterResistance: e.target.value})}><option>0ATM (No Resistance)</option><option>3ATM (Splash)</option><option>5ATM (Swim)</option><option>10ATM (Dive)</option></select></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Weight</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.weight || "135g"} onChange={e => setFormData({...formData, weight: e.target.value})} /></div>
+                                            <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Strap & Movement</h4></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Strap Material</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.strapMaterial || ""} onChange={e => setFormData({...formData, strapMaterial: e.target.value})}><option value="">Select Material</option><option>Leather</option><option>Metal</option><option>Chain</option><option>Silicon</option><option>Stainless Steel</option></select></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Strap Color</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.strapColor || ""} onChange={e => setFormData({...formData, strapColor: e.target.value})}><option value="">Select Color</option>{POPULAR_COLORS.map(c=><option key={c}>{c}</option>)}</select></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Movement</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.movement || "Quartz (Battery)"} onChange={e => setFormData({...formData, movement: e.target.value})}><option>Quartz (Battery)</option><option>Automatic (Mechanical)</option><option>Digital</option></select></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Water Resistance</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.waterResistance || "0ATM (No Resistance)"} onChange={e => setFormData({...formData, waterResistance: e.target.value})}><option>0ATM (No Resistance)</option><option>3ATM (Splash)</option><option>5ATM (Swim)</option><option>10ATM (Dive)</option></select></div>
+                                            
+                                            <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Features</h4></div>
+                                            <div className="flex gap-4 col-span-2 md:col-span-4">
+                                                <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.luminous || false} onChange={e => setFormData({...formData, luminous: e.target.checked})} /> Luminous Hands</label>
+                                                <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.dateDisplay || false} onChange={e => setFormData({...formData, dateDisplay: e.target.checked})} /> Date Display</label>
+                                                <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.boxIncluded || false} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> Box Included</label>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="col-span-2 md:col-span-4 bg-gray-50 p-4 rounded-xl text-center text-gray-400 italic">
+                                            Watch specific features (Movement, Case Size, Luminous Hands) are hidden for this category.
+                                        </div>
+                                    )}
                                     
-                                    <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Features</h4></div>
-                                    <div className="flex gap-4 col-span-2 md:col-span-4">
-                                        <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.luminous || false} onChange={e => setFormData({...formData, luminous: e.target.checked})} /> Luminous Hands</label>
-                                        <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.dateDisplay || false} onChange={e => setFormData({...formData, dateDisplay: e.target.checked})} /> Date Display</label>
-                                        <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.boxIncluded || false} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> Box Included</label>
+                                    <div className="col-span-2 md:col-span-4 mt-2">
+                                        <div><label className="text-xs font-bold text-gray-500">Item Weight (General)</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.weight || "135g"} onChange={e => setFormData({...formData, weight: e.target.value})} /></div>
                                     </div>
                                 </div>
                             </section>
@@ -1222,7 +1295,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                         <button onClick={(e) => {
                             const form = document.getElementById('productForm') as HTMLFormElement;
                             if (form) form.requestSubmit();
-                        }} className="px-8 py-3 rounded-xl bg-aura-brown text-white font-bold hover:bg-aura-gold transition-colors flex items-center gap-2 shadow-xl"><Save size={18} /> {isEditing ? "Update Timepiece" : "Publish Timepiece"}</button>
+                        }} className="px-8 py-3 rounded-xl bg-aura-brown text-white font-bold hover:bg-aura-gold transition-colors flex items-center gap-2 shadow-xl"><Save size={18} /> {isEditing ? "Update Masterpiece" : "Publish Masterpiece"}</button>
                     </div>
                 </div>
             </div>

@@ -71,6 +71,9 @@ export default function ProductClient() {
   const [mediaIndex, setMediaIndex] = useState(0);
   const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
   
+  // 🚀 NEW: Size Selection State
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  
   const [quantity, setQuantity] = useState(1);
   const [openSection, setOpenSection] = useState<string | null>("description");
   
@@ -115,6 +118,11 @@ export default function ProductClient() {
        if (currentProduct) {
            setProduct(currentProduct);
            
+           // 🚀 Auto-select first size if variants exist
+           if (currentProduct.variants?.sizes?.length > 0) {
+               setSelectedSize(currentProduct.variants.sizes[0]);
+           }
+           
            const { data: allProductsData } = await supabase.from('products').select('manual_reviews, name');
            if (allProductsData) {
                let globalReviews: any[] = [];
@@ -142,6 +150,13 @@ export default function ProductClient() {
     };
     fetchData();
   }, [id]);
+
+  // 🚀 DYNAMIC CATEGORY IDENTIFIERS
+  const categoryName = product?.category?.toLowerCase() || '';
+  const subCategoryName = product?.sub_category?.toLowerCase() || '';
+  const isWatch = ['men', 'women', 'couple', 'watches'].includes(categoryName);
+  const isPerfume = ['fragrances', 'perfume-men', 'perfume-women'].includes(categoryName);
+  const sizesAvailable = product?.variants?.sizes || [];
 
   const averageRating = useMemo(() => {
       if (productReviews.length === 0) return 5;
@@ -273,9 +288,13 @@ export default function ProductClient() {
 
   const handleAddToCart = () => {
     if (specs.stock <= 0) return toast.error("Sorry, this item is currently out of stock.");
+    if (sizesAvailable.length > 0 && !selectedSize) return toast.error("Please select a size first!");
 
     const finalColorName = selectedColor?.name || "Standard";
     const boxLabel = boxType === 'rolex' ? ' (+ Rolex Box)' : boxType === 'black' ? ' (+ Black Box)' : '';
+    
+    // 🚀 Include size in cart payload
+    const sizeLabel = selectedSize ? ` - Size: ${selectedSize}` : '';
     const finalPriceWithBox = product.price + (boxType === 'rolex' ? 300 : boxType === 'black' ? 200 : 0);
 
     addToCart({
@@ -283,7 +302,7 @@ export default function ProductClient() {
       name: displayShortName, 
       price: finalPriceWithBox,
       image: selectedColor?.image || product.main_image, 
-      color: `${finalColorName}${boxLabel}`, 
+      color: `${finalColorName}${sizeLabel}${boxLabel}`, 
       quantity: quantity, 
       isGift: isGift, 
       addBox: false,
@@ -383,8 +402,8 @@ export default function ProductClient() {
     </div>
   );
 
-  const seoCategory = product?.category?.toLowerCase() === 'women' ? "Women's" : product?.category?.toLowerCase() === 'couple' ? "Couple" : "Men's";
-  const seoAltText = product ? `${product.name} - Premium Luxury ${seoCategory} Watch in Pakistan | AURA-X` : "Luxury Watch | AURA-X";
+  const seoCategory = categoryName === 'women' ? "Women's" : categoryName === 'couple' ? "Couple" : "Men's";
+  const seoAltText = product ? `${product.name} - Premium Luxury ${seoCategory} Item in Pakistan | AURA-X` : "Luxury Item | AURA-X";
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32 md:pb-24">
@@ -418,27 +437,17 @@ export default function ProductClient() {
         </div>
       )}
 
-      {/* 🚀 POST-EID UPDATE: Banner is hidden.
-      <div className="pt-24 md:pt-32"> 
-          <div className="bg-[#0A0908] border-y border-aura-gold/40 py-2.5 px-2 relative z-20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aura-gold/10 to-transparent animate-[pulse_3s_ease-in-out_infinite]" />
-            <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 text-[9px] md:text-sm font-bold tracking-widest uppercase text-white leading-tight">
-              <span className="bg-red-600 text-white px-2 py-0.5 rounded-[3px] shadow-[0_0_12px_rgba(220,38,38,0.8)] flex items-center gap-1 animate-pulse">
-                <Flame size={12} className="hidden md:block"/> BREAKING
-              </span>
-              <span className="text-aura-gold drop-shadow-md">10th Ramzan Drop:</span> 
-              <span>Up to 30% OFF + Free Delivery.</span>
-            </div>
-          </div>
-      </div>
-      */}
-
-      {/* 🚀 POST-EID UPDATE: Increased padding (pt-24 md:pt-32) so content doesn't hit navbar since banner is hidden */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-24 md:pt-32">
         <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-400 mb-4 md:mb-6 font-medium">
             <Link href="/" className="hover:text-aura-gold flex items-center gap-1"><Home size={14}/> Home</Link>
             <span>/</span>
             <Link href={`/${product.category}`} className="hover:text-aura-gold capitalize">{product.category}</Link>
+            {product.sub_category && (
+              <>
+                <span>/</span>
+                <span className="capitalize">{product.sub_category}</span>
+              </>
+            )}
             <span>/</span>
             <span className="text-aura-brown truncate max-w-[150px] md:max-w-none capitalize" title={product.name}>{displayShortName}</span>
         </div>
@@ -558,7 +567,7 @@ export default function ProductClient() {
           <div className="lg:col-span-5 flex flex-col">
              <div className="mb-6 md:mb-8">
                 <div className="flex items-center gap-3 mb-2">
-                    <span className="px-2 py-0.5 bg-aura-gold/10 text-aura-gold text-[10px] font-bold tracking-[0.2em] uppercase rounded-full">{product.category}</span>
+                    <span className="px-2 py-0.5 bg-aura-gold/10 text-aura-gold text-[10px] font-bold tracking-[0.2em] uppercase rounded-full">{product.sub_category || product.category}</span>
                     {specs.stock > 0 
                         ? <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold tracking-widest uppercase rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> In Stock</span>
                         : <span className="px-2 py-0.5 bg-red-50 text-red-700 text-[10px] font-bold tracking-widest uppercase rounded-full">Out of Stock</span>
@@ -601,7 +610,32 @@ export default function ProductClient() {
                     )}
                 </div>
 
-                {(specs.luminous || specs.date_display || specs.box_included) && (
+                {/* 🚀 DYNAMIC SIZES SELECTOR */}
+                {sizesAvailable.length > 0 && (
+                    <div className="mb-6">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Size</span>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            {sizesAvailable.map((size: string) => (
+                                <button
+                                    key={size}
+                                    onClick={() => setSelectedSize(size)}
+                                    className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border-2 ${
+                                        selectedSize === size 
+                                        ? 'border-aura-gold bg-aura-gold/10 text-aura-brown shadow-sm' 
+                                        : 'border-gray-200 text-gray-500 hover:border-aura-gold/50'
+                                    }`}
+                                >
+                                    {size}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 🚀 DYNAMIC SPECS HIGHLIGHTS (Watches Only) */}
+                {isWatch && (specs.luminous || specs.date_display || specs.box_included) && (
                     <div className="flex flex-wrap gap-3 mb-6">
                         {specs.luminous && (
                             <span className="flex items-center gap-1.5 px-3 py-1.5 bg-aura-gold/5 border border-aura-gold/20 rounded-lg text-xs font-bold text-aura-brown/80">
@@ -613,26 +647,24 @@ export default function ProductClient() {
                                 <Calendar size={14} className="text-aura-gold"/> Date Display
                             </span>
                         )}
-                        {specs.box_included && (
-                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-aura-gold/5 border border-aura-gold/20 rounded-lg text-xs font-bold text-aura-brown/80">
-                                <Package size={14} className="text-aura-gold"/> Box Included
-                            </span>
-                        )}
                     </div>
                 )}
 
                 <div className="mb-8 space-y-3">
                     <div onClick={() => setIsGift(!isGift)} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${isGift ? 'bg-[#FAF8F1] border-aura-gold shadow-md' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
-                       <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full flex items-center justify-center ${isGift ? 'bg-aura-gold text-white' : 'bg-gray-100 text-gray-400'}`}><Gift size={18} /></div><p className="font-bold text-sm text-aura-brown">Gift Wrap</p></div><span className="text-xs font-bold text-aura-gold">+ Rs {GIFT_COST}</span>
+                        <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full flex items-center justify-center ${isGift ? 'bg-aura-gold text-white' : 'bg-gray-100 text-gray-400'}`}><Gift size={18} /></div><p className="font-bold text-sm text-aura-brown">Gift Wrap</p></div><span className="text-xs font-bold text-aura-gold">+ Rs {GIFT_COST}</span>
                     </div>
 
                     <div onClick={() => setBoxType(boxType === 'black' ? 'none' : 'black')} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${boxType === 'black' ? 'bg-[#1E1B18] border-black shadow-md' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
-                       <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${boxType === 'black' ? 'bg-white/10 text-aura-gold shadow-inner' : 'bg-gray-100 text-gray-400'}`}><Package size={18} /></div><p className={`font-bold text-sm ${boxType === 'black' ? 'text-white' : 'text-aura-brown'}`}>Premium Black Box</p></div><span className="text-xs font-bold text-aura-gold">+ Rs 200</span>
+                        <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${boxType === 'black' ? 'bg-white/10 text-aura-gold shadow-inner' : 'bg-gray-100 text-gray-400'}`}><Package size={18} /></div><p className={`font-bold text-sm ${boxType === 'black' ? 'text-white' : 'text-aura-brown'}`}>Premium Black Box</p></div><span className="text-xs font-bold text-aura-gold">+ Rs 200</span>
                     </div>
 
-                    <div onClick={() => setBoxType(boxType === 'rolex' ? 'none' : 'rolex')} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${boxType === 'rolex' ? 'bg-[#006039] border-[#006039] shadow-md' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
-                       <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${boxType === 'rolex' ? 'bg-white/20 text-aura-gold shadow-inner' : 'bg-gray-100 text-gray-400'}`}><Package size={18} /></div><p className={`font-bold text-sm ${boxType === 'rolex' ? 'text-white' : 'text-aura-brown'}`}>Official Rolex Box</p></div><span className="text-xs font-bold text-aura-gold">+ Rs 300</span>
-                    </div>
+                    {/* 🚀 ROLEX BOX ONLY FOR WATCHES */}
+                    {isWatch && (
+                      <div onClick={() => setBoxType(boxType === 'rolex' ? 'none' : 'rolex')} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${boxType === 'rolex' ? 'bg-[#006039] border-[#006039] shadow-md' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
+                          <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${boxType === 'rolex' ? 'bg-white/20 text-aura-gold shadow-inner' : 'bg-gray-100 text-gray-400'}`}><Package size={18} /></div><p className={`font-bold text-sm ${boxType === 'rolex' ? 'text-white' : 'text-aura-brown'}`}>Official Rolex Box</p></div><span className="text-xs font-bold text-aura-gold">+ Rs 300</span>
+                      </div>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-3 mb-6">
@@ -699,7 +731,7 @@ export default function ProductClient() {
 
                 <div className="border-t border-aura-gold/20 pt-4">
                     <AccordionItem title="Description" id="description"><p>{product.description}</p></AccordionItem>
-                    <AccordionItem title="Technical Specifications" id="specs">
+                    <AccordionItem title="Details & Specifications" id="specs">
                         <ul className="grid grid-cols-2 gap-y-2 gap-x-2 text-xs">
                            {specs && Object.entries(specs).filter(([key]) => !['gallery', 'stock', 'view_count', 'warranty', 'cost_price', 'shipping_text', 'return_policy', 'box_included', 'luminous', 'date_display', 'adjustable', 'type', 'style', 'video', 'delivery_charge'].includes(key)).map(([key, value]) => (
                              <li key={key} className="flex flex-col pb-1 border-b border-dashed border-gray-100">
@@ -726,13 +758,13 @@ export default function ProductClient() {
                 </div>
                 <div className="p-6 flex flex-col items-center text-center gap-2 hover:bg-gray-50 transition-colors">
                     <ShieldCheck className="text-aura-gold" size={28}/>
-                    <span className="font-bold text-aura-brown">1 Year Warranty</span>
-                    <span className="text-xs text-gray-500">Official machine coverage</span>
+                    <span className="font-bold text-aura-brown">Authentic Sourced</span>
+                    <span className="text-xs text-gray-500">100% Genuine Quality</span>
                 </div>
                 <div className="p-6 flex flex-col items-center text-center gap-2 hover:bg-gray-50 transition-colors">
                     <Star className="text-aura-gold" size={28} fill="currentColor"/>
-                    <span className="font-bold text-aura-brown">Premium Quality</span>
-                    <span className="text-xs text-gray-500">Flawless Swiss standards</span>
+                    <span className="font-bold text-aura-brown">Premium Craft</span>
+                    <span className="text-xs text-gray-500">Flawless design standards</span>
                 </div>
                 <div className="p-6 flex flex-col items-center text-center gap-2 hover:bg-gray-50 transition-colors">
                     <Truck className="text-aura-gold" size={28}/>
@@ -759,12 +791,13 @@ export default function ProductClient() {
                <div className="bg-white/10 backdrop-blur-md p-8 rounded-[2rem] shadow-xl mb-12 border border-white/20 max-w-2xl mx-auto relative overflow-hidden">
                   <div className="absolute -top-10 -right-10 text-[150px] text-white/5 font-serif font-black pointer-events-none select-none z-0"><Quote/></div>
                   <div className="relative z-10 space-y-5">
+                      {/* 🚀 DYNAMIC REVIEW TEXT */}
                       <p className="font-bold text-center text-white mb-2 text-lg font-serif">How was your experience with {displayShortName}?</p>
                       <div className="flex justify-center gap-3 text-white/30 pb-5 border-b border-white/10">
                          {[1,2,3,4,5].map(star => <Star key={star} size={36} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className={`cursor-pointer transition-transform hover:scale-110 ${star <= reviewRating ? "text-aura-gold drop-shadow-md" : "text-white/30"}`} />)}
                       </div>
                       <input type="text" value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Your Name" className="w-full border border-white/20 p-4 rounded-xl bg-white/5 text-white placeholder-gray-400 text-sm focus:border-aura-gold outline-none shadow-sm" />
-                      <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Share your thoughts on this timepiece..." className="w-full border border-white/20 p-4 rounded-xl bg-white/5 text-white placeholder-gray-400 h-28 text-sm focus:border-aura-gold outline-none shadow-sm resize-none"></textarea>
+                      <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder={`Share your thoughts on this ${isPerfume ? 'fragrance' : isWatch ? 'timepiece' : 'masterpiece'}...`} className="w-full border border-white/20 p-4 rounded-xl bg-white/5 text-white placeholder-gray-400 h-28 text-sm focus:border-aura-gold outline-none shadow-sm resize-none"></textarea>
                       <div className="flex flex-col md:flex-row justify-between items-center pt-2 gap-4">
                           <input type="file" id="review-image-upload" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
                           <div className="flex items-center gap-3 w-full md:w-auto">
@@ -831,7 +864,8 @@ export default function ProductClient() {
 
         <div className="border-t border-aura-gold/20 pt-10 mt-12 mb-12">
              <div className="flex justify-between items-center mb-6">
-                 <h2 className="text-xl md:text-3xl font-serif text-aura-brown">Similar Watches</h2>
+                 {/* 🚀 DYNAMIC SIMILAR ITEMS HEADING */}
+                 <h2 className="text-xl md:text-3xl font-serif text-aura-brown">Similar {isPerfume ? 'Fragrances' : isWatch ? 'Watches' : 'Masterpieces'}</h2>
                  {relatedProducts.length > 0 && (
                    <Link href={`/${product.category}`} className="text-xs font-bold flex items-center gap-1 hover:text-aura-gold">View All <ArrowRight size={12}/></Link>
                  )}

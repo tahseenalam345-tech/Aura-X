@@ -12,15 +12,14 @@ export async function POST(request: Request) {
     const { customer, items, total, city } = body;
 
     // 1. GENERATE SHORT READABLE CODE (e.g. ORD-58291)
-    // We will save this in your 'order_code' column
     const shortCode = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    // 2. Insert Order
+    // 2. Insert Order into Database
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert([
         {
-          order_code: shortCode, // Saving to the column you mentioned
+          order_code: shortCode, 
           customer_name: customer.name,
           phone: customer.phone,
           email: customer.email,
@@ -37,13 +36,14 @@ export async function POST(request: Request) {
 
     if (orderError) {
         console.error("Database Error:", orderError.message);
-        throw new Error("Failed to save order.");
+        throw new Error("Failed to save order in database.");
     }
 
-    // 3. Update Stock
+    // 3. Update Stock for each item
     for (const item of items) {
       const { data: product } = await supabase.from('products').select('specs').eq('id', item.id).single();
       if (product?.specs) {
+        // Prevent negative stock
         const newStock = Math.max(0, (Number(product.specs.stock) || 0) - item.quantity);
         await supabase.from('products').update({ specs: { ...product.specs, stock: newStock } }).eq('id', item.id);
       }
