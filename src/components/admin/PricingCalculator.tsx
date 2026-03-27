@@ -18,7 +18,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
   // 1. ORIGINAL SANDBOX STATE
   // ==========================================
   const [buyPrice, setBuyPrice] = useState(1500);
-  const [actualDc, setActualDc] = useState(300); 
+  const [actualDc, setActualDc] = useState(250); // 🚀 UPDATED: Standard actual DC usually matches
   const [defaultBoxCost, setDefaultBoxCost] = useState(90);
   const [premiumBoxCost, setPremiumBoxCost] = useState(240);
   const [giftWrapCost, setGiftWrapCost] = useState(300);
@@ -29,7 +29,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
   const [sellPrice, setSellPrice] = useState(2000); 
   const [targetProfit, setTargetProfit] = useState(500); 
   
-  const [customerDc, setCustomerDc] = useState(250);
+  const [customerDc, setCustomerDc] = useState(250); // 🚀 UPDATED: Enforcing Flat 250
   const [premiumBoxCharge, setPremiumBoxCharge] = useState(250); 
   const [giftWrapCharge, setGiftWrapCharge] = useState(300);
 
@@ -57,7 +57,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
   // ==========================================
   const [chatInput, setChatInput] = useState("");
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'bot', text: string, items?: any[]}[]>([
-      { role: 'bot', text: "Hello Boss! I am your Pricing Assistant. Ask me things like:\n• 'Show me watches in loss'\n• 'Show me ladies watches'\n• 'Watches under 2000'\n• 'Which items cost over 1500?'" }
+      { role: 'bot', text: "Hello Boss! I am your Pricing Assistant. Ask me things like:\n• 'Show me items in loss'\n• 'Show me perfumes'\n• 'Watches under 2000'\n• 'Which items cost over 1500?'" }
   ]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -91,7 +91,6 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
     fetchHistoryFromDb();
   }, []);
 
-  // SAVE TO SUPABASE DB
   const saveHistoryToDb = async (record: any) => {
     const { data, error } = await supabase.from('pricing_history').insert([{
         date_string: new Date().toLocaleString(),
@@ -107,8 +106,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
     }
   };
 
-
-  // AUTO-FETCH: Fill Cost, Discount, and Calculate Current Profit!
+  // AUTO-FETCH
   useEffect(() => {
     if (selectedProductId) {
         const prod = products.find(p => p.id === selectedProductId);
@@ -132,11 +130,11 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
             setTargetProfit(Math.round(currentProfit));
         }
     }
-  }, [selectedProductId, products]);
+  }, [selectedProductId, products, codTaxPercent, defaultBoxCost, actualDc, adCostPerItem, extraCost, customerDc]);
 
 
   // ==========================================
-  // SANDBOX CALCULATIONS (Tabs 1 & 2)
+  // SANDBOX CALCULATIONS
   // ==========================================
   const totalWatchCost = buyPrice * qty;
   const totalAdCost = adCostPerItem * qty;
@@ -172,7 +170,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
 
 
   // ==========================================
-  // STRICT SINGLE UPDATE CALCULATION (Tab 3)
+  // STRICT SINGLE UPDATE CALCULATION
   // ==========================================
   const singleFixedCosts = buyPrice + defaultBoxCost + actualDc + adCostPerItem + extraCost;
   const singleTargetCollected = (targetProfit + singleFixedCosts) / (1 - taxDecimal);
@@ -198,12 +196,11 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
       profitScore = 100; profitColor = "bg-emerald-500"; profitLabel = "EXCELLENT!"; profitTextClass = "text-emerald-500";
   }
 
-
   // ==========================================
   // DATABASE FUNCTIONS
   // ==========================================
   const handleSaveSingle = async () => {
-    if (!selectedProductId) return toast.error("Please select a watch to update.");
+    if (!selectedProductId) return toast.error("Please select an item to update.");
     
     const finalPrice = Math.ceil(singleRequiredSellPrice);
     const prod = products.find(p => p.id === selectedProductId);
@@ -290,10 +287,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
         toast.success(`Reverted to Rs ${record.old_price}`);
         if (fetchProducts) fetchProducts();
         
-        // Remove from Supabase DB History
         await supabase.from('pricing_history').delete().eq('id', record.id);
-        
-        // Update UI state
         setHistory(prev => prev.filter(h => h.id !== record.id));
     }
   };
@@ -333,29 +327,37 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
               });
 
               if (matchedProducts.length > 0) {
-                  botResponse = `Boss, I analyzed the inventory. I found ${matchedProducts.length} watches that are currently resulting in a loss based on your fixed costs. You should review these immediately:`;
+                  botResponse = `Boss, I analyzed the inventory. I found ${matchedProducts.length} items that are currently resulting in a loss based on your fixed costs. You should review these immediately:`;
               } else {
-                  botResponse = "Great news, Boss! I ran the numbers and none of your watches are currently selling at a loss.";
+                  botResponse = "Great news, Boss! I ran the numbers and none of your items are currently selling at a loss.";
               }
           }
           
-          // 2. INTENT: CATEGORIES (LADIES, MEN, COUPLE)
-          else if (lowerQ.includes("ladies") || lowerQ.includes("women") || lowerQ.includes("woman") || lowerQ.includes("girls")) {
-              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'women' || p.category?.toLowerCase() === 'ladies');
-              botResponse = `Here are all the Ladies/Women's watches in your inventory (${matchedProducts.length} found):`;
+          // 2. INTENT: CATEGORIES (🚀 UPDATED FOR MULTI-CATEGORY)
+          else if (lowerQ.includes("ladies") || lowerQ.includes("women") || lowerQ.includes("woman")) {
+              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'women' || p.category?.toLowerCase() === 'perfume-women');
+              botResponse = `Here are all the Women's items in your inventory (${matchedProducts.length} found):`;
           }
-          else if (lowerQ.includes("men") || lowerQ.includes("gents") || lowerQ.includes("boys")) {
-              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'men');
-              botResponse = `Here are all the Men's watches in your inventory (${matchedProducts.length} found):`;
+          else if (lowerQ.includes("men") || lowerQ.includes("gents")) {
+              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'men' || p.category?.toLowerCase() === 'perfume-men');
+              botResponse = `Here are all the Men's items in your inventory (${matchedProducts.length} found):`;
           }
-          else if (lowerQ.includes("couple") || lowerQ.includes("matching") || lowerQ.includes("pairs")) {
+          else if (lowerQ.includes("couple") || lowerQ.includes("matching")) {
               matchedProducts = products.filter(p => p.category?.toLowerCase() === 'couple');
               botResponse = `Here are all the Couple Sets in your inventory (${matchedProducts.length} found):`;
           }
+          else if (lowerQ.includes("perfume") || lowerQ.includes("fragrance")) {
+              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'fragrances' || p.sub_category?.toLowerCase().includes('perfume'));
+              botResponse = `Here are all the Fragrances in your inventory (${matchedProducts.length} found):`;
+          }
+          else if (lowerQ.includes("wallet") || lowerQ.includes("belt") || lowerQ.includes("accessories")) {
+              matchedProducts = products.filter(p => p.category?.toLowerCase() === 'accessories');
+              botResponse = `Here are all the Accessories in your inventory (${matchedProducts.length} found):`;
+          }
 
           // 3. INTENT: TOTAL COUNT
-          else if (lowerQ.includes("all watches") || lowerQ.includes("how many") || lowerQ.includes("total")) {
-              botResponse = `You currently have a total of ${products.length} watches in your live inventory.`;
+          else if (lowerQ.includes("all items") || lowerQ.includes("how many") || lowerQ.includes("total")) {
+              botResponse = `You currently have a total of ${products.length} products in your live inventory across all categories.`;
           }
 
           // 4. INTENT: COST UNDER/OVER
@@ -363,10 +365,10 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
               const num = parseInt(lowerQ.match(/\d+/)![0], 10);
               if (lowerQ.includes("under") || lowerQ.includes("below") || lowerQ.includes("less")) {
                   matchedProducts = products.filter(p => (Number(p.specs?.cost_price) || 1500) < num);
-                  botResponse = `Here are the watches that cost you less than Rs ${num} to buy:`;
+                  botResponse = `Here are the items that cost you less than Rs ${num} to buy:`;
               } else {
                   matchedProducts = products.filter(p => (Number(p.specs?.cost_price) || 1500) > num);
-                  botResponse = `Here are the watches that cost you more than Rs ${num} to buy:`;
+                  botResponse = `Here are the items that cost you more than Rs ${num} to buy:`;
               }
           }
 
@@ -375,16 +377,16 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
               const num = parseInt(lowerQ.match(/\d+/)![0], 10);
               if (lowerQ.includes("under") || lowerQ.includes("below") || lowerQ.includes("less") || lowerQ.includes("cheap")) {
                   matchedProducts = products.filter(p => Number(p.price) < num);
-                  botResponse = `Here are the watches currently selling for under Rs ${num}:`;
+                  botResponse = `Here are the items currently selling for under Rs ${num}:`;
               } else {
                   matchedProducts = products.filter(p => Number(p.price) > num);
-                  botResponse = `Here are the watches selling for more than Rs ${num}:`;
+                  botResponse = `Here are the items selling for more than Rs ${num}:`;
               }
           }
           
           // DEFAULT FALLBACK
           else {
-              botResponse = "I didn't quite catch that. Since I am a local assistant to save you API costs, try asking specific questions like:\n- 'Show me ladies watches'\n- 'Which watches are in loss?'\n- 'Show me watches under 2500'\n- 'Watches with cost over 1000'";
+              botResponse = "I didn't quite catch that. Try asking specific questions like:\n- 'Show me perfumes'\n- 'Which items are in loss?'\n- 'Show me items under 2500'\n- 'Items with cost over 1000'";
           }
 
           setChatHistory(prev => [...prev, { role: 'bot', text: botResponse, items: matchedProducts }]);
@@ -428,7 +430,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                     <div className="bg-aura-gold/5 border border-aura-gold/20 p-5 rounded-xl">
                         {activeTab === 'profit' ? (
                             <div>
-                                <label className="text-sm font-bold text-aura-brown flex items-center gap-2 mb-2"><Tag size={16}/> Customer Selling Price (Per Watch)</label>
+                                <label className="text-sm font-bold text-aura-brown flex items-center gap-2 mb-2"><Tag size={16}/> Customer Selling Price (Per Item)</label>
                                 <div className="relative">
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">Rs</span>
                                     <input type="number" value={sellPrice} onChange={e => setSellPrice(Number(e.target.value))} className="w-full pl-10 pr-4 py-3 bg-white border border-aura-gold/30 rounded-lg font-bold text-lg focus:ring-2 focus:ring-aura-gold outline-none" />
@@ -451,7 +453,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                         <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4 border-b pb-2">Customer Order Scenario</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="col-span-2 md:col-span-4 bg-gray-50 p-3 rounded-lg flex items-center justify-between border">
-                                <span className="text-sm font-bold">Quantity (1 = Single, 2 = Couple)</span>
+                                <span className="text-sm font-bold">Quantity</span>
                                 <input type="number" min="1" value={qty} onChange={e => setQty(Number(e.target.value))} className="w-20 p-2 text-center border rounded font-bold" />
                             </div>
                             <label className={`col-span-2 p-3 rounded-lg border cursor-pointer flex items-center gap-3 transition-colors ${hasPremiumBox ? 'bg-aura-brown text-white border-aura-brown' : 'bg-white hover:bg-gray-50'}`}>
@@ -495,7 +497,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                     <div>
                         <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4 border-b pb-2">Your Base Costs & Fees</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div><label className="text-[10px] font-bold text-gray-500 uppercase">Watch Buy Price</label><input type="number" value={buyPrice} onChange={e=>setBuyPrice(Number(e.target.value))} className="w-full p-2 border rounded bg-gray-50" /></div>
+                            <div><label className="text-[10px] font-bold text-gray-500 uppercase">Item Buy Price</label><input type="number" value={buyPrice} onChange={e=>setBuyPrice(Number(e.target.value))} className="w-full p-2 border rounded bg-gray-50" /></div>
                             <div><label className="text-[10px] font-bold text-gray-500 uppercase">Courier DC Cost</label><input type="number" value={actualDc} onChange={e=>setActualDc(Number(e.target.value))} className="w-full p-2 border rounded bg-gray-50" /></div>
                             <div><label className="text-[10px] font-bold text-gray-500 uppercase">Customer Pays DC</label><input type="number" value={customerDc} onChange={e=>setCustomerDc(Number(e.target.value))} className="w-full p-2 border rounded bg-gray-50" /></div>
                             <div><label className="text-[10px] font-bold text-gray-500 uppercase">Ads Cost/Item</label><input type="number" value={adCostPerItem} onChange={e=>setAdCostPerItem(Number(e.target.value))} className="w-full p-2 border rounded bg-gray-50" /></div>
@@ -532,7 +534,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                                 <h4 className="font-bold text-aura-gold mb-3 flex items-center gap-2 border-b border-white/10 pb-2"><DollarSign size={16}/> Customer Pays (Revenue)</h4>
                                 <div className="space-y-2 text-gray-300">
                                     <div className="flex justify-between">
-                                        <span>Watch(es) x{qty} {discountPercent > 0 && <span className="text-red-400 text-[10px]">(-{discountPercent}%)</span>}</span>
+                                        <span>Item(s) x{qty} {discountPercent > 0 && <span className="text-red-400 text-[10px]">(-{discountPercent}%)</span>}</span>
                                         <span>Rs {activeTab === 'target' ? Math.round(recommendedTotalCollected - boxChargeToCustomer - giftChargeToCustomer - shippingChargeToCustomer).toLocaleString() : Math.round(netWatchSales).toLocaleString()}</span>
                                     </div>
                                     {hasPremiumBox && (
@@ -549,7 +551,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                             <div>
                                 <h4 className="font-bold text-red-400 mb-3 flex items-center gap-2 border-b border-white/10 pb-2"><TrendingUp size={16} className="rotate-180"/> You Pay (Expenses)</h4>
                                 <div className="space-y-2 text-gray-300">
-                                    <div className="flex justify-between"><span>Watch Cost</span><span className="text-red-300">- Rs {totalWatchCost.toLocaleString()}</span></div>
+                                    <div className="flex justify-between"><span>Item Cost</span><span className="text-red-300">- Rs {totalWatchCost.toLocaleString()}</span></div>
                                     <div className="flex justify-between"><span>Box Cost</span><span className="text-red-300">- Rs {boxCostToYou.toLocaleString()}</span></div>
                                     {hasGiftWrap && <div className="flex justify-between"><span>Gift Wrap Cost</span><span className="text-red-300">- Rs {giftCostToYou.toLocaleString()}</span></div>}
                                     <div className="flex justify-between"><span>Actual DC</span><span className="text-red-300">- Rs {actualDc}</span></div>
@@ -572,7 +574,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                     
                     {/* CUSTOM DROPDOWN FOR IMAGES */}
                     <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200" ref={dropdownRef}>
-                        <h3 className="font-bold text-gray-700 flex items-center gap-2 mb-3">1. Select Watch to Analyze</h3>
+                        <h3 className="font-bold text-gray-700 flex items-center gap-2 mb-3">1. Select Item to Analyze</h3>
                         
                         <div className="relative">
                             <div 
@@ -590,7 +592,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                                         </div>
                                     </div>
                                 ) : (
-                                    <span className="text-gray-400 font-medium">Click to choose a watch...</span>
+                                    <span className="text-gray-400 font-medium">Click to choose an item...</span>
                                 )}
                                 <ChevronDown size={20} className="text-gray-400" />
                             </div>
@@ -682,7 +684,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                         className="w-full py-4 bg-aura-gold text-black rounded-xl font-bold tracking-widest hover:bg-white transition-colors flex items-center justify-center gap-2 mt-6 disabled:opacity-50"
                     >
                         {isUpdating ? <RefreshCcw className="animate-spin" size={18}/> : <Save size={18}/>} 
-                        {selectedProductId ? "UPDATE PRICE IN DATABASE" : "SELECT A WATCH FIRST"}
+                        {selectedProductId ? "UPDATE PRICE IN DATABASE" : "SELECT AN ITEM FIRST"}
                     </button>
                 </div>
             </div>
@@ -694,7 +696,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                 <div className="bg-aura-gold/10 border border-aura-gold/30 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6">
                     <div className="flex-1">
                         <h3 className="font-bold text-aura-brown text-lg">Mass Profit Target</h3>
-                        <p className="text-sm text-gray-600">Enter a single profit amount. The engine will calculate the exact required selling price for every selected watch based on its unique cost price and discount.</p>
+                        <p className="text-sm text-gray-600">Enter a single profit amount. The engine will calculate the exact required selling price for every selected item based on its unique cost price and discount.</p>
                     </div>
                     <div className="w-full md:w-64">
                         <label className="text-xs font-bold text-gray-500 uppercase">Target Profit (Rs)</label>
@@ -843,7 +845,7 @@ export default function PricingCalculator({ products = [], fetchProducts }: Pric
                             type="text" 
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
-                            placeholder="e.g. Show me watches in loss..."
+                            placeholder="e.g. Show me items in loss..."
                             className="flex-1 bg-gray-100 border-none rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-400 text-sm"
                         />
                         <button 

@@ -7,21 +7,21 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Moon, Gift } from "lucide-react"; 
+import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Moon, Gift, ShoppingBag } from "lucide-react"; 
 
 // 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
 const IS_EID_LIVE = false; 
 
-// 🚀 8 ITEMS EXACTLY FROM YOUR SCREENSHOT WITH DESCRIPTIVE TAGLINES & TITLES
+// 🚀 CAROUSEL ITEMS WITH UPDATED ASSETS
 const carouselItems = [
   { src: "/pic1.webp", tag: "Premium Men's Watch", title: "Legacy in", highlight: "Motion" },       
-  { src: "/pic2.webp", tag: "Signature Pour Homme Scent", title: "Aura of", highlight: "Prestige" },         
-  { src: "/pic3.webp", tag: "Designer Aviator Sunglasses", title: "Visionary", highlight: "Style" },        
-  { src: "/pic4.webp", tag: "Classic Casual Leather Belt", title: "Signature", highlight: "Craft" },         
-  { src: "/pic5.webp", tag: "Next-Gen Smartwatch", title: "Smart", highlight: "Evolution" },            
-  { src: "/pic6.webp", tag: "Active Noise Cancelling acoustics", title: "Immersive", highlight: "Sound" },           
-  { src: "/pic7.webp", tag: "Luxury Leather Wallet", title: "Refined", highlight: "Elegance" },         
-  { src: "/pic8.webp", tag: "Luxury Eau De Parfum Notes", title: "Timeless", highlight: "Essence" }            
+  { src: "/pic2.webp", tag: "Signature Scent", title: "Aura of", highlight: "Prestige" },         
+  { src: "/pic3.webp", tag: "Designer Eyewear", title: "Visionary", highlight: "Style" },         
+  { src: "/pic4.webp", tag: "Handcrafted Leather", title: "Signature", highlight: "Craft" },         
+  { src: "/pic5.webp", tag: "Next-Gen Tech", title: "Smart", highlight: "Evolution" },            
+  { src: "/pic6.webp", tag: "Pure Acoustics", title: "Immersive", highlight: "Sound" },           
+  { src: "/pic7.webp", tag: "Executive Wallets", title: "Refined", highlight: "Elegance" },         
+  { src: "/pic8.webp", tag: "Luxury Fragrance", title: "Timeless", highlight: "Essence" }            
 ];
 
 // 🚀 GLOBAL MEMORY CACHE
@@ -30,20 +30,15 @@ let hasVisitedHomepage = false;
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>(cachedProducts);
   const [isLoading, setIsLoading] = useState(cachedProducts.length === 0);
 
-  // 🚀 Carousel Logic (Runs for all 8 items)
+  // 🚀 Carousel Logic
   useEffect(() => {
-    const idleTimer = setTimeout(() => {
-      const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % carouselItems.length), 3500);
-      return () => clearInterval(timer);
-    }, 500); 
-    return () => clearTimeout(idleTimer);
+    const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % carouselItems.length), 4500);
+    return () => clearInterval(timer);
   }, []);
 
-  // 🚀 Position Fix: Show ONLY current image
   const getPosition = (index: number) => {
     const diff = (index - currentIndex + carouselItems.length) % carouselItems.length;
     if (diff === 0) return { x: "0%", scale: 1, zIndex: 50, opacity: 1 };
@@ -51,11 +46,12 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (hasVisitedHomepage) return;
-
     const fetchFastData = async () => {
-      if (cachedProducts.length === 0) setIsLoading(true);
-
+      if (cachedProducts.length > 0) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
       try {
           const { data: productsData } = await supabase
             .from('products')
@@ -66,22 +62,18 @@ export default function Home() {
               setAllStoreProducts(productsData); 
               cachedProducts = productsData; 
           }
-          
           setIsLoading(false); 
-          hasVisitedHomepage = true; 
       } catch (error) {
           console.error("Store loading error:", error);
           setIsLoading(false); 
       }
     };
-
     fetchFastData();
   }, []);
 
-  // 🚀 GET MIXED TRENDING ITEMS FOR "THE VAULT"
+  // 🚀 MIXED TRENDING VAULT
   const trendingVaultProducts = useMemo(() => {
       if (allStoreProducts.length === 0) return [];
-      // Grab top 8 pinned items regardless of category to mix them up
       return allStoreProducts.filter(p => p.is_pinned === true).slice(0, 8);
   }, [allStoreProducts]);
 
@@ -89,68 +81,30 @@ export default function Home() {
   return (
     <main className="min-h-screen text-aura-brown bg-[#FDFBF7] relative w-full max-w-[100vw] overflow-x-hidden">
       
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up {
-          animation: fadeInUp 0.8s ease-out forwards;
-        }
-
-        /* 🚀 PURE CSS BACKGROUND STYLES (Lag-free) */
-        .bg-luxury-gradient {
-            background: linear-gradient(135deg, #FDFBF7 0%, #EBE2CD 40%, #D4AF37 80%, #6B4E31 100%);
-        }
-        
-        .bg-bubbles {
-            background-image: 
-              radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.6) 0%, transparent 35%),
-              radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
-              radial-gradient(circle at 50% 80%, rgba(212, 175, 55, 0.2) 0%, transparent 50%),
-              radial-gradient(circle at 85% 20%, rgba(139, 115, 85, 0.15) 0%, transparent 40%);
-        }
-      `}} />
-
       <Navbar />
 
       {/* 🚀 HERO SECTION */}
-      <section className="relative w-full flex flex-col items-center justify-start pt-[76px] md:pt-[90px] pb-8 overflow-hidden bg-luxury-gradient">
+      <section className="relative w-full flex flex-col items-center justify-start pt-[100px] md:pt-[140px] pb-12 overflow-hidden bg-[#FDFBF7]">
           
-          {/* Bubbles Effect */}
-          <div className="absolute inset-0 z-0 bg-bubbles pointer-events-none"></div>
+          <div className="absolute top-0 left-0 w-full h-full opacity-40 pointer-events-none bg-[radial-gradient(circle_at_50%_-20%,#EBE2CD,transparent_70%)]"></div>
 
-          {/* SVG Elegant Gold Curves */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 opacity-50" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <defs>
-                  <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#D4AF37" />
-                      <stop offset="50%" stopColor="#FFF2CD" />
-                      <stop offset="100%" stopColor="#8B7355" />
-                  </linearGradient>
-              </defs>
-              <path d="M-10,40 Q30,100 110,20" fill="none" stroke="url(#goldGrad)" strokeWidth="0.3"/>
-              <path d="M-10,80 Q50,-10 110,50" fill="none" stroke="url(#goldGrad)" strokeWidth="0.15" className="opacity-70"/>
-              <path d="M-20,20 Q40,120 120,30" fill="none" stroke="#ffffff" strokeWidth="1" className="opacity-60"/>
-          </svg>
-
-          {/* 🚀 DYNAMIC TOP TEXT (Order Changed for Mobile) */}
-          <div className="relative z-20 flex flex-col items-center text-center px-4 w-full mt-2 md:mt-4 mb-4 order-2 md:order-1">
+          {/* 🚀 DYNAMIC TOP TEXT */}
+          <div className="relative z-20 flex flex-col items-center text-center px-4 w-full mb-8 order-2 md:order-1">
              <AnimatePresence mode="wait">
                  <motion.div
                     key={currentIndex}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="flex flex-col items-center"
                  >
-                    <p className="text-[10px] md:text-xs font-bold font-serif text-[#1E1B18] tracking-normal uppercase mb-1 drop-shadow-sm">
+                    <p className="text-[10px] md:text-xs font-bold tracking-[0.4em] text-aura-gold uppercase mb-3 drop-shadow-sm">
                         {carouselItems[currentIndex].tag}
                     </p>
-                    <h1 className="text-[3.2rem] sm:text-6xl md:text-7xl lg:text-[6.5rem] font-serif font-medium text-[#1E1B18] leading-[1] tracking-tight">
-                        {carouselItems[currentIndex].title} <br className="md:hidden" />
-                        <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#8B7355] pb-1">
+                    <h1 className="text-[3.5rem] sm:text-7xl md:text-8xl lg:text-[7.5rem] font-serif font-medium text-[#1E1B18] leading-[0.9] tracking-tighter">
+                        {carouselItems[currentIndex].title} <br className="hidden md:block" />
+                        <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-[#8B7355] to-[#D4AF37] animate-gradient-x">
                             {carouselItems[currentIndex].highlight}
                         </span>
                     </h1>
@@ -158,9 +112,8 @@ export default function Home() {
              </AnimatePresence>
           </div>
 
-          {/* Center Item Container (Order Changed for Mobile) */}
-          <div className="relative w-full h-[220px] md:h-[400px] flex justify-center items-center z-30 pointer-events-none order-1 md:order-2">
-              
+          {/* Center Image Container */}
+          <div className="relative w-full h-[250px] md:h-[450px] flex justify-center items-center z-30 pointer-events-none order-1 md:order-2 mb-8 md:mb-0">
               <AnimatePresence>
                   {carouselItems.map((item, index) => {
                       const pos = getPosition(index);
@@ -168,19 +121,19 @@ export default function Home() {
                       return (
                           <motion.div
                               key={index}
-                              initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-                              animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-                              transition={{ duration: 0.5, ease: "easeOut" }}
+                              initial={{ scale: 0.8, opacity: 0, rotateY: 45 }}
+                              animate={{ scale: pos.scale, opacity: pos.opacity, rotateY: 0 }}
+                              exit={{ scale: 1.1, opacity: 0, rotateY: -45 }}
+                              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
                               className="absolute flex justify-center items-center"
                           >
-                              <div className="relative w-[220px] h-[220px] md:w-[400px] md:h-[400px]">
+                              <div className="relative w-[280px] h-[280px] md:w-[500px] md:h-[500px]">
                                   <Image 
                                       src={item.src} 
-                                      alt={`AURA-X Premium ${item.highlight}`} 
+                                      alt="AURA-X Luxury" 
                                       fill 
-                                      className={`object-contain transition-all duration-500 drop-shadow-[0_20px_30px_rgba(30,27,24,0.35)]`} 
+                                      className="object-contain drop-shadow-[0_30px_50px_rgba(0,0,0,0.15)]" 
                                       priority={index === 0} 
-                                      sizes="(max-width: 768px) 300px, 500px"
                                       unoptimized={true}
                                   />
                               </div>
@@ -189,112 +142,110 @@ export default function Home() {
                   })}
               </AnimatePresence>
           </div>
-          
       </section>
 
-      {/* ---------------- MULTI-CATEGORY DEPARTMENT STORE SECTIONS ---------------- */}
+      {/* 🚀 1. SMART CATEGORY HUB (Fixed Links) */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-20 relative z-30">
+          <div className="text-center mb-12">
+              <p className="text-aura-gold text-[10px] font-bold tracking-[0.3em] uppercase mb-2">The Departments</p>
+              <h2 className="text-4xl md:text-6xl font-serif text-aura-brown leading-tight font-medium">Curated Essentials</h2>
+          </div>
 
-      <div className="relative z-10 flex flex-col min-h-screen w-full bg-gradient-to-b from-[#FDFBF7] via-[#F2EFE9] to-[#EBE4D8]">
-          <div className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply opacity-50" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }}></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {[
+                { title: "Timepieces", img: "/pic1.webp", link: "/watches" },
+                { title: "Fragrances", img: "/pic8.webp", link: "/fragrances" },
+                { title: "Leather", img: "/pic7.webp", link: "/accessories" },
+                { title: "Tech", img: "/pic5.webp", link: "/smart-tech" }
+              ].map((cat, i) => (
+                 <Link href={cat.link} key={i} className="group relative w-full aspect-[3/4] overflow-hidden rounded-[2rem] bg-white border border-aura-gold/10 shadow-sm hover:shadow-2xl hover:border-aura-gold/40 transition-all duration-500">
+                     <Image src={cat.img} alt={cat.title} fill className="object-contain p-4 md:p-8 group-hover:scale-110 transition-transform duration-700 opacity-90" unoptimized={true} />
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                     <div className="absolute bottom-6 left-0 right-0 text-center transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                        <h3 className="text-aura-brown group-hover:text-white font-serif text-xl md:text-2xl tracking-wide">{cat.title}</h3>
+                        <p className="text-[9px] text-aura-gold font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity mt-1">Shop Collection</p>
+                     </div>
+                 </Link>
+              ))}
+          </div>
+      </div>
 
-          <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-12 md:mt-16">
-              
-              {/* 🚀 1. THE CATEGORY HUB (Visual Grid) */}
-              <div className="mb-20">
-                  <div className="text-center mb-8 md:mb-12 animate-fade-in-up">
-                      <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
-                          <Sparkles size={14} className="text-aura-gold" /> Explore The Collections <Sparkles size={14} className="text-aura-gold" />
-                      </p>
-                      <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
+      {/* 🚀 2. THE LUXURY VAULT (Mixed Trending) */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 pb-24 relative z-30">
+          {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                  <div className="w-8 h-8 border-2 border-aura-gold border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <p className="text-xs font-bold tracking-widest uppercase">Opening Vault...</p>
+              </div>
+          ) : trendingVaultProducts.length > 0 && (
+              <div className="w-full">
+                  <div className="flex justify-between items-end mb-10">
+                      <div>
+                          <p className="text-aura-gold text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
+                              <Star size={12} fill="#D4AF37" /> Global Favorites
+                          </p>
+                          <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-none">Trending Now</h2>
+                      </div>
+                      <Link href="/men" className="hidden md:flex items-center gap-2 text-[10px] font-black text-aura-gold border-b-2 border-aura-gold/20 pb-1 hover:border-aura-gold transition-all uppercase tracking-widest">
+                         Explore All <ArrowRight size={14}/>
+                      </Link>
                   </div>
-
-                  {/* Visual Category Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-fade-in-up">
-                      {[
-                        { title: "Timepieces", img: "/cat-watch.jpg", link: "/category/watches" },
-                        { title: "Fragrances", img: "/cat-perfume.jpg", link: "/category/fragrances" },
-                        { title: "Leather Essentials", img: "/cat-wallet.jpg", link: "/category/accessories" },
-                        { title: "Smart Tech", img: "/cat-tech.jpg", link: "/category/smart-tech" }
-                      ].map((cat, i) => (
-                         <Link href={cat.link} key={i} className="group relative w-full aspect-[4/5] md:aspect-square overflow-hidden rounded-2xl bg-[#EBE4D8] border border-[#D4AF37]/20 shadow-md">
-                             <Image src={cat.img} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700 opacity-90 group-hover:opacity-100 mix-blend-multiply" />
-                             {/* Gradient Overlay for Text Readability */}
-                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                             <div className="absolute bottom-4 left-4 right-4 text-center">
-                                <h3 className="text-white font-serif text-lg md:text-2xl tracking-wider">{cat.title}</h3>
-                                <div className="mt-2 w-8 h-[2px] bg-[#D4AF37] mx-auto group-hover:w-full transition-all duration-500"></div>
-                             </div>
-                         </Link>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8">
+                      {trendingVaultProducts.map((product: any) => (
+                          <div key={product.id} className="will-change-transform">
+                              <ProductCard product={product} priority={false} />
+                          </div>
                       ))}
                   </div>
               </div>
+          )}
+      </div>
 
-              {/* 🚀 2. THE VAULT / MIXED TRENDING ITEMS */}
-              {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-32 opacity-50">
-                      <div className="w-12 h-12 border-4 border-aura-brown border-t-transparent rounded-full animate-spin mb-4"></div>
-                      <p className="font-serif text-aura-brown text-xl animate-pulse">Accessing Vault...</p>
-                  </div>
-              ) : (
-                  <div className="mb-20">
-                      {trendingVaultProducts.length > 0 && (
-                          <div className="w-full">
-                              <div className="flex justify-between items-end mb-3 md:mb-6">
-                                  <div>
-                                      <p className="text-aura-brown text-[10px] font-bold tracking-[0.3em] uppercase mb-1 flex items-center gap-2">
-                                          <Star size={12} fill="#D4AF37" className="text-aura-gold"/> Highly Coveted
-                                      </p>
-                                      <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">The Luxury Vault</h2>
-                                  </div>
-                                  <Link href="/all-products" className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
-                                     View All <ArrowRight size={16}/>
-                                  </Link>
-                              </div>
-                              
-                              {/* 🚀 FIXED LAG: Removed backdrop-blur, added bg-white and will-change-transform for buttery smooth performance */}
-                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 w-full pt-4">
-                                  {trendingVaultProducts.map((product: any) => (
-                                      <div key={product.id} className="w-full h-full rounded-[1rem] md:rounded-[1.5rem] shadow-sm hover:shadow-md bg-white border border-[#3A2A18]/5 hover:-translate-y-1 transition-transform duration-300 will-change-transform">
-                                          <ProductCard product={product} priority={false} />
-                                      </div>
-                                  ))}
-                              </div>
-                          </div>
-                      )}
-                  </div>
-              )}
-
-              {/* 🚀 3. THE GIFTING / COMBOS BANNER WITH TAGLINE */}
-              <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-12 flex flex-col lg:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group mt-12">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/10 blur-[100px] rounded-full pointer-events-none"></div>
-                  
-                  <div className="flex flex-col text-center lg:text-left z-10 max-w-xl mb-8 lg:mb-0">
-                     <p className="text-[#D4AF37] text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center lg:justify-start gap-2">
-                        <Gift size={14}/> Special Pairings
-                     </p>
-                     <h2 className="text-3xl md:text-5xl font-serif text-white leading-tight mb-4">The Perfect Gift Combos</h2>
-                     
-                     <p className="text-gray-400 text-sm md:text-base mb-6">Carefully curated combinations of our finest watches, wallets, and fragrances. Perfect for gifting or treating yourself.</p>
-                     
-                     <div>
-                        <span className="inline-block bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-[10px] md:text-xs tracking-widest uppercase px-4 py-2 rounded-full shadow-[0_0_15px_rgba(212,175,55,0.3)] animate-pulse border border-[#F9E596]">
-                            Extra Rs. 200 Off In Custom Combos
-                        </span>
-                     </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-4 relative z-10 w-full sm:w-auto">
-                      <Link href="/custom-combo" className="px-6 py-4 bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-xs tracking-widest uppercase transition-all duration-300 rounded-full shadow-[0_5px_15px_rgba(212,175,55,0.3)] flex items-center justify-center gap-2 hover:scale-105 border border-[#F9E596]/50">
-                          <Sparkles size={16} className="text-[#1E1B18]"/> Create Custom Combo 
-                      </Link>
-                      <Link href="/category/combos" className="px-6 py-4 bg-transparent border border-[#D4AF37]/50 text-white hover:bg-white hover:text-[#1E1B18] font-bold text-xs tracking-widest uppercase transition-all duration-300 rounded-full flex items-center justify-center gap-2 group/btn">
-                          Pre-Made Combos <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform"/>
-                      </Link>
-                  </div>
+      {/* 🚀 3. CUSTOM COMBO MASTER SECTION (Multi-Item Focus) */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 mb-32">
+          <div className="w-full rounded-[3rem] bg-[#1E1B18] p-10 md:p-20 flex flex-col lg:flex-row items-center justify-between border border-aura-gold/20 shadow-2xl relative overflow-hidden group">
+              {/* Background Luxury Elements */}
+              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-aura-gold/5 blur-[120px] rounded-full pointer-events-none"></div>
+              <div className="absolute -bottom-20 -left-20 w-[300px] h-[300px] bg-white/5 blur-[80px] rounded-full pointer-events-none"></div>
+              
+              <div className="flex flex-col text-center lg:text-left z-10 max-w-2xl">
+                 <div className="inline-flex items-center gap-2 bg-aura-gold/10 border border-aura-gold/20 px-4 py-2 rounded-full mb-6 w-fit mx-auto lg:mx-0">
+                    <Gift size={16} className="text-aura-gold"/>
+                    <span className="text-[10px] text-white font-bold tracking-[0.2em] uppercase">The Art of Pairing</span>
+                 </div>
+                 
+                 <h2 className="text-4xl md:text-6xl font-serif text-white leading-[1.1] mb-6">Craft Your Own <br/> <span className="italic text-aura-gold">Signature Bundle</span></h2>
+                 
+                 <p className="text-gray-400 text-sm md:text-lg mb-10 leading-relaxed">
+                    Why settle for one? Pair our master-crafted timepieces with signature fragrances or premium leather accessories to create a gift that speaks volumes.
+                 </p>
+                 
+                 <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <Link href="/custom-combo" className="w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-xs tracking-[0.2em] uppercase rounded-full shadow-[0_20px_40px_rgba(212,175,55,0.2)] hover:scale-105 transition-all flex items-center justify-center gap-3">
+                        <Sparkles size={18}/> START BUILDING
+                    </Link>
+                    <div className="text-center sm:text-left">
+                        <p className="text-white font-bold text-lg">Instant Rs. 200 OFF</p>
+                        <p className="text-gray-500 text-xs tracking-widest uppercase">Unlocked on every combo</p>
+                    </div>
+                 </div>
               </div>
 
+              <div className="relative mt-16 lg:mt-0 w-full lg:w-[400px] aspect-square flex items-center justify-center">
+                  {/* Decorative Multi-Item Visual */}
+                  <div className="absolute inset-0 bg-aura-gold/10 rounded-full animate-pulse"></div>
+                  <div className="relative z-10 w-full h-full flex items-center justify-center">
+                      <ShoppingBag size={120} className="text-aura-gold opacity-20" />
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                          <span className="text-white font-serif text-6xl">2+</span>
+                          <span className="text-aura-gold font-bold text-xs tracking-widest">ITEMS</span>
+                      </div>
+                  </div>
+              </div>
           </div>
       </div>
+
     </main>
   );
 }

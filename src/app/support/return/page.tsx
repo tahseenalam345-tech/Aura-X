@@ -33,177 +33,149 @@ export default function ReturnPage() {
         <div className="max-w-6xl mx-auto">
             
             {/* BREADCRUMB */}
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-8 pl-1">
-                <Link href="/" className="hover:text-aura-gold"><Home size={14}/></Link>
-                <ChevronRight size={14}/>
-                <span className="font-bold text-aura-brown">Return & Exchange</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-10 px-4">
+                <Link href="/" className="hover:text-aura-gold transition-colors flex items-center gap-1"><Home size={14}/> Home</Link>
+                <ChevronRight size={12}/>
+                <Link href="/support" className="hover:text-aura-gold transition-colors">Support</Link>
+                <ChevronRight size={12}/>
+                <span className="text-aura-brown border-b border-aura-brown">Return & Exchange</span>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start mb-24">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start mb-24 animate-in fade-in slide-in-from-bottom-8 duration-700">
                 
                 {/* --- LEFT: RETURN FORM --- */}
-                <div className="lg:col-span-2 bg-white p-6 md:p-10 rounded-[2rem] shadow-xl border border-gray-100">
+                <div className="lg:col-span-2 bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-aura-gold/10">
                     {success ? (
-                        <div className="text-center py-16">
-                            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce"><CheckCircle size={40} /></div>
+                        <div className="text-center py-16 animate-in zoom-in duration-500">
+                            <div className="w-24 h-24 bg-green-50 border border-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle size={48} strokeWidth={1.5} /></div>
                             <h2 className="text-3xl font-serif font-bold mb-4">Request Received</h2>
-                            <p className="text-gray-500 mb-8 leading-relaxed">
-                                We have received your return request for Order <span className="font-bold text-aura-brown">#{formData.orderId}</span>. 
-                                <br/>Our support team will review it and contact you via WhatsApp or Email within 24 hours.
+                            <p className="text-gray-500 mb-8 leading-relaxed max-w-md mx-auto">
+                                We have securely received your return request for Order <span className="font-bold text-aura-brown">#{formData.orderId}</span>. 
+                                <br/><br/>Our Concierge Team will review the details and contact you via WhatsApp or Email within 24-48 hours.
                             </p>
-                            <button onClick={() => setSuccess(false)} className="text-aura-brown font-bold underline hover:text-aura-gold">Submit another request</button>
+                            <button onClick={() => setSuccess(false)} className="text-aura-gold font-bold text-xs uppercase tracking-widest hover:text-aura-brown transition-colors underline underline-offset-4">Submit another request</button>
                         </div>
                     ) : (
                         <>
-                            <h1 className="text-3xl font-serif font-bold mb-2">File a Return</h1>
-                            <p className="text-gray-500 mb-8 text-sm">Please fill out the form below to start your return or exchange process.</p>
+                            <h1 className="text-3xl md:text-4xl font-serif font-bold mb-2">File a Return</h1>
+                            <p className="text-gray-500 mb-8 text-sm max-w-lg">Please fill out the form below within 7 days of delivery to start your return or exchange process.</p>
                             
-                            <form onSubmit={handleSubmit} className="space-y-5">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="block text-xs font-bold uppercase mb-2 tracking-wider text-gray-400">Full Name</label>
-                                        <input required className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Ali Khan" />
+                                        <label className="block text-[10px] font-bold uppercase mb-2 tracking-widest text-gray-500 ml-1">Full Name</label>
+                                        <input required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-sm shadow-inner" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Ali Khan" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold uppercase mb-2 tracking-wider text-gray-400">Phone Number</label>
-                                        <input required className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="0300-1234567" />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase mb-2 tracking-wider text-gray-400">Email Address</label>
-                                        <input required type="email" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="you@example.com" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase mb-2 tracking-wider text-gray-400">Order ID</label>
-                                        <input required className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all" value={formData.orderId} onChange={e => setFormData({...formData, orderId: e.target.value})} placeholder="#AX-...." />
+                                        <label className="block text-[10px] font-bold uppercase mb-2 tracking-widest text-gray-500 ml-1">Phone Number</label>
+                                        <input required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-sm shadow-inner" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="0300-1234567" />
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="block text-xs font-bold uppercase mb-2 tracking-wider text-gray-400">Purchase Date</label>
-                                        <input required type="date" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-gray-600" value={formData.purchaseDate} onChange={e => setFormData({...formData, purchaseDate: e.target.value})} />
+                                        <label className="block text-[10px] font-bold uppercase mb-2 tracking-widest text-gray-500 ml-1">Email Address</label>
+                                        <input required type="email" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-sm shadow-inner" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="you@example.com" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold uppercase mb-2 tracking-wider text-gray-400">Reason for Return</label>
-                                        <select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-gray-600" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})}>
+                                        <label className="block text-[10px] font-bold uppercase mb-2 tracking-widest text-gray-500 ml-1">Order ID</label>
+                                        <input required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-sm shadow-inner uppercase" value={formData.orderId} onChange={e => setFormData({...formData, orderId: e.target.value})} placeholder="ORD-XXXXX" />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase mb-2 tracking-widest text-gray-500 ml-1">Purchase Date</label>
+                                        <input required type="date" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-sm text-gray-600 shadow-inner" value={formData.purchaseDate} onChange={e => setFormData({...formData, purchaseDate: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase mb-2 tracking-widest text-gray-500 ml-1">Reason for Return</label>
+                                        <select className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-sm text-gray-600 shadow-inner" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})}>
                                             <option>Defective / Damaged Item</option>
                                             <option>Wrong Item Received</option>
-                                            <option>Size / Fit Issue</option>
-                                            <option>Change of Mind</option>
+                                            <option>Size / Fit Issue (Accessories)</option>
+                                            <option>Quality Not as Expected</option>
                                             <option>Other</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold uppercase mb-2 tracking-wider text-gray-400">Additional Details</label>
-                                    <textarea required rows={4} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all" placeholder="Please describe the issue..." value={formData.details} onChange={e => setFormData({...formData, details: e.target.value})}></textarea>
+                                    <label className="block text-[10px] font-bold uppercase mb-2 tracking-widest text-gray-500 ml-1">Additional Details</label>
+                                    <textarea required rows={5} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold focus:ring-1 focus:ring-aura-gold transition-all text-sm resize-none shadow-inner" placeholder="Please clearly describe the issue..." value={formData.details} onChange={e => setFormData({...formData, details: e.target.value})}></textarea>
                                 </div>
 
-                                <button type="submit" disabled={loading} className="w-full bg-aura-brown text-white font-bold py-4 rounded-xl hover:bg-aura-gold transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 shadow-lg">
-                                    {loading ? <Loader2 className="animate-spin" /> : "Submit Return Request"}
+                                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-aura-brown to-[#2A241D] text-white font-bold py-4 rounded-full hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-xs disabled:opacity-50 shadow-lg">
+                                    {loading ? <Loader2 className="animate-spin" size={16} /> : "Submit Return Request"}
                                 </button>
                             </form>
                         </>
                     )}
                 </div>
 
-                {/* --- RIGHT: CONTACT INFO --- */}
+                {/* --- RIGHT: POLICY INFO --- */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-[#1A1A1A] text-white p-8 rounded-[2rem] shadow-lg relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-aura-gold/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                        <h3 className="font-serif text-2xl font-bold mb-6 text-aura-gold">Contact Support</h3>
+                    <div className="bg-[#1E1B18] text-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-aura-gold/10 rounded-full blur-[60px] -mr-10 -mt-10 pointer-events-none"></div>
+                        <h3 className="font-serif text-2xl font-bold mb-6 text-aura-gold flex items-center gap-3">
+                            <ShieldCheck size={24} /> General Policy
+                        </h3>
                         
-                        <div className="space-y-6">
+                        <div className="space-y-6 text-sm text-white/70">
                             <div className="flex gap-4">
-                                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-aura-gold"><Clock size={20}/></div>
+                                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/5 flex items-center justify-center shrink-0 text-aura-gold"><Clock size={18}/></div>
                                 <div>
-                                    <h4 className="font-bold text-sm mb-1">Availability</h4>
-                                    <p className="text-xs text-gray-400 leading-relaxed">Mon - Sat (10:00 AM - 6:00 PM)</p>
+                                    <h4 className="font-bold text-white mb-1">7-Day Window</h4>
+                                    <p className="leading-relaxed text-xs">Returns must be filed within 7 days of the delivery date. Late requests will not be entertained.</p>
                                 </div>
                             </div>
 
                             <div className="flex gap-4">
-                                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-aura-gold"><Package size={20}/></div>
+                                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/5 flex items-center justify-center shrink-0 text-aura-gold"><Package size={18}/></div>
                                 <div>
-                                    <h4 className="font-bold text-sm mb-1">Return Window</h4>
-                                    <p className="text-xs text-gray-400 leading-relaxed">7 Days from delivery date.</p>
+                                    <h4 className="font-bold text-white mb-1">Original Condition</h4>
+                                    <p className="leading-relaxed text-xs">Items must be unused, with all tags, protective films, and original luxury boxes intact.</p>
                                 </div>
                             </div>
                         </div>
-                         
-                        <div className="mt-8 pt-6 border-t border-white/10">
-                            <p className="text-xs text-gray-500 mb-1">WhatsApp Us</p>
-                            <p className="text-lg font-bold text-white">+92 336 9871278</p>
+                    </div>
+
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100">
+                        <h3 className="font-serif text-xl font-bold mb-6 text-aura-brown border-b border-gray-100 pb-4">Category Specifics</h3>
+                        
+                        <div className="space-y-4 text-sm text-gray-600">
+                            <div>
+                                <p className="font-bold text-gray-900 mb-1">Watches & Smart Tech</p>
+                                <p className="text-xs">Straps must not be adjusted or links removed. Protective dial stickers must be intact.</p>
+                            </div>
+                            <div className="pt-3 border-t border-dashed border-gray-100">
+                                <p className="font-bold text-red-600 mb-1">Fragrances</p>
+                                <p className="text-xs">Due to hygiene standards, perfumes <strong className="text-gray-900">cannot be returned or exchanged</strong> once the outer plastic seal is opened.</p>
+                            </div>
+                            <div className="pt-3 border-t border-dashed border-gray-100">
+                                <p className="font-bold text-gray-900 mb-1">Leather Accessories</p>
+                                <p className="text-xs">Wallets and belts must not show any signs of wear, creases, or scratches.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* --- NEW SECTION: DETAILED POLICIES --- */}
-            <div className="mb-20">
-                <div className="text-center mb-12">
-                   <h2 className="text-3xl md:text-4xl font-serif font-bold text-aura-brown mb-4">Acceptance Policy</h2>
-                   <p className="text-gray-500">Please read our rejection criteria carefully.</p>
+            {/* Rider Rules */}
+            <div className="bg-[#FAF8F1] border border-aura-gold/20 p-8 md:p-10 rounded-[2.5rem] shadow-sm relative overflow-hidden max-w-4xl mx-auto">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-aura-brown via-aura-gold to-aura-brown"></div>
+              <div className="flex flex-col md:flex-row gap-8 items-center text-center md:text-left">
+                <div className="flex-1">
+                  <h3 className="text-2xl font-serif font-bold text-aura-brown mb-3 flex items-center justify-center md:justify-start gap-2">
+                    <Clock size={24} className="text-aura-gold"/> Open Parcel Policy
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed max-w-xl">
+                    As an AURA-X customer, you are allowed to check the parcel before payment. However, riders can wait a maximum of <strong className="text-aura-brown">5 to 10 minutes</strong>. Unjustified rejection at the doorstep (e.g., "Change of mind") may lead to blacklisting.
+                  </p>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                   {/* Valid Reasons */}
-                   <div className="bg-white p-8 rounded-[2rem] border border-green-100 shadow-sm relative overflow-hidden">
-                       <div className="absolute top-0 right-0 p-4 opacity-10"><CheckCircle size={100} className="text-green-600" /></div>
-                       <h3 className="text-xl font-serif font-bold text-green-800 mb-6 flex items-center gap-2"><CheckCircle size={20}/> Acceptable Rejection</h3>
-                       <ul className="space-y-4">
-                           <li className="flex gap-3 items-start text-sm text-gray-600">
-                               <span className="mt-1 w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
-                               <span><strong className="text-gray-900 block mb-1">Damaged Item</strong>If the watch is broken, scratched, or defective.</span>
-                           </li>
-                           <li className="flex gap-3 items-start text-sm text-gray-600">
-                               <span className="mt-1 w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
-                               <span><strong className="text-gray-900 block mb-1">Wrong Item</strong>If the model or color does not match order.</span>
-                           </li>
-                       </ul>
-                   </div>
-
-                   {/* Invalid Reasons */}
-                   <div className="bg-white p-8 rounded-[2rem] border border-red-100 shadow-sm relative overflow-hidden">
-                       <div className="absolute top-0 right-0 p-4 opacity-10"><XCircle size={100} className="text-red-600" /></div>
-                       <h3 className="text-xl font-serif font-bold text-red-800 mb-6 flex items-center gap-2"><XCircle size={20}/> Non-Acceptable Reasons</h3>
-                       <ul className="space-y-4">
-                           <li className="flex gap-3 items-start text-sm text-gray-600">
-                               <span className="mt-1 w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></span>
-                               <span><strong className="text-gray-900 block mb-1">Change of Mind</strong>Rejection because you "don't like it anymore" is not allowed.</span>
-                           </li>
-                           <li className="flex gap-3 items-start text-sm text-gray-600">
-                               <span className="mt-1 w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></span>
-                               <span><strong className="text-gray-900 block mb-1">Minor Box Dent</strong>Outer packaging damage by courier is not a valid reason.</span>
-                           </li>
-                       </ul>
-                   </div>
-                </div>
-
-                {/* Rider Rules */}
-                <div className="bg-[#1E1B18] text-white p-8 md:p-10 rounded-[2rem] shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-aura-brown via-aura-gold to-aura-brown"></div>
-                  <div className="flex flex-col md:flex-row gap-8 items-center">
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-serif font-bold text-aura-gold mb-4 flex items-center gap-2">
-                        <Clock size={24}/> Delivery & Inspection Protocol
-                      </h3>
-                      <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                        Riders can wait a maximum of <span className="text-white font-bold">5 to 10 minutes</span>. You cannot reject a parcel without a valid reason. Unjustified rejections may lead to blacklisting.
-                      </p>
-                    </div>
-                    <div className="bg-white/10 px-6 py-3 rounded-full border border-white/20">
-                       <p className="text-xs font-bold text-aura-gold uppercase tracking-widest">Support Line</p>
-                       <p className="text-lg font-bold">+92-336-9871278</p>
-                    </div>
-                  </div>
-                </div>
+              </div>
             </div>
-
+            
         </div>
       </div>
       <Footer />
