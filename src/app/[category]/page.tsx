@@ -40,7 +40,8 @@ const getCategoryTitle = (slug: string) => {
     'perfume-women': "Women's Fragrances",
     'men': "Men's Collection",
     'women': "Women's Precision",
-    'couple': "Couple's Bonds"
+    'couple': "Couple's Bonds",
+    'combos': "Curated Combos"
   };
   return titles[slug.toLowerCase()] || slug.replace('-', ' ');
 };
@@ -48,7 +49,7 @@ const getCategoryTitle = (slug: string) => {
 export default function CategoryPage() {
   const params = useParams();
   const categorySlug = params.category as string; 
-  const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection', 'style-quiz'];
+  const reservedRoutes = ['privacy-policy', 'support', 'track-order', 'admin', 'login', 'cart', 'eid-collection', 'style-quiz', 'custom-combo'];
 
   const isReturning = lastVisitedCategory === categorySlug;
 
@@ -67,9 +68,9 @@ export default function CategoryPage() {
 
   const initialRender = useRef(true);
 
-  // 🚀 CHECK IF CATEGORY IS WATCH-RELATED TO SHOW/HIDE SPECIFIC FILTERS
+  // 🚀 DYNAMIC CATEGORY CHECKS
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(categorySlug.toLowerCase());
-
+  
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
@@ -153,7 +154,7 @@ export default function CategoryPage() {
 
     if (product.price > priceRange) return false;
     
-    // Only apply watch filters if it's a watch category
+    // 🚀 APPLY WATCH SPECIFIC FILTERS ONLY IF IT IS A WATCH CATEGORY
     if (isWatchCategory) {
         if (selectedMovements.length > 0) {
             const move = product.specs?.movement || "Quartz";
@@ -270,7 +271,6 @@ export default function CategoryPage() {
             {selectedBrand !== "All" ? 'Brand Showcase' : 'Collection'}
           </span>
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-aura-brown capitalize px-4">
-            {/* 🚀 SMART DYNAMIC TITLE IMPLEMENTED HERE */}
             {selectedBrand !== "All" ? `${selectedBrand} Masterpieces` : getCategoryTitle(categorySlug)}
           </h1>
         </motion.div>
@@ -283,7 +283,7 @@ export default function CategoryPage() {
                       <button
                           key={brand}
                           onClick={() => setSelectedBrand(brand)}
-                          className={`px-5 py-2 md:px-6 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                          className={`px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
                               selectedBrand === brand
                               ? 'bg-aura-brown text-white border-aura-brown shadow-lg scale-105'
                               : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold hover:text-aura-brown'
@@ -357,8 +357,9 @@ export default function CategoryPage() {
             </div>
 
             {loading ? (
-                <div className="h-64 flex items-center justify-center text-aura-brown">
-                    <Loader2 className="animate-spin mr-2" /> Loading Vault...
+                <div className="h-64 flex flex-col items-center justify-center text-aura-brown/60">
+                    <Loader2 className="animate-spin mb-4 text-aura-gold" size={32} /> 
+                    <p className="text-sm font-serif italic tracking-wider">Accessing Vault...</p>
                 </div>
             ) : (
                 <div className="flex flex-col gap-12">
@@ -390,7 +391,15 @@ export default function CategoryPage() {
                 </div>
             )}
             
-            {!loading && filteredProducts.length === 0 && (
+            {/* 🚀 FIXED: EMPTY STATE UI */}
+            {!loading && products.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
+                    <p className="text-xl md:text-2xl font-serif text-gray-400 mb-2">No masterpieces found.</p>
+                    <p className="text-sm text-gray-400 mb-6">Our collection in this category is currently being curated.</p>
+                </div>
+            )}
+            
+            {!loading && products.length > 0 && filteredProducts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-6">No pieces match these criteria.</p>
                     <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]); setSortBy("featured"); setSelectedBrand("All");}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs hover:bg-aura-gold transition-colors">

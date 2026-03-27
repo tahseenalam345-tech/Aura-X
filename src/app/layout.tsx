@@ -15,11 +15,19 @@ const lato = Lato({ subsets: ["latin"], weight: ['300', '400', '700'], variable:
 export const metadata: Metadata = {
   metadataBase: new URL('https://aurax-watches.com'),
   title: {
-    default: "AURA-X | Luxury Timepieces",
+    // 🚀 DYNAMIC LUXURY TITLE
+    default: "AURA-X | Luxury Timepieces & Accessories",
     template: "%s | AURA-X"
   },
-  description: "Discover AURA-X, the pinnacle of luxury watches in Pakistan. Shop our exclusive collection of Men's, Women's, and Couple's timepieces. Swiss Precision, Timeless Elegance.",
-  keywords: ["luxury watches", "watches pakistan", "men watches", "women watches", "aura-x", "gift watches", "couple watches", "gold watches"],
+  // 🚀 BROADER DESCRIPTION FOR MULTI-CATEGORY
+  description: "Discover AURA-X, the pinnacle of luxury lifestyle in Pakistan. Shop our exclusive collection of Men's & Women's Timepieces, Premium Leather Wallets, Signature Fragrances, and Designer Sunglasses. Unmatched Precision, Timeless Elegance.",
+  // 🚀 ADDED NEW KEYWORDS FOR PERFUMES AND ACCESSORIES
+  keywords: [
+    "luxury watches pakistan", "men watches", "women watches", "aura-x", 
+    "couple watches", "gold watches", "premium leather wallets", 
+    "designer sunglasses", "luxury perfumes pakistan", "men fragrances", 
+    "custom gift combos", "smartwatches"
+  ],
   verification: {
     google: '73OSZgKuDAA1E1m_rcm4CUyCYboI3yXk87hB_jp2-qo',
     other: {
@@ -27,8 +35,8 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "AURA-X | Luxury Timepieces",
-    description: "Swiss Precision, Timeless Elegance.",
+    title: "AURA-X | Luxury Lifestyle & Timepieces",
+    description: "Swiss Precision, Timeless Elegance. Explore luxury watches, fragrances, and premium accessories.",
     url: 'https://aurax-watches.com',
     siteName: 'AURA-X',
     images: [
@@ -53,7 +61,8 @@ const jsonLd = {
   "name": "AURA-X",
   "url": "https://aurax-watches.com",
   "logo": "https://aurax-watches.com/logo.png",
-  "description": "Luxury Watch Brand in Pakistan",
+  // 🚀 UPDATED STRUCTURED DATA
+  "description": "Premium Luxury Lifestyle Brand in Pakistan offering Watches, Fragrances, and Leather Accessories.",
   "contactPoint": {
     "@type": "ContactPoint",
     "telephone": "+92-336-9871278",
@@ -89,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             !function (w, d, t) {
               w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
               
-              // 👇 REPLACE THIS WITH YOUR REAL TIKTOK PIXEL ID 👇
+              // 👇 TIKTOK PIXEL ID 👇
               ttq.load('D6NRJURC77U3SAC8BIFG');
               ttq.page();
             }(window, document, 'ttq');
