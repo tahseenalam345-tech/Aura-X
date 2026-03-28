@@ -118,9 +118,9 @@ export default function ProductClient() {
        if (currentProduct) {
            setProduct(currentProduct);
            
-           // 🚀 Auto-select first size if variants exist
+           // 🚀 Force user to select a size if variants exist (Removed auto-select to prevent accidental wrong size orders)
            if (currentProduct.variants?.sizes?.length > 0) {
-               setSelectedSize(currentProduct.variants.sizes[0]);
+               setSelectedSize(null);
            }
            
            const { data: allProductsData } = await supabase.from('products').select('manual_reviews, name');
@@ -156,6 +156,8 @@ export default function ProductClient() {
   const subCategoryName = product?.sub_category?.toLowerCase() || '';
   const isWatch = ['men', 'women', 'couple', 'watches'].includes(categoryName);
   const isPerfume = ['fragrances', 'perfume-men', 'perfume-women'].includes(categoryName);
+  
+  // 🚀 Safely get sizes
   const sizesAvailable = product?.variants?.sizes || [];
 
   const averageRating = useMemo(() => {
@@ -288,24 +290,36 @@ export default function ProductClient() {
 
   const handleAddToCart = () => {
     if (specs.stock <= 0) return toast.error("Sorry, this item is currently out of stock.");
-    if (sizesAvailable.length > 0 && !selectedSize) return toast.error("Please select a size first!");
-
-    const finalColorName = selectedColor?.name || "Standard";
-    const boxLabel = boxType === 'rolex' ? ' (+ Rolex Box)' : boxType === 'black' ? ' (+ Black Box)' : '';
     
-    // 🚀 Include size in cart payload
-    const sizeLabel = selectedSize ? ` - Size: ${selectedSize}` : '';
-    const finalPriceWithBox = product.price + (boxType === 'rolex' ? 300 : boxType === 'black' ? 200 : 0);
+    // 🚀 Strict Size Enforcement for Rings/Belts
+    if (sizesAvailable.length > 0 && !selectedSize) {
+        toast.error("Please select a size first!", { icon: '📏' });
+        return;
+    }
+
+    // 🚀 Build a super clean string for the Admin Panel (e.g., "Silver | Size: 9 | Rolex Box")
+    const finalColorName = selectedColor?.name || "Standard";
+    
+    let variantParts = [];
+    if (finalColorName !== "Standard") variantParts.push(finalColorName);
+    if (selectedSize) variantParts.push(`Size: ${selectedSize}`);
+    if (boxType === 'rolex') variantParts.push('Rolex Box');
+    if (boxType === 'black') variantParts.push('Black Box');
+    
+    const finalVariantString = variantParts.length > 0 ? variantParts.join(" | ") : "Standard Variant";
+
+    // Base price per unit (excluding gift wrap which is added in cart dynamically if needed)
+    const basePriceWithBox = product.price + (boxType === 'rolex' ? 300 : boxType === 'black' ? 200 : 0);
 
     addToCart({
       id: product.id, 
       name: displayShortName, 
-      price: finalPriceWithBox,
+      price: basePriceWithBox,
       image: selectedColor?.image || product.main_image, 
-      color: `${finalColorName}${sizeLabel}${boxLabel}`, 
+      color: finalVariantString, 
       quantity: quantity, 
       isGift: isGift, 
-      addBox: false,
+      addBox: boxType !== 'none',
       isEidExclusive: product.is_eid_exclusive
     });
 
@@ -313,7 +327,7 @@ export default function ProductClient() {
         content_name: displayShortName,
         content_ids: [product.id],
         content_type: 'product',
-        value: finalPriceWithBox * quantity,
+        value: (basePriceWithBox + (isGift ? GIFT_COST : 0)) * quantity,
         currency: 'PKR',
     });
 
@@ -612,9 +626,9 @@ export default function ProductClient() {
 
                 {/* 🚀 DYNAMIC SIZES SELECTOR */}
                 {sizesAvailable.length > 0 && (
-                    <div className="mb-6">
+                    <div className="mb-6 border-b border-gray-100 pb-6">
                         <div className="flex justify-between items-center mb-3">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Size</span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">Select Size <span className="text-red-500">*Required</span></span>
                         </div>
                         <div className="flex flex-wrap gap-3">
                             {sizesAvailable.map((size: string) => (
@@ -623,8 +637,8 @@ export default function ProductClient() {
                                     onClick={() => setSelectedSize(size)}
                                     className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border-2 ${
                                         selectedSize === size 
-                                        ? 'border-aura-gold bg-aura-gold/10 text-aura-brown shadow-sm' 
-                                        : 'border-gray-200 text-gray-500 hover:border-aura-gold/50'
+                                        ? 'border-aura-gold bg-aura-gold/10 text-aura-brown shadow-sm scale-105' 
+                                        : 'border-gray-200 text-gray-500 hover:border-aura-gold/50 hover:bg-gray-50'
                                     }`}
                                 >
                                     {size}
@@ -650,18 +664,19 @@ export default function ProductClient() {
                     </div>
                 )}
 
+                {/* EXTRAS */}
                 <div className="mb-8 space-y-3">
                     <div onClick={() => setIsGift(!isGift)} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${isGift ? 'bg-[#FAF8F1] border-aura-gold shadow-md' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
                         <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full flex items-center justify-center ${isGift ? 'bg-aura-gold text-white' : 'bg-gray-100 text-gray-400'}`}><Gift size={18} /></div><p className="font-bold text-sm text-aura-brown">Gift Wrap</p></div><span className="text-xs font-bold text-aura-gold">+ Rs {GIFT_COST}</span>
                     </div>
 
-                    <div onClick={() => setBoxType(boxType === 'black' ? 'none' : 'black')} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${boxType === 'black' ? 'bg-[#1E1B18] border-black shadow-md' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
+                    <div onClick={() => setBoxType(boxType === 'black' ? 'none' : 'black')} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${boxType === 'black' ? 'bg-[#1E1B18] border-black shadow-md text-white' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
                         <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${boxType === 'black' ? 'bg-white/10 text-aura-gold shadow-inner' : 'bg-gray-100 text-gray-400'}`}><Package size={18} /></div><p className={`font-bold text-sm ${boxType === 'black' ? 'text-white' : 'text-aura-brown'}`}>Premium Black Box</p></div><span className="text-xs font-bold text-aura-gold">+ Rs 200</span>
                     </div>
 
                     {/* 🚀 ROLEX BOX ONLY FOR WATCHES */}
                     {isWatch && (
-                      <div onClick={() => setBoxType(boxType === 'rolex' ? 'none' : 'rolex')} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${boxType === 'rolex' ? 'bg-[#006039] border-[#006039] shadow-md' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
+                      <div onClick={() => setBoxType(boxType === 'rolex' ? 'none' : 'rolex')} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${boxType === 'rolex' ? 'bg-[#006039] border-[#006039] shadow-md text-white' : 'bg-white border-gray-100 hover:border-aura-gold/50'}`}>
                           <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${boxType === 'rolex' ? 'bg-white/20 text-aura-gold shadow-inner' : 'bg-gray-100 text-gray-400'}`}><Package size={18} /></div><p className={`font-bold text-sm ${boxType === 'rolex' ? 'text-white' : 'text-aura-brown'}`}>Official Rolex Box</p></div><span className="text-xs font-bold text-aura-gold">+ Rs 300</span>
                       </div>
                     )}
@@ -791,7 +806,6 @@ export default function ProductClient() {
                <div className="bg-white/10 backdrop-blur-md p-8 rounded-[2rem] shadow-xl mb-12 border border-white/20 max-w-2xl mx-auto relative overflow-hidden">
                   <div className="absolute -top-10 -right-10 text-[150px] text-white/5 font-serif font-black pointer-events-none select-none z-0"><Quote/></div>
                   <div className="relative z-10 space-y-5">
-                      {/* 🚀 DYNAMIC REVIEW TEXT */}
                       <p className="font-bold text-center text-white mb-2 text-lg font-serif">How was your experience with {displayShortName}?</p>
                       <div className="flex justify-center gap-3 text-white/30 pb-5 border-b border-white/10">
                          {[1,2,3,4,5].map(star => <Star key={star} size={36} onClick={() => setReviewRating(star)} fill={star <= reviewRating ? "#D4AF37" : "none"} className={`cursor-pointer transition-transform hover:scale-110 ${star <= reviewRating ? "text-aura-gold drop-shadow-md" : "text-white/30"}`} />)}
@@ -864,7 +878,6 @@ export default function ProductClient() {
 
         <div className="border-t border-aura-gold/20 pt-10 mt-12 mb-12">
              <div className="flex justify-between items-center mb-6">
-                 {/* 🚀 DYNAMIC SIMILAR ITEMS HEADING */}
                  <h2 className="text-xl md:text-3xl font-serif text-aura-brown">Similar {isPerfume ? 'Fragrances' : isWatch ? 'Watches' : 'Masterpieces'}</h2>
                  {relatedProducts.length > 0 && (
                    <Link href={`/${product.category}`} className="text-xs font-bold flex items-center gap-1 hover:text-aura-gold">View All <ArrowRight size={12}/></Link>
@@ -876,6 +889,7 @@ export default function ProductClient() {
         </div>
       </div>
       
+      {/* 🚀 MOBILE BOTTOM STICKY BAR */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 z-[60] flex items-center justify-between pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
          <div className="flex flex-col">
             <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Total</span>
