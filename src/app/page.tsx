@@ -9,8 +9,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Moon, Gift } from "lucide-react"; 
 
+// 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
 const IS_EID_LIVE = false; 
 
+// 🚀 8 ITEMS EXACTLY FROM YOUR SCREENSHOT
 const carouselItems = [
   { src: "/pic1.webp", tag: "Premium Men's Watch", title: "Legacy in", highlight: "Motion" },       
   { src: "/pic2.webp", tag: "Signature Pour Homme Scent", title: "Aura of", highlight: "Prestige" },         
@@ -198,13 +200,16 @@ export default function Home() {
           <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-12 md:mt-16">
               
               {/* 🚀 GLOBAL DEMOGRAPHIC TOGGLE */}
-              <div className="flex justify-center mb-12 relative z-40 animate-fade-in-up">
-                  <div className="inline-flex bg-white/60 backdrop-blur-md p-1.5 rounded-full border border-aura-gold/20 shadow-sm">
+              <div className="flex flex-col items-center justify-center mb-16 relative z-40 animate-fade-in-up">
+                  <p className="text-[10px] md:text-xs font-bold text-aura-brown/60 tracking-[0.3em] uppercase mb-4 font-serif italic">
+                      Select your experience
+                  </p>
+                  <div className="inline-flex bg-white/60 backdrop-blur-md p-1.5 rounded-full border border-aura-gold/20 shadow-sm w-full md:w-auto overflow-x-auto scrollbar-hide">
                       {['all', 'men', 'women', 'couple'].map((gender) => (
                           <button
                               key={gender}
                               onClick={() => handleGenderSelect(gender as any)}
-                              className={`px-5 py-2.5 md:px-8 md:py-3 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all duration-300 ${
+                              className={`flex-1 md:flex-none px-5 py-3 md:px-8 md:py-3 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all duration-300 whitespace-nowrap ${
                                   globalGender === gender
                                   ? 'bg-aura-brown text-white shadow-lg scale-105'
                                   : 'text-gray-500 hover:text-aura-brown hover:bg-white/50'
@@ -226,9 +231,9 @@ export default function Home() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-fade-in-up">
                       {[
-                        // 🚀 FIXED LINKS: Direct dynamic routes without /category prefix
-                        { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
-                        { title: "Fragrances", img: "/cat-perfume.jpg", link: "/fragrances" },
+                        // 🚀 DYNAMIC LINKS: Added URL parameters to send global gender selection to categories
+                        { title: "Timepieces", img: "/cat-watch.jpg", link: `/watches${globalGender !== 'all' ? `?gender=${globalGender}` : ''}` },
+                        { title: "Fragrances", img: "/cat-perfume.jpg", link: `/fragrances${globalGender !== 'all' ? `?gender=${globalGender}` : ''}` },
                         { title: "Leather Essentials", img: "/cat-wallet.jpg", link: "/accessories" },
                         { title: "Smart Tech", img: "/cat-tech.jpg", link: "/smart-tech" }
                       ].map((cat, i) => (
@@ -276,6 +281,7 @@ export default function Home() {
                   </div>
               )}
 
+              {/* 🚀 3. THE GIFTING BANNER */}
               <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-12 flex flex-col lg:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group mt-12">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/10 blur-[100px] rounded-full pointer-events-none"></div>
                   <div className="flex flex-col text-center lg:text-left z-10 max-w-xl mb-8 lg:mb-0">
@@ -292,11 +298,11 @@ export default function Home() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-4 relative z-10 w-full sm:w-auto">
-                      <Link href="/custom-combo" className="px-6 py-4 bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-xs tracking-widest uppercase rounded-full shadow-lg flex items-center justify-center gap-2 hover:scale-105 border border-[#F9E596]/50">
+                      <Link href="/custom-combo" className="px-6 py-4 bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-xs tracking-widest uppercase transition-all duration-300 rounded-full shadow-[0_5px_15px_rgba(212,175,55,0.3)] flex items-center justify-center gap-2 hover:scale-105 border border-[#F9E596]/50">
                           <Sparkles size={16} className="text-[#1E1B18]"/> Create Custom Combo 
                       </Link>
                       {/* 🚀 FIXED LINK: Removed /category/ prefix */}
-                      <Link href="/combos" className="px-6 py-4 bg-transparent border border-[#D4AF37]/50 text-white hover:bg-white hover:text-[#1E1B18] font-bold text-xs tracking-widest uppercase rounded-full flex items-center justify-center gap-2 group/btn">
+                      <Link href="/combos" className="px-6 py-4 bg-transparent border border-[#D4AF37]/50 text-white hover:bg-white hover:text-[#1E1B18] font-bold text-xs tracking-widest uppercase transition-all duration-300 rounded-full flex items-center justify-center gap-2 group/btn">
                           Pre-Made Combos <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform"/>
                       </Link>
                   </div>
