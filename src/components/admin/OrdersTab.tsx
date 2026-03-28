@@ -78,7 +78,7 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
       window.open(url, '_blank');
   };
 
-  // --- 🚀 NEW CALCULATION HELPER ---
+  // --- 🚀 NEW CALCULATION HELPER (FIXED DOUBLE COUNTING) ---
   const getOrderTotals = (order: any) => {
       if (!order || !order.items) return { subtotal: 0, shipping: 250, comboDiscount: 0 };
       
@@ -87,17 +87,17 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
       
       order.items.forEach((item: any) => {
           const giftCost = item.isGift ? 300 : 0;
-          const boxCost = item.addBox ? 200 : 0;
+          // 🚀 FIX: Box cost is removed from here because the Front-End now merges it directly into item.price
           const qty = item.quantity || 1;
           
-          itemTotal += ((item.price + giftCost + boxCost) * qty);
+          itemTotal += ((item.price + giftCost) * qty);
           itemCount += qty;
       });
 
       // Standard Flat Rate
       const shipping = 250;
       
-      // Calculate if they applied a Combo Discount (Admin view helper to match final total)
+      // Calculate if they applied a Combo Discount
       const expectedTotalWithoutShipping = itemTotal;
       const actualDatabaseTotal = Number(order.total); 
       
@@ -233,8 +233,8 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                         <div className="space-y-4 mb-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             {selectedOrder.items?.map((item: any, i: number) => {
                                 const giftCost = item.isGift ? 300 : 0;
-                                const boxCost = item.addBox ? 200 : 0;
-                                const unitPrice = item.price + giftCost + boxCost;
+                                // 🚀 FIX: Box cost is removed here, as it's already a part of item.price
+                                const unitPrice = item.price + giftCost;
                                 const lineTotal = unitPrice * (item.quantity || 1);
 
                                 return (
@@ -255,11 +255,11 @@ export default function OrdersTab({ orders, fetchOrders }: { orders: any[], fetc
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-sm text-aura-brown line-clamp-1">{item.name || "Unknown Item"}</p>
+                                            {/* 🚀 Dynamic Variant text automatically shows Size and Box type */}
                                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Variant: <span className="text-aura-gold">{(item.color || "Standard")}</span></p>
                                             
                                             <div className="flex flex-col mt-1 text-[10px] text-gray-400 font-medium">
-                                                <span>Base: Rs {item.price.toLocaleString()}</span>
-                                                {item.addBox && <span className="text-orange-600">+ Premium Box (Rs 200)</span>}
+                                                <span>Price: Rs {item.price.toLocaleString()}</span>
                                                 {item.isGift && <span className="text-purple-600">+ Gift Wrap (Rs 300)</span>}
                                             </div>
                                         </div>

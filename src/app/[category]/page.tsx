@@ -74,6 +74,9 @@ export default function CategoryPage() {
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
+  // 🚀 NEW: GLOBAL GENDER FILTER
+  const [globalGender, setGlobalGender] = useState<string>("all");
+
   useEffect(() => {
       lastVisitedCategory = categorySlug;
       globalVisibleCount = visibleCount;
@@ -89,6 +92,15 @@ export default function CategoryPage() {
           const urlParams = new URLSearchParams(window.location.search);
           const brandFromUrl = urlParams.get('brand');
           if (brandFromUrl) setSelectedBrand(brandFromUrl);
+
+          // 🚀 CHECK FOR GENDER URL PARAM OR LOCAL STORAGE
+          const genderFromUrl = urlParams.get('gender');
+          if (genderFromUrl) {
+              setGlobalGender(genderFromUrl);
+          } else {
+              const savedGender = localStorage.getItem('aura_gender');
+              if (savedGender) setGlobalGender(savedGender);
+          }
       }
   }, []);
 
@@ -103,11 +115,17 @@ export default function CategoryPage() {
           setLoading(true);
       }
 
-      // 🚀 SMART QUERY: Checks both 'category' and 'sub_category' columns
-      const { data } = await supabase
-        .from('products')
-        .select('*')
-        .or(`category.ilike.${categorySlug},sub_category.ilike.${categorySlug}`); 
+      let query = supabase.from('products').select('*');
+
+      // 🚀 THE FIX: Smart Routing for Watches Parent Category
+      if (categorySlug.toLowerCase() === 'watches') {
+          query = query.in('category', ['men', 'women', 'couple', 'watches']);
+      } else {
+          // Standard query for other categories
+          query = query.or(`category.ilike.${categorySlug},sub_category.ilike.${categorySlug}`);
+      }
+
+      const { data } = await query;
       
       if (data) {
           setProducts(data);
@@ -125,7 +143,7 @@ export default function CategoryPage() {
         return;
     }
     setVisibleCount(8);
-  }, [priceRange, selectedMovements, selectedStraps, sortBy, selectedBrand]);
+  }, [priceRange, selectedMovements, selectedStraps, sortBy, selectedBrand, globalGender]);
 
   const availableBrands = useMemo(() => {
       const brandCounts: Record<string, number> = {};
@@ -150,6 +168,31 @@ export default function CategoryPage() {
   }, [products]);
 
   const filteredProducts = products.filter((product) => {
+    // 🚀 APPLY GLOBAL GENDER FILTER
+    if (globalGender !== "all") {
+        const cat = product.category?.toLowerCase() || '';
+        const subCat = product.sub_category?.toLowerCase() || '';
+
+        // Watches category strict matching based on gender
+        if (categorySlug.toLowerCase() === 'watches' || isWatchCategory) {
+            if (globalGender === 'men' && !['men', 'watches'].includes(cat)) return false;
+            if (globalGender === 'women' && !['women', 'watches'].includes(cat)) return false;
+            if (globalGender === 'couple' && cat !== 'couple') return false;
+        }
+        
+        // Fragrances strict matching based on gender
+        if (categorySlug.toLowerCase() === 'fragrances') {
+            if (globalGender === 'men' && subCat !== 'perfume-men') return false;
+            if (globalGender === 'women' && subCat !== 'perfume-women') return false;
+        }
+
+        // Accessories logic (assume mostly men unless jewelry)
+        if (categorySlug.toLowerCase() === 'accessories') {
+            if (globalGender === 'women' && subCat !== 'jewelry') return false;
+            if (globalGender === 'men' && subCat === 'jewelry') return false; 
+        }
+    }
+
     if (selectedBrand !== "All" && (product.brand || "AURA-X").trim().toUpperCase() !== selectedBrand.toUpperCase()) return false;
 
     if (product.price > priceRange) return false;
@@ -268,7 +311,7 @@ export default function CategoryPage() {
       <div className="pt-32 md:pt-40 pb-8 text-center bg-gradient-to-b from-white to-[#FDFBF7]">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <span className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase block mb-3">
-            {selectedBrand !== "All" ? 'Brand Showcase' : 'Collection'}
+            {selectedBrand !== "All" ? 'Brand Showcase' : globalGender !== 'all' ? `For ${globalGender}` : 'Collection'}
           </span>
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-aura-brown capitalize px-4">
             {selectedBrand !== "All" ? `${selectedBrand} Masterpieces` : getCategoryTitle(categorySlug)}
@@ -402,7 +445,7 @@ export default function CategoryPage() {
             {!loading && products.length > 0 && filteredProducts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-6">No pieces match these criteria.</p>
-                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]); setSortBy("featured"); setSelectedBrand("All");}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs hover:bg-aura-gold transition-colors">
+                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]); setSortBy("featured"); setSelectedBrand("All"); setGlobalGender("all"); localStorage.setItem('aura_gender', 'all')}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs hover:bg-aura-gold transition-colors">
                       CLEAR ALL FILTERS
                     </button>
                 </div>

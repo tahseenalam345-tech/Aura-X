@@ -9,10 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Moon, Gift } from "lucide-react"; 
 
-// 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
 const IS_EID_LIVE = false; 
 
-// 🚀 8 ITEMS EXACTLY FROM YOUR SCREENSHOT
 const carouselItems = [
   { src: "/pic1.webp", tag: "Premium Men's Watch", title: "Legacy in", highlight: "Motion" },       
   { src: "/pic2.webp", tag: "Signature Pour Homme Scent", title: "Aura of", highlight: "Prestige" },         
@@ -31,14 +29,32 @@ export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>(cachedProducts);
   const [isLoading, setIsLoading] = useState(cachedProducts.length === 0);
+  
+  // 🚀 GLOBAL GENDER STATE
+  const [globalGender, setGlobalGender] = useState<"all" | "men" | "women" | "couple">("all");
 
   useEffect(() => {
+    // Load previously selected gender if customer returns to home page
+    if (typeof window !== 'undefined') {
+        const savedGender = localStorage.getItem('aura_gender') as any;
+        if (savedGender && ['all', 'men', 'women', 'couple'].includes(savedGender)) {
+            setGlobalGender(savedGender);
+        }
+    }
+
     const idleTimer = setTimeout(() => {
       const timer = setInterval(() => setCurrentIndex((prev) => (prev + 1) % carouselItems.length), 3500);
       return () => clearInterval(timer);
     }, 500); 
     return () => clearTimeout(idleTimer);
   }, []);
+
+  const handleGenderSelect = (gender: "all" | "men" | "women" | "couple") => {
+      setGlobalGender(gender);
+      if (typeof window !== 'undefined') {
+          localStorage.setItem('aura_gender', gender);
+      }
+  };
 
   const getPosition = (index: number) => {
     const diff = (index - currentIndex + carouselItems.length) % carouselItems.length;
@@ -68,10 +84,26 @@ export default function Home() {
     fetchFastData();
   }, []);
 
+  // 🚀 SMART VAULT FILTERING BASED ON GLOBAL GENDER
   const trendingVaultProducts = useMemo(() => {
       if (allStoreProducts.length === 0) return [];
-      return allStoreProducts.filter(p => p.is_pinned === true).slice(0, 8);
-  }, [allStoreProducts]);
+      
+      let filtered = allStoreProducts;
+
+      if (globalGender !== 'all') {
+          filtered = filtered.filter(p => {
+              const cat = p.category?.toLowerCase() || '';
+              const subCat = p.sub_category?.toLowerCase() || '';
+              
+              if (globalGender === 'men') return ['men', 'accessories', 'smart-tech'].includes(cat) || subCat === 'perfume-men';
+              if (globalGender === 'women') return ['women'].includes(cat) || subCat === 'perfume-women' || subCat === 'jewelry';
+              if (globalGender === 'couple') return cat === 'couple';
+              return true;
+          });
+      }
+
+      return filtered.filter(p => p.is_pinned === true).slice(0, 8);
+  }, [allStoreProducts, globalGender]);
 
   return (
     <main className="min-h-screen text-aura-brown bg-[#FDFBF7] relative w-full max-w-[100vw] overflow-x-hidden">
@@ -98,7 +130,7 @@ export default function Home() {
 
       <Navbar />
 
-      {/* 🚀 HERO SECTION */}
+      {/* HERO SECTION - Original UI */}
       <section className="relative w-full flex flex-col items-center justify-start pt-[76px] md:pt-[90px] pb-8 overflow-hidden bg-luxury-gradient">
           <div className="absolute inset-0 z-0 bg-bubbles pointer-events-none"></div>
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 opacity-50" preserveAspectRatio="none" viewBox="0 0 100 100">
@@ -165,7 +197,25 @@ export default function Home() {
 
           <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-12 md:mt-16">
               
-              {/* 🚀 1. THE CATEGORY HUB (Visual Grid) */}
+              {/* 🚀 GLOBAL DEMOGRAPHIC TOGGLE */}
+              <div className="flex justify-center mb-12 relative z-40 animate-fade-in-up">
+                  <div className="inline-flex bg-white/60 backdrop-blur-md p-1.5 rounded-full border border-aura-gold/20 shadow-sm">
+                      {['all', 'men', 'women', 'couple'].map((gender) => (
+                          <button
+                              key={gender}
+                              onClick={() => handleGenderSelect(gender as any)}
+                              className={`px-5 py-2.5 md:px-8 md:py-3 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all duration-300 ${
+                                  globalGender === gender
+                                  ? 'bg-aura-brown text-white shadow-lg scale-105'
+                                  : 'text-gray-500 hover:text-aura-brown hover:bg-white/50'
+                              }`}
+                          >
+                              {gender === 'all' ? 'All Collection' : `For ${gender}`}
+                          </button>
+                      ))}
+                  </div>
+              </div>
+
               <div className="mb-20">
                   <div className="text-center mb-8 md:mb-12 animate-fade-in-up">
                       <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
@@ -176,7 +226,7 @@ export default function Home() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-fade-in-up">
                       {[
-                        // 🚀 FIXED LINKS: Removed '/category' prefix to match your [category] dynamic route
+                        // 🚀 FIXED LINKS: Direct dynamic routes without /category prefix
                         { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
                         { title: "Fragrances", img: "/cat-perfume.jpg", link: "/fragrances" },
                         { title: "Leather Essentials", img: "/cat-wallet.jpg", link: "/accessories" },
@@ -194,7 +244,6 @@ export default function Home() {
                   </div>
               </div>
 
-              {/* 🚀 2. THE VAULT */}
               {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-32 opacity-50">
                       <div className="w-12 h-12 border-4 border-aura-brown border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -211,13 +260,13 @@ export default function Home() {
                                       </p>
                                       <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">The Luxury Vault</h2>
                                   </div>
-                                  <Link href="/men" className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
+                                  <Link href={`/${globalGender === 'all' ? 'watches' : globalGender}`} className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
                                      View All <ArrowRight size={16}/>
                                   </Link>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 w-full pt-4">
                                   {trendingVaultProducts.map((product: any) => (
-                                      <div key={product.id} className="w-full h-full rounded-[1rem] md:rounded-[1.5rem] shadow-sm hover:shadow-md bg-white border border-[#3A2A18]/5 hover:-translate-y-1 transition-transform duration-300 will-change-transform">
+                                      <div key={product.id} className="w-full h-full rounded-[1rem] md:rounded-[1.5rem] shadow-sm bg-white border border-[#3A2A18]/5 transition-transform duration-300 will-change-transform">
                                           <ProductCard product={product} priority={false} />
                                       </div>
                                   ))}
@@ -227,7 +276,6 @@ export default function Home() {
                   </div>
               )}
 
-              {/* 🚀 3. THE GIFTING BANNER */}
               <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-12 flex flex-col lg:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group mt-12">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/10 blur-[100px] rounded-full pointer-events-none"></div>
                   <div className="flex flex-col text-center lg:text-left z-10 max-w-xl mb-8 lg:mb-0">
@@ -235,20 +283,20 @@ export default function Home() {
                         <Gift size={14}/> Special Pairings
                      </p>
                      <h2 className="text-3xl md:text-5xl font-serif text-white leading-tight mb-4">The Perfect Gift Combos</h2>
-                     <p className="text-gray-400 text-sm md:text-base mb-6">Carefully curated combinations of our finest watches, wallets, and fragrances. Perfect for gifting or treating yourself.</p>
+                     <p className="text-gray-400 text-sm md:text-base mb-6">Carefully curated combinations of our finest watches, wallets, and fragrances.</p>
                      <div>
-                        <span className="inline-block bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-[10px] md:text-xs tracking-widest uppercase px-4 py-2 rounded-full shadow-[0_0_15px_rgba(212,175,55,0.3)] animate-pulse border border-[#F9E596]">
+                        <span className="inline-block bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-[10px] md:text-xs tracking-widest uppercase px-4 py-2 rounded-full border border-[#F9E596]">
                             Extra Rs. 200 Off In Custom Combos
                         </span>
                      </div>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-4 relative z-10 w-full sm:w-auto">
-                      <Link href="/custom-combo" className="px-6 py-4 bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-xs tracking-widest uppercase transition-all duration-300 rounded-full shadow-[0_5px_15px_rgba(212,175,55,0.3)] flex items-center justify-center gap-2 hover:scale-105 border border-[#F9E596]/50">
+                      <Link href="/custom-combo" className="px-6 py-4 bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-xs tracking-widest uppercase rounded-full shadow-lg flex items-center justify-center gap-2 hover:scale-105 border border-[#F9E596]/50">
                           <Sparkles size={16} className="text-[#1E1B18]"/> Create Custom Combo 
                       </Link>
-                      {/* 🚀 FIXED LINK: Changed from /category/combos to /combos */}
-                      <Link href="/combos" className="px-6 py-4 bg-transparent border border-[#D4AF37]/50 text-white hover:bg-white hover:text-[#1E1B18] font-bold text-xs tracking-widest uppercase transition-all duration-300 rounded-full flex items-center justify-center gap-2 group/btn">
+                      {/* 🚀 FIXED LINK: Removed /category/ prefix */}
+                      <Link href="/combos" className="px-6 py-4 bg-transparent border border-[#D4AF37]/50 text-white hover:bg-white hover:text-[#1E1B18] font-bold text-xs tracking-widest uppercase rounded-full flex items-center justify-center gap-2 group/btn">
                           Pre-Made Combos <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform"/>
                       </Link>
                   </div>
