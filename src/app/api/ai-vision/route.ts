@@ -10,14 +10,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Image URL required" }, { status: 400 });
         }
 
-        // 1. Check API Key
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
             console.error("AI Route Error: GEMINI_API_KEY is missing in .env.local file!");
             return NextResponse.json({ error: "API Key is missing in .env.local" }, { status: 500 });
         }
 
-        // 2. Fetch Image safely
         console.log("Fetching image from URL:", imageUrl);
         const imageResp = await fetch(imageUrl);
         if (!imageResp.ok) {
@@ -30,11 +28,11 @@ export async function POST(req: Request) {
         const base64Image = buffer.toString('base64');
         const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
 
-        // 3. Initialize Gemini
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        // 🚀 FIX YAHAN HAI: Model ka naam update kar diya gaya hai
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
-        // 4. Prompt
         const prompt = `You are a luxury fashion and watch expert for the brand AURA-X. Look at this image of a ${category || 'product'}.
         Provide a JSON response with these exact keys:
         "name": A catchy, premium luxury name for this product (e.g. "Royal Oak Midnight"). Max 4 words.
@@ -53,16 +51,13 @@ export async function POST(req: Request) {
             }
         };
 
-        // 5. Generate Content
         console.log("Sending image to Google Gemini AI...");
         const result = await model.generateContent([prompt, imagePart]);
         const responseText = result.response.text();
         console.log("Raw Gemini Response:", responseText);
 
-        // 6. Clean and Parse JSON
         let cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         
-        // Find JSON boundaries just in case AI adds extra conversational text
         const jsonStartIndex = cleanedText.indexOf('{');
         const jsonEndIndex = cleanedText.lastIndexOf('}');
         if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
