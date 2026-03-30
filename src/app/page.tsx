@@ -199,20 +199,20 @@ export default function Home() {
 
           <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-12 md:mt-16">
               
-              {/* 🚀 GLOBAL DEMOGRAPHIC TOGGLE */}
+              {/* 🚀 UPGRADED: DEMOGRAPHIC TOGGLE (Looks like real buttons) */}
               <div className="flex flex-col items-center justify-center mb-16 relative z-40 animate-fade-in-up">
                   <p className="text-[10px] md:text-xs font-bold text-aura-brown/60 tracking-[0.3em] uppercase mb-4 font-serif italic">
-                      Select your experience
+                      Select Your Experience
                   </p>
-                  <div className="inline-flex bg-white/60 backdrop-blur-md p-1.5 rounded-full border border-aura-gold/20 shadow-sm w-full md:w-auto overflow-x-auto scrollbar-hide">
+                  <div className="flex flex-wrap justify-center gap-3 w-full md:w-auto">
                       {['all', 'men', 'women', 'couple'].map((gender) => (
                           <button
                               key={gender}
                               onClick={() => handleGenderSelect(gender as any)}
-                              className={`flex-1 md:flex-none px-5 py-3 md:px-8 md:py-3 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all duration-300 whitespace-nowrap ${
+                              className={`px-6 py-3 md:px-8 md:py-3.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all duration-300 border-2 shadow-sm whitespace-nowrap ${
                                   globalGender === gender
-                                  ? 'bg-aura-brown text-white shadow-lg scale-105'
-                                  : 'text-gray-500 hover:text-aura-brown hover:bg-white/50'
+                                  ? 'bg-aura-brown text-white border-aura-brown shadow-md scale-105'
+                                  : 'bg-white text-gray-500 border-aura-gold/30 hover:border-aura-brown hover:text-aura-brown hover:shadow-md'
                               }`}
                           >
                               {gender === 'all' ? 'All Collection' : `For ${gender}`}
@@ -231,9 +231,8 @@ export default function Home() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-fade-in-up">
                       {[
-                        // 🚀 DYNAMIC LINKS: Added URL parameters to send global gender selection to categories
-                        { title: "Timepieces", img: "/cat-watch.jpg", link: `/watches${globalGender !== 'all' ? `?gender=${globalGender}` : ''}` },
-                        { title: "Fragrances", img: "/cat-perfume.jpg", link: `/fragrances${globalGender !== 'all' ? `?gender=${globalGender}` : ''}` },
+                        { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
+                        { title: "Fragrances", img: "/cat-perfume.jpg", link: "/fragrances" },
                         { title: "Leather Essentials", img: "/cat-wallet.jpg", link: "/accessories" },
                         { title: "Smart Tech", img: "/cat-tech.jpg", link: "/smart-tech" }
                       ].map((cat, i) => (
@@ -265,7 +264,7 @@ export default function Home() {
                                       </p>
                                       <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">The Luxury Vault</h2>
                                   </div>
-                                  <Link href={`/${globalGender === 'all' ? 'watches' : globalGender}`} className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
+                                  <Link href="/men" className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
                                      View All <ArrowRight size={16}/>
                                   </Link>
                               </div>
@@ -281,7 +280,6 @@ export default function Home() {
                   </div>
               )}
 
-              {/* 🚀 3. THE GIFTING BANNER */}
               <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-12 flex flex-col lg:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group mt-12">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/10 blur-[100px] rounded-full pointer-events-none"></div>
                   <div className="flex flex-col text-center lg:text-left z-10 max-w-xl mb-8 lg:mb-0">
@@ -301,7 +299,6 @@ export default function Home() {
                       <Link href="/custom-combo" className="px-6 py-4 bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-xs tracking-widest uppercase transition-all duration-300 rounded-full shadow-[0_5px_15px_rgba(212,175,55,0.3)] flex items-center justify-center gap-2 hover:scale-105 border border-[#F9E596]/50">
                           <Sparkles size={16} className="text-[#1E1B18]"/> Create Custom Combo 
                       </Link>
-                      {/* 🚀 FIXED LINK: Removed /category/ prefix */}
                       <Link href="/combos" className="px-6 py-4 bg-transparent border border-[#D4AF37]/50 text-white hover:bg-white hover:text-[#1E1B18] font-bold text-xs tracking-widest uppercase transition-all duration-300 rounded-full flex items-center justify-center gap-2 group/btn">
                           Pre-Made Combos <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform"/>
                       </Link>

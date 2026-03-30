@@ -170,26 +170,15 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   </div>
                 </Link>
 
+                {/* 🚀 FIXED: Colors are now just visual dots, no clicks, no active states */}
                 {hasVariants && product.colors && (
-                    <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pointer-events-none">
                         {product.colors.map((color, idx) => (
-                            <button
+                            <div
                                 key={idx}
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault(); 
-                                    e.stopPropagation(); 
-                                    if (color.image) setActiveImage(color.image);
-                                    setActiveColorName(color.name);
-                                }}
-                                className={`w-4 h-4 rounded-full shadow-inner transition-all duration-300 ${
-                                    activeColorName === color.name 
-                                    ? 'ring-2 ring-offset-2 ring-aura-brown scale-110' 
-                                    : 'ring-1 ring-gray-300 hover:scale-105 opacity-70 hover:opacity-100'
-                                }`}
+                                className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full shadow-inner ring-1 ring-black/10 opacity-90"
                                 style={{ backgroundColor: color.hex || '#E5E7EB' }}
                                 title={color.name}
-                                aria-label={`Select ${color.name}`}
                             />
                         ))}
                     </div>
