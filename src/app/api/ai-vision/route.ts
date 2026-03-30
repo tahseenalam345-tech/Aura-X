@@ -30,8 +30,8 @@ export async function POST(req: Request) {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         
-        // 🚀 FIX YAHAN HAI: Model ka naam update kar diya gaya hai
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        // 🚀 FIX: Switched to the most stable and powerful model (gemini-1.5-pro)
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
         const prompt = `You are a luxury fashion and watch expert for the brand AURA-X. Look at this image of a ${category || 'product'}.
         Provide a JSON response with these exact keys:
