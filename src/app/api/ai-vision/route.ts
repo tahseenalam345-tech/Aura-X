@@ -3,24 +3,24 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(req: Request) {
     try {
-        const { imageUrl, category } = await req.json();
+        const body = await req.json();
+        const { imageUrl, category } = body;
 
         if (!imageUrl) {
-            console.error("AI Route Error: No Image URL provided.");
-            return NextResponse.json({ error: "Image URL required" }, { status: 400 });
+            return NextResponse.json({ error: "Image URL nahi mili front-end se." }, { status: 400 });
         }
 
+        // 1. API Key Check
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-            console.error("AI Route Error: GEMINI_API_KEY is missing in .env.local file!");
-            return NextResponse.json({ error: "API Key is missing in .env.local" }, { status: 500 });
+            // Agar yeh error aaye, toh iska matlab Vercel mein key nahi hai ya Redeploy nahi hua!
+            return NextResponse.json({ error: "Vercel par GEMINI_API_KEY add nahi hui, ya Redeploy nahi kiya gaya!" }, { status: 500 });
         }
 
-        console.log("Fetching image from URL:", imageUrl);
+        // 2. Fetch Image
         const imageResp = await fetch(imageUrl);
         if (!imageResp.ok) {
-             console.error("AI Route Error: Failed to fetch image. Status:", imageResp.statusText);
-             return NextResponse.json({ error: "Failed to download image from URL" }, { status: 500 });
+             return NextResponse.json({ error: "Cloudinary se image fetch nahi ho saki." }, { status: 500 });
         }
 
         const arrayBuffer = await imageResp.arrayBuffer();
@@ -28,9 +28,8 @@ export async function POST(req: Request) {
         const base64Image = buffer.toString('base64');
         const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
 
+        // 3. AI Processing
         const genAI = new GoogleGenerativeAI(apiKey);
-        
-        // 🚀 FIX: Switched to the most stable and powerful model (gemini-1.5-pro)
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
         const prompt = `You are a luxury fashion and watch expert for the brand AURA-X. Look at this image of a ${category || 'product'}.
@@ -51,13 +50,10 @@ export async function POST(req: Request) {
             }
         };
 
-        console.log("Sending image to Google Gemini AI...");
         const result = await model.generateContent([prompt, imagePart]);
         const responseText = result.response.text();
-        console.log("Raw Gemini Response:", responseText);
 
         let cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        
         const jsonStartIndex = cleanedText.indexOf('{');
         const jsonEndIndex = cleanedText.lastIndexOf('}');
         if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
@@ -65,12 +61,13 @@ export async function POST(req: Request) {
         }
 
         const specs = JSON.parse(cleanedText);
-        console.log("Successfully parsed AI Data!");
-
         return NextResponse.json({ success: true, specs });
 
     } catch (error: any) {
-        console.error("🔥 CRITICAL AI ERROR 🔥:", error.message || error);
-        return NextResponse.json({ error: error.message || "Failed to analyze image" }, { status: 500 });
+        // 🚀 AB EXACT ERROR RESPONSE MEIN AAYEGA
+        return NextResponse.json({ 
+            error: "Backend Error: " + (error.message || String(error)),
+            details: "Check Vercel Runtime Logs for full stack trace."
+        }, { status: 500 });
     }
 }
