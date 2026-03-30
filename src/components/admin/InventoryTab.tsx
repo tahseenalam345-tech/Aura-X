@@ -163,7 +163,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(formData.category.toLowerCase());
   const needsSizes = ['jewelry', 'belts'].includes(formData.sub_category.toLowerCase());
 
-  // 🚀 NEW FUNCTION: AI AUTO-FILL
+  // 🚀 UPDATED: AI AUTO-FILL WITH EXACT ERROR LOGGING
   const handleAIAutoFill = async () => {
       if (!formData.mainImage) {
           toast.error("Please upload a Main Image first so the AI can analyze it!");
@@ -182,7 +182,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           
           const data = await res.json();
           
-          if (data.success && data.specs) {
+          if (res.ok && data.success && data.specs) {
               setFormData(prev => ({
                   ...prev,
                   name: prev.name || data.specs.name || "",
@@ -194,10 +194,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
               }));
               toast.success("AI successfully auto-filled details!");
           } else {
-              toast.error("AI couldn't analyze properly.");
+              const errorMsg = data.error || "Unknown Backend Error";
+              toast.error(`AI Failed: ${errorMsg}`, { duration: 6000 });
+              console.error("Backend Error Details:", data);
           }
-      } catch (error) {
-          toast.error("AI analysis failed.");
+      } catch (error: any) {
+          toast.error(`System Error: ${error.message}`, { duration: 6000 });
       } finally {
           setIsAnalyzingAI(false);
           toast.dismiss(loadingToast);
@@ -664,7 +666,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         </div>
 
-        {/* Views Modal (Unchanged) */}
+        {/* Views Modal */}
         {showViewsModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col relative border-t-8 border-red-500">
@@ -711,7 +713,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
-        {/* View Modes (Unchanged) */}
+        {/* View Modes */}
         {viewMode === 'grid' && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-20">
                 {filteredProducts.map((item) => (
@@ -825,7 +827,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
             </div>
         )}
 
-        {/* Brand Modal (Unchanged) */}
+        {/* Brand Modal */}
         {showBrandModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
@@ -896,7 +898,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 <div className="flex justify-between items-center border-b pb-2">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest"><Tag size={16}/> Identity</h3>
                                     
-                                    {/* 🚀 AI AUTO-FILL BUTTON */}
                                     <button 
                                         type="button" 
                                         onClick={handleAIAutoFill}
@@ -912,7 +913,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div><label className="text-xs font-bold text-gray-500">Brand</label><input className="w-full p-4 bg-white border rounded-xl" value={formData.brand || ""} onChange={e => setFormData({...formData, brand: e.target.value})} /></div>
                                     <div><label className="text-xs font-bold text-gray-500">SKU (Auto)</label><input className="w-full p-4 bg-gray-100 border rounded-xl text-gray-500" readOnly value={formData.sku || ""} /></div>
                                     
-                                    {/* 🚀 SMART CATEGORY SELECTOR */}
                                     <div>
                                         <label className="text-xs font-bold text-gray-500">Main Category</label>
                                         <select className="w-full p-4 bg-white border rounded-xl" value={formData.category || ""} onChange={e => setFormData({...formData, category: e.target.value, sub_category: ""})}>
@@ -1025,7 +1025,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 </div>
                             </section>
 
-                            {/* 🚀 SMART SIZES SECTION */}
                             {needsSizes && (
                                 <section className="space-y-6">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Size Variants</h3>
@@ -1071,6 +1070,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 )}
                                             </div>
                                             
+                                            {/* 🚀 FIXED: MAIN IMAGE URL INPUT NOW UPDATES PREVIEW */}
                                             <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2 rounded-xl relative">
                                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
                                                     <LinkIcon size={12}/> EXTERNAL MAIN IMAGE LINK
@@ -1079,7 +1079,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     <input 
                                                         type="text" 
                                                         placeholder="Paste Cloudinary URL..." 
-                                                        value={formData.mainImage && formData.mainImage.includes('http') ? formData.mainImage : ""} 
+                                                        value={formData.mainImage} 
                                                         onChange={(e) => setFormData({...formData, mainImage: e.target.value})}
                                                         className="w-full p-2 pr-8 text-xs border border-gray-200 rounded-lg outline-none focus:border-blue-400 bg-white"
                                                     />
@@ -1093,10 +1093,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         </div>
                                     </div>
 
-                                    {/* 🚀 NEW: Hover Image Section (Pic 2) */}
                                     <div className="w-full md:w-1/2 space-y-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 mb-2">Hover Image (Pic 2) - <span className="text-gray-400 font-normal">Shows when card is hovered/touched</span></label>
+                                            <label className="block text-xs font-bold text-gray-500 mb-2">Hover Image (Pic 2) - <span className="text-gray-400 font-normal">Shows when card is hovered</span></label>
                                             <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.hoverImage && !formData.hoverImage.includes('cloudinary') ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'hover')} onPaste={(e) => handlePaste(e, 'hover')} tabIndex={0}>
                                                 
@@ -1118,6 +1117,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 )}
                                             </div>
                                             
+                                            {/* 🚀 FIXED: HOVER IMAGE URL INPUT NOW UPDATES PREVIEW */}
                                             <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2 rounded-xl relative">
                                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
                                                     <LinkIcon size={12}/> EXTERNAL HOVER IMAGE LINK
@@ -1126,7 +1126,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     <input 
                                                         type="text" 
                                                         placeholder="Paste Cloudinary URL..." 
-                                                        value={formData.hoverImage && formData.hoverImage.includes('http') ? formData.hoverImage : ""} 
+                                                        value={formData.hoverImage} 
                                                         onChange={(e) => setFormData({...formData, hoverImage: e.target.value})}
                                                         className="w-full p-2 pr-8 text-xs border border-gray-200 rounded-lg outline-none focus:border-blue-400 bg-white"
                                                     />
@@ -1196,20 +1196,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 </button>
                                             </div>
                                         </div>
-                                        
-                                        {externalGalleryLink && (
-                                            <div className="w-14 h-14 rounded-lg border border-blue-200 overflow-hidden relative bg-black flex-shrink-0 shadow-sm">
-                                                {isVideoFile(externalGalleryLink) ? (
-                                                    <video src={externalGalleryLink} className="object-cover w-full h-full" autoPlay muted loop playsInline />
-                                                ) : (
-                                                    <Image src={externalGalleryLink} alt="Preview" fill className="object-cover" unoptimized={true} />
-                                                )}
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                                 
-                                {/* 🚀 NEW: Color Variants Switch and Config */}
                                 <div className="mt-6 bg-white p-6 rounded-2xl border border-gray-200">
                                     <div className="flex items-center justify-between mb-4">
                                         <div>
@@ -1239,7 +1228,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         </div>
                                     </label>
 
-                                    {/* Additional Colors Config (Only shows if checked) */}
                                     {hasMultipleColors && (
                                         <div className="mt-4 pt-4 border-t border-gray-100 space-y-4 bg-gray-50/50 p-4 rounded-xl">
                                             {formData.colors.map((color, index) => (

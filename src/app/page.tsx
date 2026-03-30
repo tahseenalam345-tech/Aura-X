@@ -194,36 +194,36 @@ export default function Home() {
           </div>
       </section>
 
-      <div className="relative z-10 flex flex-col min-h-screen w-full bg-gradient-to-b from-[#FDFBF7] via-[#F2EFE9] to-[#EBE4D8]">
+      <div className="relative z-10 flex flex-col w-full bg-gradient-to-b from-[#FDFBF7] via-[#F2EFE9] to-[#EBE4D8]">
           <div className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply opacity-50" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }}></div>
 
-          <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-12 md:mt-16">
+          <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-8">
               
-              {/* 🚀 UPGRADED: DEMOGRAPHIC TOGGLE (Looks like real buttons) */}
-              <div className="flex flex-col items-center justify-center mb-16 relative z-40 animate-fade-in-up">
-                  <p className="text-[10px] md:text-xs font-bold text-aura-brown/60 tracking-[0.3em] uppercase mb-4 font-serif italic">
+              {/* 🚀 BOX SHAPE BUTTONS IN ONE LINE */}
+              <div className="flex flex-col items-center justify-center mb-10 relative z-40 animate-fade-in-up">
+                  <p className="text-[10px] font-bold text-aura-brown/60 tracking-[0.3em] uppercase mb-3 font-serif italic">
                       Select Your Experience
                   </p>
-                  <div className="flex flex-wrap justify-center gap-3 w-full md:w-auto">
+                  <div className="grid grid-cols-4 gap-2 w-full max-w-2xl px-2">
                       {['all', 'men', 'women', 'couple'].map((gender) => (
                           <button
                               key={gender}
                               onClick={() => handleGenderSelect(gender as any)}
-                              className={`px-6 py-3 md:px-8 md:py-3.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all duration-300 border-2 shadow-sm whitespace-nowrap ${
+                              className={`py-3 md:py-4 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-tighter transition-all duration-300 border shadow-sm ${
                                   globalGender === gender
                                   ? 'bg-aura-brown text-white border-aura-brown shadow-md scale-105'
-                                  : 'bg-white text-gray-500 border-aura-gold/30 hover:border-aura-brown hover:text-aura-brown hover:shadow-md'
+                                  : 'bg-white text-gray-500 border-aura-gold/20 hover:border-aura-brown'
                               }`}
                           >
-                              {gender === 'all' ? 'All Collection' : `For ${gender}`}
+                              {gender === 'all' ? 'All' : gender}
                           </button>
                       ))}
                   </div>
               </div>
 
-              <div className="mb-20">
-                  <div className="text-center mb-8 md:mb-12 animate-fade-in-up">
-                      <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 md:mb-2 flex items-center justify-center gap-2">
+              <div className="mb-16">
+                  <div className="text-center mb-6 md:mb-10 animate-fade-in-up">
+                      <p className="text-aura-brown/60 text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-1 flex items-center justify-center gap-2">
                           <Sparkles size={14} className="text-aura-gold" /> Explore The Collections <Sparkles size={14} className="text-aura-gold" />
                       </p>
                       <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
@@ -249,12 +249,12 @@ export default function Home() {
               </div>
 
               {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-32 opacity-50">
-                      <div className="w-12 h-12 border-4 border-aura-brown border-t-transparent rounded-full animate-spin mb-4"></div>
-                      <p className="font-serif text-aura-brown text-xl animate-pulse">Accessing Vault...</p>
+                  <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                      <div className="w-10 h-10 border-4 border-aura-brown border-t-transparent rounded-full animate-spin mb-4"></div>
+                      <p className="font-serif text-aura-brown text-lg animate-pulse">Accessing Vault...</p>
                   </div>
               ) : (
-                  <div className="mb-20">
+                  <div className="mb-16">
                       {trendingVaultProducts.length > 0 && (
                           <div className="w-full">
                               <div className="flex justify-between items-end mb-3 md:mb-6">
@@ -280,7 +280,7 @@ export default function Home() {
                   </div>
               )}
 
-              <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-12 flex flex-col lg:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group mt-12">
+              <div className="w-full rounded-[2rem] bg-[#1E1B18] p-8 md:p-12 flex flex-col lg:flex-row items-center justify-between border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group mt-8">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8A97E]/10 blur-[100px] rounded-full pointer-events-none"></div>
                   <div className="flex flex-col text-center lg:text-left z-10 max-w-xl mb-8 lg:mb-0">
                      <p className="text-[#D4AF37] text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-2 flex items-center justify-center lg:justify-start gap-2">
