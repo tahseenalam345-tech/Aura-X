@@ -86,14 +86,15 @@ export default function Home() {
     fetchFastData();
   }, []);
 
-  // 🚀 SMART VAULT FILTERING BASED ON GLOBAL GENDER
+  // 🚀 SMART VAULT FILTERING (PINNED ONLY & RANDOMIZED)
   const trendingVaultProducts = useMemo(() => {
       if (allStoreProducts.length === 0) return [];
       
-      let filtered = allStoreProducts;
+      // Select ONLY pinned products
+      let pinnedProducts = allStoreProducts.filter(p => p.is_pinned === true);
 
       if (globalGender !== 'all') {
-          filtered = filtered.filter(p => {
+          pinnedProducts = pinnedProducts.filter(p => {
               const cat = p.category?.toLowerCase() || '';
               const subCat = p.sub_category?.toLowerCase() || '';
               
@@ -104,8 +105,19 @@ export default function Home() {
           });
       }
 
-      return filtered.filter(p => p.is_pinned === true).slice(0, 8);
+      // Randomize the pinned products so they look fresh
+      const randomized = pinnedProducts.sort(() => 0.5 - Math.random());
+      
+      return randomized.slice(0, 8);
   }, [allStoreProducts, globalGender]);
+
+  // 🚀 DYNAMIC "VIEW ALL" LINK
+  const viewAllLink = useMemo(() => {
+      if (globalGender === 'men') return '/men';
+      if (globalGender === 'women') return '/women';
+      if (globalGender === 'couple') return '/couple';
+      return '/men'; // Default fallback
+  }, [globalGender]);
 
   return (
     <main className="min-h-screen text-aura-brown bg-[#FDFBF7] relative w-full max-w-[100vw] overflow-x-hidden">
@@ -264,7 +276,7 @@ export default function Home() {
                                       </p>
                                       <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">The Luxury Vault</h2>
                                   </div>
-                                  <Link href="/men" className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
+                                  <Link href={viewAllLink} className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
                                      View All <ArrowRight size={16}/>
                                   </Link>
                               </div>

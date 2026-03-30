@@ -6,16 +6,21 @@ import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Packa
 import Image from "next/image";
 import toast from "react-hot-toast";
 
-// --- CONSTANTS ---
+// --- EXPANDED CONSTANTS FOR COLORS & COMBINATIONS ---
 const COLOR_MAP: Record<string, string> = {
   "Silver": "#C0C0C0", "Gold": "#FFD700", "Rose Gold": "#B76E79", "Black": "#000000",
-  "Two-Tone (Silver/Gold)": "#F5F5DC", "Two-Tone (Silver/Rose)": "#FFE4E1",
+  "Two-Tone (Silver/Gold)": "#F5F5DC", "Two-Tone (Silver/Rose Gold)": "#FFE4E1", "Two-Tone (Black/Gold)": "#B8860B", "Two-Tone (Black/Silver)": "#708090",
   "Blue": "#0000FF", "Green": "#008000", "White": "#FFFFFF", "Brown": "#A52A2A",
   "Grey": "#808080", "Gunmetal": "#2a3439", "Red": "#FF0000", "Tiffany Blue": "#0ABAB5",
   "Champagne": "#F7E7CE", "Mother of Pearl": "#F0EAD6", "Navy": "#000080",
-  "Yellow": "#FFFF00", "Orange": "#FFA500", "Purple": "#800080"
+  "Yellow": "#FFFF00", "Orange": "#FFA500", "Purple": "#800080", "Pink": "#FFC0CB",
+  "Bronze": "#CD7F32", "Copper": "#B87333", "Maroon": "#800000", "Olive": "#808000",
+  "Teal": "#008080", "Turquoise": "#40E0D0", "Beige": "#F5F5DC", "Tan": "#D2B48C"
 };
-const POPULAR_COLORS = Object.keys(COLOR_MAP);
+const POPULAR_COLORS = Object.keys(COLOR_MAP).sort();
+
+const MATERIAL_MAP = ["Leather", "Metal", "Silicon", "Stainless Steel", "Mesh", "Rubber", "Fabric/Nylon", "Ceramic", "Titanium", "Alloy"];
+const GLASS_MAP = ["Mineral", "Sapphire", "Hardlex", "Acrylic", "Resin"];
 
 // --- HELPER FUNCTIONS ---
 const isVideoFile = (url: string) => {
@@ -115,7 +120,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [editId, setEditId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('grid');
   
-  const [uploadQueue, setUploadQueue] = useState<{ id: string, progress: number, type: string }[]>([]);
+  const [uploadQueue, setUploadQueue] = useState<{ id: string, progress: number, type: string, index?: number }[]>([]);
 
   const [showBrandModal, setShowBrandModal] = useState(false);
   const [brandModalTab, setBrandModalTab] = useState<'men' | 'women' | 'couple'>('men');
@@ -138,8 +143,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [sizesInput, setSizesInput] = useState("");
   
   const [hasMultipleColors, setHasMultipleColors] = useState(false);
-  
-  // 🚀 NEW STATE FOR AI LOADER
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
 
   const initialFormState = {
@@ -152,7 +155,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     caseDiameter: "40mm", caseThickness: "10mm", 
     strapMaterial: "", strapColor: "", strapWidth: "20mm", adjustable: true,
     dialColor: "", luminous: false, dateDisplay: false, weight: "135g", 
-    description: "", warranty: "No Official Warranty", 
+    description: "", extra_notes: "", warranty: "No Official Warranty", 
     shippingText: "2-4 Working Days", returnPolicy: "7 Days Return Policy", boxIncluded: false, 
     mainImage: "", hoverImage: "", baseColorName: "Silver", 
     gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
@@ -163,7 +166,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(formData.category.toLowerCase());
   const needsSizes = ['jewelry', 'belts'].includes(formData.sub_category.toLowerCase());
 
-  // 🚀 UPDATED: AI AUTO-FILL WITH EXACT ERROR LOGGING
   const handleAIAutoFill = async () => {
       if (!formData.mainImage) {
           toast.error("Please upload a Main Image first so the AI can analyze it!");
@@ -209,7 +211,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const processFiles = async (files: File[], type: 'main' | 'hover' | 'gallery' | 'color' | 'review', index?: number) => {
       for (const file of files) {
           const id = Math.random().toString();
-          setUploadQueue(prev => [...prev, { id, progress: 0, type }]);
+          setUploadQueue(prev => [...prev, { id, progress: 0, type, index }]);
           
           const url = await processFileUpload(file, type === 'review', (p) => {
               setUploadQueue(prev => prev.map(item => item.id === id ? { ...item, progress: p } : item));
@@ -374,6 +376,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         originalPrice: item.original_price ?? 0,
         discount: item.discount ?? 0,
         description: item.description || "",
+        extra_notes: specs.extra_notes || "",
         mainImage: item.main_image || "",
         hoverImage: item.image || "", 
         baseColorName: productColors[0]?.name || "Silver",
@@ -442,6 +445,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         originalPrice: item.original_price ?? 0,
         discount: item.discount ?? 0,
         description: item.description || "",
+        extra_notes: specs.extra_notes || "",
         mainImage: item.main_image || "",
         hoverImage: item.image || "", 
         baseColorName: productColors[0]?.name || "Silver",
@@ -552,7 +556,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           variants: { sizes: sizesArray }, 
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
-              delivery_charge: formData.deliveryCharge, 
+              delivery_charge: formData.deliveryCharge, extra_notes: formData.extra_notes,
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
               case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, 
               case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
@@ -960,8 +964,18 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </section>
 
                             <section className="space-y-6">
-                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Description</h3>
-                                <textarea className="w-full p-4 bg-white border rounded-xl h-32 resize-none" placeholder="Write a catchy description..." value={formData.description || ""} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Description & Notes</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 block mb-2">Product Description</label>
+                                        <textarea className="w-full p-4 bg-white border rounded-xl h-32 resize-none" placeholder="Write a catchy description..." value={formData.description || ""} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 block mb-2 flex items-center gap-2"><Sparkles size={14} className="text-aura-gold"/> Special / Extra Note (Optional)</label>
+                                        <textarea className="w-full p-4 bg-gray-50 border rounded-xl h-20 resize-none text-sm" placeholder="e.g. Please note that the dial pattern may slightly vary as it is naturally sourced..." value={formData.extra_notes || ""} onChange={e => setFormData({...formData, extra_notes: e.target.value})}></textarea>
+                                        <p className="text-[10px] text-gray-400 mt-1">This will be highlighted in a stylish dark box on the product page.</p>
+                                    </div>
+                                </div>
                             </section>
 
                             <section className="space-y-6">
@@ -1060,7 +1074,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     </div>
                                                 ))}
 
-                                                {formData.mainImage && !formData.mainImage.includes('cloudinary') ? (
+                                                {formData.mainImage ? (
                                                     <>
                                                         {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <Image src={formData.mainImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" unoptimized={true} />}
                                                         <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
@@ -1070,7 +1084,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 )}
                                             </div>
                                             
-                                            {/* 🚀 FIXED: MAIN IMAGE URL INPUT NOW UPDATES PREVIEW */}
                                             <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2 rounded-xl relative">
                                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
                                                     <LinkIcon size={12}/> EXTERNAL MAIN IMAGE LINK
@@ -1107,7 +1120,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     </div>
                                                 ))}
 
-                                                {formData.hoverImage && !formData.hoverImage.includes('cloudinary') ? (
+                                                {formData.hoverImage ? (
                                                     <>
                                                         {isVideoFile(formData.hoverImage) ? <video src={formData.hoverImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <Image src={formData.hoverImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" unoptimized={true} />}
                                                         <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('hover');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
@@ -1117,7 +1130,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 )}
                                             </div>
                                             
-                                            {/* 🚀 FIXED: HOVER IMAGE URL INPUT NOW UPDATES PREVIEW */}
                                             <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2 rounded-xl relative">
                                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 mb-1.5">
                                                     <LinkIcon size={12}/> EXTERNAL HOVER IMAGE LINK
@@ -1205,9 +1217,18 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><Palette size={14}/> Main Color Base</label>
                                             <p className="text-[10px] text-gray-400">Select the color of the Main Image</p>
                                         </div>
-                                        <select className="w-40 p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-aura-brown outline-none" value={formData.baseColorName} onChange={e => setFormData({...formData, baseColorName: e.target.value})}>
-                                            {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
-                                        </select>
+                                        <div className="relative w-48">
+                                          <input 
+                                            list="baseColors" 
+                                            className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-aura-brown outline-none focus:border-aura-gold" 
+                                            value={formData.baseColorName} 
+                                            onChange={e => setFormData({...formData, baseColorName: e.target.value})}
+                                            placeholder="Type to search color..."
+                                          />
+                                          <datalist id="baseColors">
+                                              {POPULAR_COLORS.map(c => <option key={c} value={c} />)}
+                                          </datalist>
+                                        </div>
                                     </div>
 
                                     <label className="flex items-center gap-3 py-3 border-t border-gray-100 cursor-pointer group">
@@ -1232,17 +1253,56 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <div className="mt-4 pt-4 border-t border-gray-100 space-y-4 bg-gray-50/50 p-4 rounded-xl">
                                             {formData.colors.map((color, index) => (
                                                 <div key={index} className="flex flex-col md:flex-row gap-4 items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                                                    <input type="color" className="w-10 h-10 rounded border-none cursor-pointer" value={color.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} />
-                                                    <select className="flex-1 p-2 border rounded-lg text-sm bg-white outline-none focus:border-aura-gold" value={color.name || ""} onChange={(e) => { const name = e.target.value; const c = [...formData.colors]; c[index].name = name; if (COLOR_MAP[name]) c[index].hex = COLOR_MAP[name]; setFormData({...formData, colors: c}); }}>
-                                                        <option value="">Select Variant Color</option>
-                                                        {POPULAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
-                                                    </select>
-                                                    <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-full md:w-auto justify-center border relative overflow-hidden ${color.image ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}>
-                                                        {uploadQueue.find(u => u.type === 'color' && (u as any).index === index) ? (
-                                                            <span className="text-aura-gold animate-pulse">Uploading...</span>
-                                                        ) : color.image ? "Image Selected" : "Upload Image"} 
-                                                        <input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'color', index)}/>
-                                                    </label>
+                                                    <input type="color" className="w-10 h-10 rounded border-none cursor-pointer flex-shrink-0" value={color.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} />
+                                                    
+                                                    <div className="flex-1 w-full relative">
+                                                      <input 
+                                                        list="variantColors"
+                                                        className="w-full p-2 border rounded-lg text-sm bg-white outline-none focus:border-aura-gold" 
+                                                        value={color.name || ""} 
+                                                        onChange={(e) => { 
+                                                            const name = e.target.value; 
+                                                            const c = [...formData.colors]; 
+                                                            c[index].name = name; 
+                                                            if (COLOR_MAP[name]) c[index].hex = COLOR_MAP[name]; 
+                                                            setFormData({...formData, colors: c}); 
+                                                        }}
+                                                        placeholder="Type or select color..."
+                                                      />
+                                                      <datalist id="variantColors">
+                                                          {POPULAR_COLORS.map(c => <option key={c} value={c} />)}
+                                                      </datalist>
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-2 w-full md:w-auto items-center">
+                                                        <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-full justify-center border relative overflow-hidden ${color.image ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}>
+                                                            {uploadQueue.find(u => u.type === 'color' && u.index === index) ? (
+                                                                <span className="text-aura-gold animate-pulse">Uploading...</span>
+                                                            ) : color.image ? "Change Image" : "Upload File"} 
+                                                            <input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'color', index)}/>
+                                                        </label>
+                                                        
+                                                        {color.image && (
+                                                            <div className="relative w-12 h-12 rounded border border-gray-200 overflow-hidden shrink-0">
+                                                                <Image src={color.image} fill className="object-cover" alt="" unoptimized={true} />
+                                                            </div>
+                                                        )}
+
+                                                        <div className="w-full relative">
+                                                          <input 
+                                                              type="text" 
+                                                              placeholder="Or paste URL..." 
+                                                              value={color.image.includes('http') ? color.image : ''} 
+                                                              onChange={(e) => {
+                                                                  const c = [...formData.colors];
+                                                                  c[index].image = e.target.value;
+                                                                  setFormData({...formData, colors: c});
+                                                              }}
+                                                              className="w-full p-1.5 text-[10px] border border-gray-200 rounded outline-none focus:border-blue-400 bg-white"
+                                                          />
+                                                        </div>
+                                                    </div>
+                                                    
                                                     <button type="button" onClick={() => setFormData({...formData, colors: formData.colors.filter((_, i) => i !== index)})} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={16}/></button>
                                                 </div>
                                             ))}
@@ -1258,15 +1318,35 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     {isWatchCategory ? (
                                         <>
                                             <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Case & Dial (Watches)</h4></div>
-                                            <div><label className="text-xs font-bold text-gray-500">Case Material</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.caseMaterial || ""} onChange={e => setFormData({...formData, caseMaterial: e.target.value})}><option value="">Select Material</option><option>Stainless Steel</option><option>Alloy</option><option>Titanium</option></select></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Case Material</label>
+                                                <input list="caseMaterials" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.caseMaterial || ""} onChange={e => setFormData({...formData, caseMaterial: e.target.value})} placeholder="e.g. Stainless Steel" />
+                                                <datalist id="caseMaterials">{MATERIAL_MAP.map(m => <option key={m} value={m} />)}</datalist>
+                                            </div>
                                             <div><label className="text-xs font-bold text-gray-500">Case Diameter</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.caseDiameter} onChange={e => setFormData({...formData, caseDiameter: e.target.value})} /></div>
                                             <div><label className="text-xs font-bold text-gray-500">Case Thickness</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.caseThickness} onChange={e => setFormData({...formData, caseThickness: e.target.value})} /></div>
-                                            <div><label className="text-xs font-bold text-gray-500">Glass Type</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.glass || ""} onChange={e => setFormData({...formData, glass: e.target.value})}><option value="">Select Glass</option><option>Mineral</option><option>Sapphire</option><option>Hardlex</option></select></div>
-                                            <div><label className="text-xs font-bold text-gray-500">Dial Color</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.dialColor || ""} onChange={e => setFormData({...formData, dialColor: e.target.value})}><option value="">Select Color</option>{POPULAR_COLORS.map(c => <option key={c}>{c}</option>)}</select></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Glass Type</label>
+                                                <input list="glassTypes" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.glass || ""} onChange={e => setFormData({...formData, glass: e.target.value})} placeholder="e.g. Mineral" />
+                                                <datalist id="glassTypes">{GLASS_MAP.map(g => <option key={g} value={g} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Dial Color</label>
+                                                <input list="dialColors" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.dialColor || ""} onChange={e => setFormData({...formData, dialColor: e.target.value})} placeholder="Type color..." />
+                                                <datalist id="dialColors">{POPULAR_COLORS.map(c => <option key={c} value={c} />)}</datalist>
+                                            </div>
 
                                             <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Strap & Movement</h4></div>
-                                            <div><label className="text-xs font-bold text-gray-500">Strap Material</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.strapMaterial || ""} onChange={e => setFormData({...formData, strapMaterial: e.target.value})}><option value="">Select Material</option><option>Leather</option><option>Metal</option><option>Chain</option><option>Silicon</option><option>Stainless Steel</option></select></div>
-                                            <div><label className="text-xs font-bold text-gray-500">Strap Color</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.strapColor || ""} onChange={e => setFormData({...formData, strapColor: e.target.value})}><option value="">Select Color</option>{POPULAR_COLORS.map(c=><option key={c}>{c}</option>)}</select></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Strap Material</label>
+                                                <input list="strapMaterials" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.strapMaterial || ""} onChange={e => setFormData({...formData, strapMaterial: e.target.value})} placeholder="e.g. Leather" />
+                                                <datalist id="strapMaterials">{MATERIAL_MAP.map(m => <option key={m} value={m} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Strap Color</label>
+                                                <input list="strapColors" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.strapColor || ""} onChange={e => setFormData({...formData, strapColor: e.target.value})} placeholder="Type color..." />
+                                                <datalist id="strapColors">{POPULAR_COLORS.map(c => <option key={c} value={c} />)}</datalist>
+                                            </div>
                                             <div><label className="text-xs font-bold text-gray-500">Movement</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.movement || "Quartz (Battery)"} onChange={e => setFormData({...formData, movement: e.target.value})}><option>Quartz (Battery)</option><option>Automatic (Mechanical)</option><option>Digital</option></select></div>
                                             <div><label className="text-xs font-bold text-gray-500">Water Resistance</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.waterResistance || "0ATM (No Resistance)"} onChange={e => setFormData({...formData, waterResistance: e.target.value})}><option>0ATM (No Resistance)</option><option>3ATM (Splash)</option><option>5ATM (Swim)</option><option>10ATM (Dive)</option></select></div>
                                             
