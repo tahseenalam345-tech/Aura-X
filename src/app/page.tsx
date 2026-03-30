@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
-import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Moon, Gift } from "lucide-react"; 
+import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Moon, Gift, X } from "lucide-react"; 
 
 // 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
 const IS_EID_LIVE = false; 
@@ -34,6 +34,9 @@ export default function Home() {
   
   // 🚀 GLOBAL GENDER STATE
   const [globalGender, setGlobalGender] = useState<"all" | "men" | "women" | "couple">("all");
+  
+  // 🚀 NEW STATE: For the Category Selection Modal
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   useEffect(() => {
     // Load previously selected gender if customer returns to home page
@@ -110,14 +113,6 @@ export default function Home() {
       
       return randomized.slice(0, 8);
   }, [allStoreProducts, globalGender]);
-
-  // 🚀 DYNAMIC "VIEW ALL" LINK
-  const viewAllLink = useMemo(() => {
-      if (globalGender === 'men') return '/men';
-      if (globalGender === 'women') return '/women';
-      if (globalGender === 'couple') return '/couple';
-      return '/men'; // Default fallback
-  }, [globalGender]);
 
   return (
     <main className="min-h-screen text-aura-brown bg-[#FDFBF7] relative w-full max-w-[100vw] overflow-x-hidden">
@@ -276,9 +271,11 @@ export default function Home() {
                                       </p>
                                       <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">The Luxury Vault</h2>
                                   </div>
-                                  <Link href={viewAllLink} className="hidden md:flex items-center gap-2 text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
+                                  
+                                  {/* 🚀 FIXED: Mobile View All now visible and opens Category Modal */}
+                                  <button onClick={() => setShowCategoryModal(true)} className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
                                      View All <ArrowRight size={16}/>
-                                  </Link>
+                                  </button>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 w-full pt-4">
                                   {trendingVaultProducts.map((product: any) => (
@@ -286,6 +283,13 @@ export default function Home() {
                                           <ProductCard product={product} priority={false} />
                                       </div>
                                   ))}
+                              </div>
+                              
+                              {/* 🚀 FIXED: Added "View All" to the bottom of the products list too */}
+                              <div className="flex justify-center mt-10 md:mt-12 w-full">
+                                  <button onClick={() => setShowCategoryModal(true)} className="px-8 py-3.5 rounded-full border border-[#D4AF37]/50 text-aura-brown font-bold text-xs md:text-sm uppercase tracking-widest hover:bg-[#D4AF37] hover:text-white transition-all flex items-center gap-2 shadow-sm">
+                                      View All Collections <ArrowRight size={16} />
+                                  </button>
                               </div>
                           </div>
                       )}
@@ -319,6 +323,45 @@ export default function Home() {
 
           </div>
       </div>
+
+      {/* 🚀 NEW: CATEGORY SELECTION MODAL */}
+      <AnimatePresence>
+          {showCategoryModal && (
+              <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }} 
+                  className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+              >
+                  <div className="bg-[#FDFBF7] w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl relative">
+                      <div className="p-4 flex justify-between items-center border-b border-[#D4AF37]/20 bg-white">
+                          <h3 className="text-lg md:text-xl font-serif text-aura-brown font-bold tracking-wide">Choose a Collection</h3>
+                          <button onClick={() => setShowCategoryModal(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors">
+                              <X size={20} />
+                          </button>
+                      </div>
+                      <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 bg-[#FDFBF7]">
+                          {[
+                            { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
+                            { title: "Fragrances", img: "/cat-perfume.jpg", link: "/fragrances" },
+                            { title: "Leather", img: "/cat-wallet.jpg", link: "/accessories" },
+                            { title: "Tech", img: "/cat-tech.jpg", link: "/smart-tech" }
+                          ].map((cat, i) => (
+                             <Link href={cat.link} key={i} className="group relative w-full aspect-[4/5] md:aspect-square overflow-hidden rounded-xl md:rounded-2xl bg-[#EBE4D8] border border-[#D4AF37]/20 shadow-sm hover:shadow-md">
+                                 <Image src={cat.img} alt={cat.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700 opacity-90 group-hover:opacity-100 mix-blend-multiply" />
+                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                                 <div className="absolute bottom-3 md:bottom-4 left-2 right-2 text-center">
+                                    <h3 className="text-white font-serif text-xs md:text-lg tracking-wider">{cat.title}</h3>
+                                    <div className="mt-1 md:mt-2 w-6 md:w-8 h-[2px] bg-[#D4AF37] mx-auto group-hover:w-full transition-all duration-500"></div>
+                                 </div>
+                             </Link>
+                          ))}
+                      </div>
+                  </div>
+              </motion.div>
+          )}
+      </AnimatePresence>
+
     </main>
   );
 }
