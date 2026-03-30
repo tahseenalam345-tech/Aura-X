@@ -6,37 +6,45 @@ export async function POST(req: Request) {
         const { imageUrl, category } = await req.json();
 
         if (!imageUrl) {
+            console.error("AI Route Error: No Image URL provided.");
             return NextResponse.json({ error: "Image URL required" }, { status: 400 });
         }
 
-        // 🚀 1. Check API Key
+        // 1. Check API Key
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
+            console.error("AI Route Error: GEMINI_API_KEY is missing in .env.local file!");
             return NextResponse.json({ error: "API Key is missing in .env.local" }, { status: 500 });
         }
 
-        // 🚀 2. Download Image from URL and convert to Base64 (Gemini requirement)
+        // 2. Fetch Image safely
+        console.log("Fetching image from URL:", imageUrl);
         const imageResp = await fetch(imageUrl);
+        if (!imageResp.ok) {
+             console.error("AI Route Error: Failed to fetch image. Status:", imageResp.statusText);
+             return NextResponse.json({ error: "Failed to download image from URL" }, { status: 500 });
+        }
+
         const arrayBuffer = await imageResp.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const base64Image = buffer.toString('base64');
         const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
 
-        // 🚀 3. Initialize Google Gemini AI
+        // 3. Initialize Gemini
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Fastest vision model
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        // 🚀 4. Give AI strict instructions
+        // 4. Prompt
         const prompt = `You are a luxury fashion and watch expert for the brand AURA-X. Look at this image of a ${category || 'product'}.
         Provide a JSON response with these exact keys:
         "name": A catchy, premium luxury name for this product (e.g. "Royal Oak Midnight"). Max 4 words.
         "description": A beautifully written 2-line premium description highlighting its elegance and craftsmanship.
-        "dialColor": Guess the main dial color (only if it's a watch).
-        "strapColor": Guess the strap/band color.
-        "strapMaterial": Guess the material (Leather, Metal, Silicon, Stainless Steel, etc).
-        "caseColor": Guess the main case body color (Silver, Gold, Rose Gold, Black, etc).
+        "dialColor": Guess the main dial color (only if it's a watch, otherwise empty string).
+        "strapColor": Guess the strap/band color (otherwise empty string).
+        "strapMaterial": Guess the material (Leather, Metal, Silicon, Stainless Steel, etc, otherwise empty string).
+        "caseColor": Guess the main case body color (Silver, Gold, Rose Gold, Black, etc, otherwise empty string).
 
-        Return ONLY a valid JSON object. Do not include markdown formatting like \`\`\`json.`;
+        Return ONLY a valid JSON object. Do not include markdown formatting.`;
 
         const imagePart = {
             inlineData: {
@@ -45,18 +53,29 @@ export async function POST(req: Request) {
             }
         };
 
-        // 🚀 5. Get response from Gemini
+        // 5. Generate Content
+        console.log("Sending image to Google Gemini AI...");
         const result = await model.generateContent([prompt, imagePart]);
         const responseText = result.response.text();
+        console.log("Raw Gemini Response:", responseText);
 
-        // Clean up text just in case AI adds markdown formatting
-        const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        // 6. Clean and Parse JSON
+        let cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        // Find JSON boundaries just in case AI adds extra conversational text
+        const jsonStartIndex = cleanedText.indexOf('{');
+        const jsonEndIndex = cleanedText.lastIndexOf('}');
+        if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
+             cleanedText = cleanedText.substring(jsonStartIndex, jsonEndIndex + 1);
+        }
+
         const specs = JSON.parse(cleanedText);
+        console.log("Successfully parsed AI Data!");
 
         return NextResponse.json({ success: true, specs });
 
-    } catch (error) {
-        console.error("AI Auto-Fill Error:", error);
-        return NextResponse.json({ error: "Failed to analyze image" }, { status: 500 });
+    } catch (error: any) {
+        console.error("🔥 CRITICAL AI ERROR 🔥:", error.message || error);
+        return NextResponse.json({ error: error.message || "Failed to analyze image" }, { status: 500 });
     }
 }
