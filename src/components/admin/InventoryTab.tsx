@@ -448,7 +448,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     const specs = item.specs || {};
     const variants = item.variants || {};
     
-    // 🚀 BULLETPROOF SAFEGUARDS FOR ARRAYS (Taa kay puranay item page ko crash na karein)
+    // 🚀 BULLETPROOF ARRAYS
     const safeGallery = Array.isArray(specs.gallery) ? specs.gallery : [];
     const safeColors = Array.isArray(item.colors) ? item.colors : [];
     const safeReviews = Array.isArray(item.manual_reviews) ? item.manual_reviews : [];
@@ -459,6 +459,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     else if (typeof item.tags === 'string') singleTag = item.tags;
 
     const editHasColors = safeColors.length > 1; 
+
+    // 🚀 THE SKU FIX: Agar SKU nahi hai, toh naya generate karo
+    const existingSku = specs.sku || item.sku;
+    const finalSku = existingSku ? existingSku : `AX-${Math.floor(1000 + Math.random() * 9000)}`;
 
     setFormData({
         ...initialFormState,
@@ -481,7 +485,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         colors: editHasColors ? safeColors.slice(1) : [], 
         manualReviews: safeReviews,
         variants: { sizes: safeSizes },
-        sku: specs.sku || item.sku || "",
+        
+        sku: finalSku, // 👈 Yahan fix apply ho gaya
+        
         stock: specs.stock ?? 5, 
         costPrice: specs.cost_price ?? 0,
         deliveryCharge: specs.delivery_charge ?? (item.is_eid_exclusive ? 0 : 250),
