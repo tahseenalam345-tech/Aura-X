@@ -6,7 +6,7 @@ import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Packa
 import Image from "next/image";
 import toast from "react-hot-toast";
 
-// --- CONSTANTS FOR DROPDOWNS (Yahan saari lists define hain jo errors de rahi theen) ---
+// --- CONSTANTS FOR DROPDOWNS ---
 const COLOR_MAP: Record<string, string> = {
   "Silver": "#C0C0C0", "Gold": "#FFD700", "Rose Gold": "#B76E79", "Black": "#000000",
   "Two-Tone (Silver/Gold)": "#F5F5DC", "Two-Tone (Silver/Rose Gold)": "#FFE4E1", "Two-Tone (Black/Gold)": "#B8860B", "Two-Tone (Black/Silver)": "#708090",
@@ -124,7 +124,7 @@ const processFileUpload = async (file: File, isReview: boolean = false, onProgre
     return publicUrl;
 };
 
-// 🚀 BRAND NEW CUSTOM COLOR DROPDOWN COMPONENT (With Color Circles)
+// 🚀 BRAND NEW CUSTOM COLOR DROPDOWN COMPONENT
 const CustomColorSelect = ({ value, onChange, placeholder, className }: { value: string, onChange: (name: string, hex: string) => void, placeholder: string, className?: string }) => {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState(value || "");
@@ -212,7 +212,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [searchQuery, setSearchQuery] = useState(""); 
   const [categoryFilter, setCategoryFilter] = useState("All");
 
-  const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", images: [] as string[] });
+  // 🚀 FIX 1: useState<any> added to eliminate red squiggly lines in TS
+  const [newReview, setNewReview] = useState<any>({ user: "", date: "", rating: 5, comment: "", images: [] });
   
   const [externalGalleryLink, setExternalGalleryLink] = useState("");
   const [sizesInput, setSizesInput] = useState("");
@@ -236,20 +237,16 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
     manualReviews: [] as any[], variants: { sizes: [] as string[] },
     
-    // FRAGRANCE SPECS
     volume: "", concentration: "", fragranceFamily: "", topNotes: "", heartNotes: "", baseNotes: "", longevity: "",
-    // WALLET SPECS
     walletMaterial: "", cardSlots: "", rfid: false, coinPocket: false, dimensions: "",
-    // BELT SPECS
     beltMaterial: "", buckleType: "", buckleMaterial: "",
-    // SUNGLASSES SPECS
     lensFeature: "", frameMaterial: "", lensMaterial: "", eyewearShape: "",
-    // JEWELRY SPECS
     jewelryMaterial: "", plating: "", stone: "",
-    // SMART TECH SPECS
     displayType: "", screenSize: "", smartFeatures: "", appSupport: "", bluetoothVersion: "", earbudFeatures: "", playtime: "", waterResistanceSmart: ""
   };
-  const [formData, setFormData] = useState(initialFormState);
+  
+  // 🚀 FIX 1: useState<any> added to eliminate red squiggly lines
+  const [formData, setFormData] = useState<any>(initialFormState);
 
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(formData.category.toLowerCase());
   const isFragrance = formData.category === 'fragrances';
@@ -281,7 +278,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           const data = await res.json();
           
           if (res.ok && data.success && data.specs) {
-              setFormData(prev => ({
+              setFormData((prev: any) => ({
                   ...prev,
                   name: prev.name || data.specs.name || "",
                   description: prev.description || data.specs.description || "",
@@ -424,7 +421,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const filteredProducts = products.filter(item => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q || 
-                          item.name.toLowerCase().includes(q) || 
+                          (item.name || "").toLowerCase().includes(q) || 
                           (item.specs?.sku || "").toLowerCase().includes(q) ||
                           (item.brand || "").toLowerCase().includes(q);
                           
@@ -443,14 +440,19 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const handleEditClick = (item: any) => {
     const specs = item.specs || {};
-    const variants = item.variants || { sizes: [] };
+    const variants = item.variants || {};
+    
+    // 🚀 FIX 2: BULLETPROOF ARRAYS - Ensures old items won't crash the page if arrays are empty/undefined
+    const safeGallery = Array.isArray(specs.gallery) ? specs.gallery : [];
+    const safeColors = Array.isArray(item.colors) ? item.colors : [];
+    const safeReviews = Array.isArray(item.manual_reviews) ? item.manual_reviews : [];
+    const safeSizes = Array.isArray(variants.sizes) ? variants.sizes : [];
+
     let singleTag = "";
     if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
     else if (typeof item.tags === 'string') singleTag = item.tags;
 
-    // 🚀 BULLETPROOF FIX: Check if colors array exists before reading its length
-    const productColors = Array.isArray(item.colors) ? item.colors : [];
-    const editHasColors = productColors.length > 1; 
+    const editHasColors = safeColors.length > 1; 
 
     setFormData({
         ...initialFormState,
@@ -465,14 +467,14 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         extra_notes: specs.extra_notes || "",
         mainImage: item.main_image || "",
         hoverImage: item.image || "", 
-        baseColorName: productColors[0]?.name || "Silver",
+        baseColorName: safeColors[0]?.name || "Silver",
         tags: singleTag,
         priority: item.priority ?? 100,
         isEidExclusive: item.is_eid_exclusive ?? false,
         isPinned: item.is_pinned ?? false, 
-        colors: editHasColors ? productColors.slice(1) : [], 
-        manualReviews: Array.isArray(item.manual_reviews) ? item.manual_reviews : [],
-        variants: variants,
+        colors: editHasColors ? safeColors.slice(1) : [], 
+        manualReviews: safeReviews,
+        variants: { sizes: safeSizes },
         sku: specs.sku || item.sku || "",
         stock: specs.stock ?? 5, 
         costPrice: specs.cost_price ?? 0,
@@ -498,9 +500,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         shippingText: specs.shipping_text || "2-4 Working Days",
         returnPolicy: specs.return_policy || "7 Days Return Policy",
         boxIncluded: specs.box_included ?? false,
-        
-        // 🚀 BULLETPROOF FIX: Check if gallery exists
-        gallery: Array.isArray(specs.gallery) ? specs.gallery : [],
+        gallery: safeGallery,
         
         volume: specs.volume || "", concentration: specs.concentration || "", fragranceFamily: specs.fragranceFamily || "",
         topNotes: specs.topNotes || "", heartNotes: specs.heartNotes || "", baseNotes: specs.baseNotes || "", longevity: specs.longevity || "",
@@ -511,7 +511,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         displayType: specs.displayType || "", screenSize: specs.screenSize || "", smartFeatures: specs.smartFeatures || "", appSupport: specs.appSupport || "", bluetoothVersion: specs.bluetoothVersion || "", earbudFeatures: specs.earbudFeatures || "", playtime: specs.playtime || "", waterResistanceSmart: specs.waterResistanceSmart || ""
     });
     
-    setSizesInput(variants.sizes ? variants.sizes.join(", ") : "");
+    setSizesInput(safeSizes.join(", "));
     setHasMultipleColors(editHasColors);
     setEditId(item.id);
     setIsEditing(true);
@@ -523,9 +523,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     handleEditClick(item);
     
     const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
-    setFormData(prev => ({
+    setFormData((prev: any) => ({
         ...prev,
-        name: `${item.name} (Copy)`,
+        name: `${item.name || ""} (Copy)`,
         sku: randomSku,
     }));
     
@@ -536,14 +536,16 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
 
   const applyImageToState = (url: string, type: string, index?: number) => {
-    if (type === 'main') setFormData(prev => ({ ...prev, mainImage: url }));
-    else if (type === 'hover') setFormData(prev => ({ ...prev, hoverImage: url }));
-    else if (type === 'gallery') setFormData(prev => ({ ...prev, gallery: [...prev.gallery, url] }));
-    else if (type === 'review') setNewReview(prev => ({ ...prev, images: [...prev.images, url] })); 
+    if (type === 'main') setFormData((prev: any) => ({ ...prev, mainImage: url }));
+    else if (type === 'hover') setFormData((prev: any) => ({ ...prev, hoverImage: url }));
+    else if (type === 'gallery') setFormData((prev: any) => ({ ...prev, gallery: Array.isArray(prev.gallery) ? [...prev.gallery, url] : [url] }));
+    else if (type === 'review') setNewReview((prev: any) => ({ ...prev, images: Array.isArray(prev.images) ? [...prev.images, url] : [url] })); 
     else if (type === 'color' && index !== undefined) {
-        setFormData(prev => {
-            const newColors = [...prev.colors];
-            newColors[index].image = url;
+        setFormData((prev: any) => {
+            const newColors = Array.isArray(prev.colors) ? [...prev.colors] : [];
+            if(newColors[index]) {
+                newColors[index].image = url;
+            }
             return { ...prev, colors: newColors };
         });
     }
@@ -576,8 +578,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       };
       
       let allColors = [mainColorVariant];
-      if (hasMultipleColors) {
-          const additionalColors = formData.colors.filter(c => c.name && c.image);
+      if (hasMultipleColors && Array.isArray(formData.colors)) {
+          const additionalColors = formData.colors.filter((c: any) => c && c.name && c.image);
           allColors = [mainColorVariant, ...additionalColors];
       }
       
@@ -601,7 +603,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
               delivery_charge: formData.deliveryCharge, extra_notes: formData.extra_notes, weight: formData.weight,
               warranty: formData.warranty, shipping_text: formData.shippingText, return_policy: formData.returnPolicy, box_included: formData.boxIncluded,
-              gallery: formData.gallery,
+              gallery: Array.isArray(formData.gallery) ? formData.gallery : [],
               
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
               case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, 
@@ -651,13 +653,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
 
   const removeImage = (type: 'main' | 'hover' | 'gallery' | 'review', index?: number) => {
-    if(type === 'main') setFormData({...formData, mainImage: ""});
-    else if(type === 'hover') setFormData({...formData, hoverImage: ""});
+    if(type === 'main') setFormData((prev: any) => ({...prev, mainImage: ""}));
+    else if(type === 'hover') setFormData((prev: any) => ({...prev, hoverImage: ""}));
     else if(type === 'gallery' && index !== undefined) {
-        setFormData({...formData, gallery: formData.gallery.filter((_, i) => i !== index)});
+        setFormData((prev: any) => ({...prev, gallery: Array.isArray(prev.gallery) ? prev.gallery.filter((_: any, i: number) => i !== index) : []}));
     }
     else if(type === 'review' && index !== undefined) {
-        setNewReview(prev => ({...prev, images: prev.images.filter((_, i) => i !== index)}));
+        setNewReview((prev: any) => ({...prev, images: Array.isArray(prev.images) ? prev.images.filter((_: any, i: number) => i !== index) : []}));
     }
   };
 
@@ -667,12 +669,12 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
 
   const addReview = () => {
-    setFormData({...formData, manualReviews: [newReview, ...formData.manualReviews]});
+    setFormData((prev: any) => ({...prev, manualReviews: Array.isArray(prev.manualReviews) ? [newReview, ...prev.manualReviews] : [newReview]}));
     setNewReview({ user: "", date: "", rating: 5, comment: "", images: [] });
   };
 
   const deleteReview = (index: number) => {
-    setFormData({ ...formData, manualReviews: formData.manualReviews.filter((_, i) => i !== index) });
+    setFormData((prev: any) => ({ ...prev, manualReviews: Array.isArray(prev.manualReviews) ? prev.manualReviews.filter((_: any, i: number) => i !== index) : [] }));
   };
 
   return (
@@ -810,13 +812,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </div>
                         </div>
                         <div className="p-3">
-                            <h3 className="font-bold text-aura-brown text-sm truncate">{item.name}</h3>
+                            <h3 className="font-bold text-aura-brown text-sm truncate">{item.name || "Unnamed"}</h3>
                             <div className="flex justify-between items-center mt-1 mb-1">
-                                <p className="text-aura-gold font-bold text-xs">Rs {item.price.toLocaleString()}</p>
-                                <span className="text-[10px] text-gray-400">Stock: {item.specs?.stock}</span>
+                                <p className="text-aura-gold font-bold text-xs">Rs {(item.price || 0).toLocaleString()}</p>
+                                <span className="text-[10px] text-gray-400">Stock: {item.specs?.stock || 0}</span>
                             </div>
                             <div className="flex items-center gap-1 text-[9px] text-gray-400 border-t pt-1.5 mt-1 truncate">
-                                <span className="font-bold uppercase">{item.sub_category || item.category}</span>
+                                <span className="font-bold uppercase">{item.sub_category || item.category || ""}</span>
                             </div>
                         </div>
                     </div>
@@ -837,14 +839,14 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                         </div>
                         <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-aura-brown truncate text-sm md:text-base flex items-center gap-2">
-                                {item.name} 
+                                {item.name || "Unnamed"} 
                                 {item.is_pinned && <Star size={12} className="text-aura-gold" fill="currentColor"/>}
                             </h3>
                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mt-0.5">
-                                <span>{item.sub_category || item.category}</span>
-                                <span>SKU: {item.specs?.sku}</span>
-                                <span className={item.specs?.stock > 0 ? "text-green-600 font-bold" : "text-red-600 font-bold"}>Stock: {item.specs?.stock}</span>
-                                <span className="font-bold text-aura-gold">Rs {item.price.toLocaleString()}</span>
+                                <span>{item.sub_category || item.category || ""}</span>
+                                <span>SKU: {item.specs?.sku || ""}</span>
+                                <span className={(item.specs?.stock || 0) > 0 ? "text-green-600 font-bold" : "text-red-600 font-bold"}>Stock: {item.specs?.stock || 0}</span>
+                                <span className="font-bold text-aura-gold">Rs {(item.price || 0).toLocaleString()}</span>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -869,13 +871,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     </div>
                                     <div className="truncate max-w-[200px]">
                                         <p className="font-bold text-aura-brown text-sm group-hover:text-aura-gold transition-colors flex items-center gap-1">
-                                            {item.name} {item.is_pinned && <Star size={10} className="text-aura-gold" fill="currentColor"/>}
+                                            {item.name || "Unnamed"} {item.is_pinned && <Star size={10} className="text-aura-gold" fill="currentColor"/>}
                                         </p>
                                     </div>
                                 </td>
-                                <td className="p-4 text-xs text-gray-500 uppercase">{item.sub_category || item.category}</td>
-                                <td className="p-4 text-sm font-medium">{item.specs?.stock}</td>
-                                <td className="p-4 font-bold text-aura-brown text-sm">Rs {item.price.toLocaleString()}</td>
+                                <td className="p-4 text-xs text-gray-500 uppercase">{item.sub_category || item.category || ""}</td>
+                                <td className="p-4 text-sm font-medium">{item.specs?.stock || 0}</td>
+                                <td className="p-4 font-bold text-aura-brown text-sm">Rs {(item.price || 0).toLocaleString()}</td>
                                 <td className="p-4 text-right flex justify-end gap-1">
                                     <button onClick={(e) => handleCopyClick(item, e)} className="p-2 text-gray-300 hover:text-blue-600 transition-colors" title="Duplicate"><Copy size={16}/></button>
                                     <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="p-2 text-gray-300 hover:text-red-600 transition-colors" title="Delete"><Trash2 size={16}/></button>
@@ -1110,7 +1112,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div className="flex flex-wrap gap-4 p-4 bg-white border border-gray-200 rounded-2xl min-h-[160px]"
                                         onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'gallery')} onPaste={(e) => handlePaste(e, 'gallery')} tabIndex={0}>
                                         
-                                        {formData.gallery.map((img, i) => (
+                                        {(formData.gallery || []).map((img: string, i: number) => (
                                             <div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200 group bg-gray-50">
                                                 {isVideoFile(img) ? <video src={img} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <img src={img} alt="" className="object-cover w-full h-full" />}
                                                 <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12}/></button>
@@ -1150,7 +1152,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     type="button" 
                                                     onClick={() => {
                                                         if (!externalGalleryLink) return;
-                                                        setFormData(prev => ({ ...prev, gallery: [...prev.gallery, externalGalleryLink] }));
+                                                        setFormData((prev: any) => ({ ...prev, gallery: Array.isArray(prev.gallery) ? [...prev.gallery, externalGalleryLink] : [externalGalleryLink] }));
                                                         setExternalGalleryLink("");
                                                         toast.success("Added to gallery!");
                                                     }}
@@ -1170,7 +1172,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             <p className="text-[10px] text-gray-400">Select the color of the Main Image</p>
                                         </div>
                                         <div className="relative w-48 z-40">
-                                          {/* 🚀 NEW CUSTOM DROPDOWN FOR MAIN COLOR */}
                                           <CustomColorSelect 
                                               value={formData.baseColorName} 
                                               onChange={(name, hex) => setFormData({...formData, baseColorName: name})} 
@@ -1186,7 +1187,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             checked={hasMultipleColors}
                                             onChange={(e) => {
                                                 setHasMultipleColors(e.target.checked);
-                                                if (e.target.checked && formData.colors.length === 0) {
+                                                if (e.target.checked && (!formData.colors || formData.colors.length === 0)) {
                                                     setFormData({...formData, colors: [{ name: "Silver", hex: "#C0C0C0", image: "" }]});
                                                 }
                                             }}
@@ -1199,16 +1200,14 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
                                     {hasMultipleColors && (
                                         <div className="mt-4 pt-4 border-t border-gray-100 space-y-4 bg-gray-50/50 p-4 rounded-xl">
-                                            {formData.colors.map((color, index) => (
+                                            {(formData.colors || []).map((color: any, index: number) => (
                                                 <div key={index} className="flex flex-col md:flex-row gap-4 items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
                                                     
-                                                    {/* Color Input is still here just in case they want a completely custom hex that is not in the list */}
-                                                    <input type="color" className="w-10 h-10 rounded border-none cursor-pointer flex-shrink-0" value={color.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} title="Custom Hex Picker" />
+                                                    <input type="color" className="w-10 h-10 rounded border-none cursor-pointer flex-shrink-0" value={color?.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} title="Custom Hex Picker" />
                                                     
                                                     <div className="flex-1 w-full relative z-30">
-                                                      {/* 🚀 NEW CUSTOM DROPDOWN FOR VARIANT COLORS */}
                                                       <CustomColorSelect 
-                                                          value={color.name || ""} 
+                                                          value={color?.name || ""} 
                                                           onChange={(name, hex) => { 
                                                               const c = [...formData.colors]; 
                                                               c[index].name = name; 
@@ -1220,14 +1219,14 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     </div>
 
                                                     <div className="flex flex-col gap-2 w-full md:w-auto items-center">
-                                                        <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-full justify-center border relative overflow-hidden ${color.image ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}>
+                                                        <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-full justify-center border relative overflow-hidden ${color?.image ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}>
                                                             {uploadQueue.find(u => u.type === 'color' && u.index === index) ? (
                                                                 <span className="text-aura-gold animate-pulse">Uploading...</span>
-                                                            ) : color.image ? "Change Image File" : "Upload File"} 
+                                                            ) : color?.image ? "Change Image File" : "Upload File"} 
                                                             <input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'color', index)}/>
                                                         </label>
                                                         
-                                                        {color.image && (
+                                                        {color?.image && (
                                                             <div className="relative w-12 h-12 rounded border border-gray-200 overflow-hidden shrink-0">
                                                                 <img src={color.image} className="object-cover w-full h-full" alt="" />
                                                             </div>
@@ -1237,7 +1236,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                           <input 
                                                               type="text" 
                                                               placeholder="Or paste URL..." 
-                                                              value={color.image.includes('http') ? color.image : ''} 
+                                                              value={(color?.image || '').includes('http') ? color.image : ''} 
                                                               onChange={(e) => {
                                                                   const c = [...formData.colors];
                                                                   c[index].image = e.target.value;
@@ -1248,10 +1247,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                         </div>
                                                     </div>
                                                     
-                                                    <button type="button" onClick={() => setFormData({...formData, colors: formData.colors.filter((_, i) => i !== index)})} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={16}/></button>
+                                                    <button type="button" onClick={() => setFormData({...formData, colors: formData.colors.filter((_: any, i: number) => i !== index)})} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={16}/></button>
                                                 </div>
                                             ))}
-                                            <button type="button" onClick={() => setFormData({...formData, colors: [...formData.colors, { name: "Silver", hex: "#C0C0C0", image: "" }]})} className="text-xs font-bold bg-white border border-gray-200 px-4 py-2 rounded-lg text-aura-brown flex items-center justify-center w-full gap-2 hover:border-aura-gold transition-colors"><Plus size={14} /> Add Another Color Finish</button>
+                                            <button type="button" onClick={() => setFormData({...formData, colors: Array.isArray(formData.colors) ? [...formData.colors, { name: "Silver", hex: "#C0C0C0", image: "" }] : [{ name: "Silver", hex: "#C0C0C0", image: "" }]})} className="text-xs font-bold bg-white border border-gray-200 px-4 py-2 rounded-lg text-aura-brown flex items-center justify-center w-full gap-2 hover:border-aura-gold transition-colors"><Plus size={14} /> Add Another Color Finish</button>
                                         </div>
                                     )}
                                 </div>
@@ -1563,7 +1562,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div className="mb-4">
                                         <label className="block text-xs font-bold text-gray-500 mb-2">Review Images</label>
                                         <div className="flex flex-wrap gap-2">
-                                            {newReview.images.map((img, idx) => (
+                                            {(Array.isArray(newReview.images) ? newReview.images : []).map((img: string, idx: number) => (
                                                 <div key={idx} className="w-16 h-16 rounded-lg relative overflow-hidden border border-gray-200 group">
                                                     <Image src={img} alt="" fill className="object-cover" unoptimized={true} />
                                                     <button type="button" onClick={() => removeImage('review', idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-80 hover:opacity-100"><X size={12}/></button>
@@ -1577,13 +1576,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     </div>
                                     <button type="button" onClick={addReview} className="bg-aura-brown text-white px-4 py-2 rounded-lg text-sm font-bold w-full md:w-auto">Add Fake Review</button>
                                     <div className="mt-6 space-y-2">
-                                        {(formData.manualReviews || []).map((rev, i) => (
+                                        {(Array.isArray(formData.manualReviews) ? formData.manualReviews : []).map((rev: any, i: number) => (
                                             <div key={i} className="bg-gray-50 p-3 rounded-lg border border-gray-100 flex justify-between items-start">
                                                 <div className="flex gap-3">
                                                     <div className="space-y-1">
                                                         <p className="text-xs font-bold">{rev.user || ""} <span className="text-aura-gold">{'★'.repeat(rev.rating || 5)}</span></p>
                                                         <p className="text-[10px] text-gray-500">{rev.comment || ""}</p>
-                                                        {rev.images && rev.images.length > 0 && (
+                                                        {Array.isArray(rev.images) && rev.images.length > 0 && (
                                                             <div className="flex gap-1 mt-1">
                                                                 {rev.images.map((img: string, k: number) => (
                                                                     <div key={k} className="w-8 h-8 relative rounded overflow-hidden border">
