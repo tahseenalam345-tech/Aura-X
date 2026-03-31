@@ -6,7 +6,7 @@ import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Packa
 import Image from "next/image";
 import toast from "react-hot-toast";
 
-// --- EXPANDED CONSTANTS FOR COLORS & COMBINATIONS ---
+// --- CONSTANTS FOR DROPDOWNS ---
 const COLOR_MAP: Record<string, string> = {
   "Silver": "#C0C0C0", "Gold": "#FFD700", "Rose Gold": "#B76E79", "Black": "#000000",
   "Two-Tone (Silver/Gold)": "#F5F5DC", "Two-Tone (Silver/Rose Gold)": "#FFE4E1", "Two-Tone (Black/Gold)": "#B8860B", "Two-Tone (Black/Silver)": "#708090",
@@ -21,6 +21,22 @@ const POPULAR_COLORS = Object.keys(COLOR_MAP).sort();
 
 const MATERIAL_MAP = ["Leather", "Metal", "Silicon", "Stainless Steel", "Mesh", "Rubber", "Fabric/Nylon", "Ceramic", "Titanium", "Alloy"];
 const GLASS_MAP = ["Mineral", "Sapphire", "Hardlex", "Acrylic", "Resin"];
+const FRAGRANCE_VOLUMES = ["30ml", "50ml", "100ml", "150ml", "200ml"];
+const FRAGRANCE_CONCENTRATIONS = ["Eau De Parfum (EDP)", "Eau De Toilette (EDT)", "Parfum", "Extrait De Parfum", "Body Mist"];
+const FRAGRANCE_FAMILIES = ["Woody", "Floral", "Citrus", "Spicy", "Oriental", "Fresh", "Aromatic", "Aquatic", "Fruity"];
+const WALLET_MATERIALS = ["Genuine Cowhide Leather", "Premium PU Leather", "Carbon Fiber", "Vegan Leather"];
+const CARD_SLOTS = ["4 Slots", "6 Slots", "8 Slots", "10+ Slots"];
+const BELT_MATERIALS = ["Genuine Leather", "Cowhide Leather", "PU Leather", "Nylon", "Canvas"];
+const BUCKLE_TYPES = ["Auto-Lock", "Pin Buckle", "Reversible", "Plaque"];
+const FRAME_STYLES = ["Aviator", "Wayfarer", "Round", "Square", "Rimless", "Clubmaster", "Cat Eye"];
+const LENS_FEATURES = ["Polarized", "UV400 Protection", "Gradient", "Mirrored", "Anti-Reflective", "Blue Light Blocking"];
+const FRAME_MATERIALS = ["Metal", "Acetate", "TR90", "Polycarbonate", "Titanium", "Alloy"];
+const JEWELRY_MATERIALS = ["Stainless Steel", "Sterling Silver 925", "Titanium", "Alloy", "Tungsten"];
+const PLATINGS = ["18K Gold Plated", "Rhodium Plated", "Rose Gold Plated", "Silver Plated", "No Plating"];
+const STONES = ["Zirconia (CZ)", "Rhinestone", "Swarovski", "None"];
+const DISPLAY_TYPES = ["AMOLED", "IPS", "TFT", "OLED"];
+const SCREEN_SIZES = ["1.3 inches", "1.43 inches", "1.9 inches", "2.0 inches", "2.2 inches"];
+const BLUETOOTH_VERSIONS = ["Bluetooth 5.0", "Bluetooth 5.2", "Bluetooth 5.3", "Bluetooth 5.4"];
 
 // --- HELPER FUNCTIONS ---
 const isVideoFile = (url: string) => {
@@ -145,8 +161,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [hasMultipleColors, setHasMultipleColors] = useState(false);
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
 
+  // 🚀 FIXED: Defaults applied (Stock=5, Warranty=6M, boxIncluded=false) and Added New Specs Fields
   const initialFormState = {
-    name: "", brand: "AURA-X", sku: "", stock: 1, category: "", sub_category: "", 
+    name: "", brand: "AURA-X", sku: "", stock: 5, category: "", sub_category: "", 
     price: 0, originalPrice: 0, discount: 0, costPrice: 0, deliveryCharge: 250,
     tags: "" as string, priority: 100, viewCount: 0, 
     isEidExclusive: false, isPinned: false, 
@@ -155,15 +172,37 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     caseDiameter: "40mm", caseThickness: "10mm", 
     strapMaterial: "", strapColor: "", strapWidth: "20mm", adjustable: true,
     dialColor: "", luminous: false, dateDisplay: false, weight: "135g", 
-    description: "", extra_notes: "", warranty: "No Official Warranty", 
+    description: "", extra_notes: "", warranty: "6 Months Official Warranty", 
     shippingText: "2-4 Working Days", returnPolicy: "7 Days Return Policy", boxIncluded: false, 
     mainImage: "", hoverImage: "", baseColorName: "Silver", 
     gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
-    manualReviews: [] as any[], variants: { sizes: [] as string[] }
+    manualReviews: [] as any[], variants: { sizes: [] as string[] },
+    
+    // FRAGRANCE SPECS
+    volume: "", concentration: "", fragranceFamily: "", topNotes: "", heartNotes: "", baseNotes: "", longevity: "",
+    // WALLET SPECS
+    walletMaterial: "", cardSlots: "", rfid: false, coinPocket: false, dimensions: "",
+    // BELT SPECS
+    beltMaterial: "", buckleType: "", buckleMaterial: "",
+    // SUNGLASSES SPECS
+    lensFeature: "", frameMaterial: "", lensMaterial: "", eyewearShape: "",
+    // JEWELRY SPECS
+    jewelryMaterial: "", plating: "", stone: "",
+    // SMART TECH SPECS
+    displayType: "", screenSize: "", smartFeatures: "", appSupport: "", bluetoothVersion: "", earbudFeatures: "", playtime: "", waterResistanceSmart: ""
   };
   const [formData, setFormData] = useState(initialFormState);
 
+  // Conditions to show/hide category specific sections
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(formData.category.toLowerCase());
+  const isFragrance = formData.category === 'fragrances';
+  const isWallet = formData.sub_category === 'wallets';
+  const isBelt = formData.sub_category === 'belts';
+  const isSunglasses = formData.sub_category === 'sunglasses';
+  const isJewelry = formData.sub_category === 'jewelry';
+  const isSmartwatch = formData.sub_category === 'smartwatches';
+  const isEarbuds = formData.sub_category === 'earbuds';
+  
   const needsSizes = ['jewelry', 'belts'].includes(formData.sub_category.toLowerCase());
 
   const handleAIAutoFill = async () => {
@@ -388,7 +427,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         manualReviews: item.manual_reviews || [],
         variants: variants,
         sku: specs.sku || item.sku || "",
-        stock: specs.stock ?? 1, 
+        stock: specs.stock ?? 5, 
         costPrice: specs.cost_price ?? 0,
         deliveryCharge: specs.delivery_charge ?? (item.is_eid_exclusive ? 0 : 250),
         viewCount: specs.view_count ?? 0,
@@ -408,11 +447,19 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         luminous: specs.luminous ?? false,
         dateDisplay: specs.date_display ?? false,
         weight: specs.weight || "135g",
-        warranty: specs.warranty || "No Official Warranty",
+        warranty: specs.warranty || "6 Months Official Warranty",
         shippingText: specs.shipping_text || "2-4 Working Days",
         returnPolicy: specs.return_policy || "7 Days Return Policy",
         boxIncluded: specs.box_included ?? false,
-        gallery: specs.gallery || []
+        gallery: specs.gallery || [],
+        
+        volume: specs.volume || "", concentration: specs.concentration || "", fragranceFamily: specs.fragranceFamily || "",
+        topNotes: specs.topNotes || "", heartNotes: specs.heartNotes || "", baseNotes: specs.baseNotes || "", longevity: specs.longevity || "",
+        walletMaterial: specs.walletMaterial || "", cardSlots: specs.cardSlots || "", rfid: specs.rfid || false, coinPocket: specs.coinPocket || false, dimensions: specs.dimensions || "",
+        beltMaterial: specs.beltMaterial || "", buckleType: specs.buckleType || "", buckleMaterial: specs.buckleMaterial || "",
+        lensFeature: specs.lensFeature || "", frameMaterial: specs.frameMaterial || "", lensMaterial: specs.lensMaterial || "", eyewearShape: specs.eyewearShape || "",
+        jewelryMaterial: specs.jewelryMaterial || "", plating: specs.plating || "", stone: specs.stone || "",
+        displayType: specs.displayType || "", screenSize: specs.screenSize || "", smartFeatures: specs.smartFeatures || "", appSupport: specs.appSupport || "", bluetoothVersion: specs.bluetoothVersion || "", earbudFeatures: specs.earbudFeatures || "", playtime: specs.playtime || "", waterResistanceSmart: specs.waterResistanceSmart || ""
     });
     
     setSizesInput(variants.sizes ? variants.sizes.join(", ") : "");
@@ -424,68 +471,15 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const handleCopyClick = (item: any, e: React.MouseEvent) => {
     e.stopPropagation(); 
+    handleEditClick(item);
     
-    const specs = item.specs || {};
-    const variants = item.variants || { sizes: [] };
-    let singleTag = "";
-    if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
-    else if (typeof item.tags === 'string') singleTag = item.tags;
-
     const randomSku = `AX-${Math.floor(1000 + Math.random() * 9000)}`;
-    const productColors = item.colors || [];
-    const editHasColors = productColors.length > 1;
-
-    setFormData({
-        ...initialFormState,
+    setFormData(prev => ({
+        ...prev,
         name: `${item.name} (Copy)`,
-        brand: item.brand || "AURA-X",
-        category: item.category || "",
-        sub_category: item.sub_category || "",
-        price: item.price ?? 0,
-        originalPrice: item.original_price ?? 0,
-        discount: item.discount ?? 0,
-        description: item.description || "",
-        extra_notes: specs.extra_notes || "",
-        mainImage: item.main_image || "",
-        hoverImage: item.image || "", 
-        baseColorName: productColors[0]?.name || "Silver",
-        tags: singleTag,
-        priority: item.priority ?? 100,
-        isEidExclusive: item.is_eid_exclusive ?? false,
-        isPinned: item.is_pinned ?? false, 
-        colors: editHasColors ? productColors.slice(1) : [], 
-        manualReviews: item.manual_reviews || [],
-        variants: variants,
-        sku: randomSku, 
-        stock: specs.stock ?? 1, 
-        costPrice: specs.cost_price ?? 0,
-        deliveryCharge: specs.delivery_charge ?? (item.is_eid_exclusive ? 0 : 250),
-        viewCount: specs.view_count ?? 0,
-        movement: specs.movement || "Quartz (Battery)",
-        waterResistance: specs.water_resistance || "0ATM (No Resistance)",
-        glass: specs.glass || "",
-        caseMaterial: specs.case_material || "",
-        caseColor: specs.case_color || "Silver",
-        caseShape: specs.case_shape || "Round",
-        caseDiameter: specs.case_size || "40mm",
-        caseThickness: specs.case_thickness || "10mm",
-        strapMaterial: specs.strap || "",
-        strapColor: specs.strap_color || "",
-        strapWidth: specs.strap_width || "20mm",
-        adjustable: specs.adjustable ?? true,
-        dialColor: specs.dial_color || "",
-        luminous: specs.luminous ?? false,
-        dateDisplay: specs.date_display ?? false,
-        weight: specs.weight || "135g",
-        warranty: specs.warranty || "No Official Warranty",
-        shippingText: specs.shipping_text || "2-4 Working Days",
-        returnPolicy: specs.return_policy || "7 Days Return Policy",
-        boxIncluded: specs.box_included ?? false,
-        gallery: specs.gallery || []
-    });
+        sku: randomSku,
+    }));
     
-    setSizesInput(variants.sizes ? variants.sizes.join(", ") : "");
-    setHasMultipleColors(editHasColors);
     setEditId(null); 
     setIsEditing(false); 
     setShowForm(true);
@@ -556,14 +550,32 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           variants: { sizes: sizesArray }, 
           specs: { 
               sku: formData.sku, stock: formData.stock, cost_price: formData.costPrice, view_count: formData.viewCount,
-              delivery_charge: formData.deliveryCharge, extra_notes: formData.extra_notes,
+              delivery_charge: formData.deliveryCharge, extra_notes: formData.extra_notes, weight: formData.weight,
+              warranty: formData.warranty, shipping_text: formData.shippingText, return_policy: formData.returnPolicy, box_included: formData.boxIncluded,
+              gallery: formData.gallery,
+              
+              // Watch
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
               case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, 
               case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
               strap: formData.strapMaterial, strap_color: formData.strapColor, strap_width: formData.strapWidth, adjustable: formData.adjustable,
-              dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay, weight: formData.weight,
-              warranty: formData.warranty, shipping_text: formData.shippingText, return_policy: formData.returnPolicy, box_included: formData.boxIncluded,
-              gallery: formData.gallery
+              dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay,
+              
+              // Fragrance
+              volume: formData.volume, concentration: formData.concentration, fragranceFamily: formData.fragranceFamily,
+              topNotes: formData.topNotes, heartNotes: formData.heartNotes, baseNotes: formData.baseNotes, longevity: formData.longevity,
+              
+              // Wallets & Belts
+              walletMaterial: formData.walletMaterial, cardSlots: formData.cardSlots, rfid: formData.rfid, coinPocket: formData.coinPocket, dimensions: formData.dimensions,
+              beltMaterial: formData.beltMaterial, buckleType: formData.buckleType, buckleMaterial: formData.buckleMaterial,
+              
+              // Sunglasses & Jewelry
+              lensFeature: formData.lensFeature, frameMaterial: formData.frameMaterial, lensMaterial: formData.lensMaterial, eyewearShape: formData.eyewearShape,
+              jewelryMaterial: formData.jewelryMaterial, plating: formData.plating, stone: formData.stone,
+              
+              // Smart Tech
+              displayType: formData.displayType, screenSize: formData.screenSize, smartFeatures: formData.smartFeatures, appSupport: formData.appSupport,
+              bluetoothVersion: formData.bluetoothVersion, earbudFeatures: formData.earbudFeatures, playtime: formData.playtime, waterResistanceSmart: formData.waterResistanceSmart
           }
       };
 
@@ -898,25 +910,23 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                     
                     <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50">
                         <form id="productForm" onSubmit={handlePublish} className="space-y-12">
+                            
+                            {/* SECTION: Identity */}
                             <section className="space-y-6">
                                 <div className="flex justify-between items-center border-b pb-2">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest"><Tag size={16}/> Identity</h3>
-                                    
-                                    <button 
-                                        type="button" 
-                                        onClick={handleAIAutoFill}
-                                        disabled={isAnalyzingAI}
-                                        className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-md hover:scale-105 transition-transform flex items-center gap-1.5 disabled:opacity-50"
-                                    >
-                                        {isAnalyzingAI ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                                        {isAnalyzingAI ? "Analyzing..." : "Auto-Fill with AI"}
+                                    <button type="button" onClick={handleAIAutoFill} disabled={isAnalyzingAI} className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-md hover:scale-105 transition-transform flex items-center gap-1.5 disabled:opacity-50">
+                                        {isAnalyzingAI ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {isAnalyzingAI ? "Analyzing..." : "Auto-Fill with AI"}
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Product Name</label><input required className="w-full p-4 bg-white border rounded-xl focus:border-aura-gold outline-none" value={formData.name || ""} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Royal Oak Rose Gold" /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Brand</label><input className="w-full p-4 bg-white border rounded-xl" value={formData.brand || ""} onChange={e => setFormData({...formData, brand: e.target.value})} /></div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500">Brand</label>
+                                        <input list="brandList" className="w-full p-4 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.brand || ""} onChange={e => setFormData({...formData, brand: e.target.value})} placeholder="e.g. AURA-X" />
+                                        <datalist id="brandList"><option value="AURA-X" /></datalist>
+                                    </div>
                                     <div><label className="text-xs font-bold text-gray-500">SKU (Auto)</label><input className="w-full p-4 bg-gray-100 border rounded-xl text-gray-500" readOnly value={formData.sku || ""} /></div>
-                                    
                                     <div>
                                         <label className="text-xs font-bold text-gray-500">Main Category</label>
                                         <select className="w-full p-4 bg-white border rounded-xl" value={formData.category || ""} onChange={e => setFormData({...formData, category: e.target.value, sub_category: ""})}>
@@ -933,129 +943,33 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <label className="text-xs font-bold text-gray-500">Sub Category</label>
                                         <select className="w-full p-4 bg-white border rounded-xl" value={formData.sub_category || ""} onChange={e => setFormData({...formData, sub_category: e.target.value})}>
                                             <option value="">Select Sub Category</option>
-                                            {formData.category === 'accessories' && (
-                                                <>
-                                                <option value="wallets">Wallets</option>
-                                                <option value="belts">Belts</option>
-                                                <option value="sunglasses">Sunglasses</option>
-                                                <option value="jewelry">Jewelry (Rings/Bracelets)</option>
-                                                </>
-                                            )}
-                                            {formData.category === 'fragrances' && (
-                                                <>
-                                                <option value="perfume-men">Men's Perfume</option>
-                                                <option value="perfume-women">Women's Perfume</option>
-                                                </>
-                                            )}
-                                            {formData.category === 'smart-tech' && (
-                                                <>
-                                                <option value="smartwatches">Smartwatches</option>
-                                                <option value="earbuds">Earbuds</option>
-                                                </>
-                                            )}
-                                            {['men', 'women', 'couple'].includes(formData.category) && (
-                                                <option value="watches">Standard Watches</option>
-                                            )}
+                                            {formData.category === 'accessories' && (<><option value="wallets">Wallets</option><option value="belts">Belts</option><option value="sunglasses">Sunglasses</option><option value="jewelry">Jewelry (Rings/Bracelets)</option></>)}
+                                            {formData.category === 'fragrances' && (<><option value="perfume-men">Men's Perfume</option><option value="perfume-women">Women's Perfume</option></>)}
+                                            {formData.category === 'smart-tech' && (<><option value="smartwatches">Smartwatches</option><option value="earbuds">Earbuds</option></>)}
+                                            {['men', 'women', 'couple'].includes(formData.category) && (<option value="watches">Standard Watches</option>)}
                                         </select>
                                     </div>
-
                                     <div><label className="text-xs font-bold text-gray-500">Stock Qty</label><input type="number" className="w-full p-4 bg-white border rounded-xl" value={formData.stock} onChange={e => setFormData({...formData, stock: Number(e.target.value)})} /></div>
                                 </div>
                             </section>
 
+                            {/* SECTION: Description */}
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Description & Notes</h3>
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-xs font-bold text-gray-500 block mb-2">Product Description</label>
-                                        <textarea className="w-full p-4 bg-white border rounded-xl h-32 resize-none" placeholder="Write a catchy description..." value={formData.description || ""} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                                        <textarea className="w-full p-4 bg-white border rounded-xl h-32 resize-none outline-none focus:border-aura-gold" placeholder="Write a catchy description..." value={formData.description || ""} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-gray-500 block mb-2 flex items-center gap-2"><Sparkles size={14} className="text-aura-gold"/> Special / Extra Note (Optional)</label>
-                                        <textarea className="w-full p-4 bg-gray-50 border rounded-xl h-20 resize-none text-sm" placeholder="e.g. Please note that the dial pattern may slightly vary as it is naturally sourced..." value={formData.extra_notes || ""} onChange={e => setFormData({...formData, extra_notes: e.target.value})}></textarea>
+                                        <textarea className="w-full p-4 bg-gray-50 border rounded-xl h-20 resize-none text-sm outline-none focus:border-aura-gold" placeholder="e.g. Please note that the dial pattern may slightly vary as it is naturally sourced..." value={formData.extra_notes || ""} onChange={e => setFormData({...formData, extra_notes: e.target.value})}></textarea>
                                         <p className="text-[10px] text-gray-400 mt-1">This will be highlighted in a stylish dark box on the product page.</p>
                                     </div>
                                 </div>
                             </section>
 
-                            <section className="space-y-6">
-                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Flame size={16}/> Marketing & Visibility</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-500">Tags</label>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            {["Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"].map(tag => (
-                                                <button type="button" key={tag} onClick={() => selectTag(tag)} className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${formData.tags === tag ? 'bg-aura-brown text-white border-aura-brown' : 'bg-white text-gray-400 border-gray-200'}`}>{tag}</button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div><label className="text-xs font-bold text-gray-500">Priority</label><input type="number" className="w-full p-3 border rounded-xl bg-white" value={formData.priority} onChange={e => setFormData({...formData, priority: Number(e.target.value)})} /></div>
-                                        <div><label className="text-xs font-bold text-gray-500">Fake Views</label><input type="number" className="w-full p-3 border rounded-xl bg-white" value={formData.viewCount || 0} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
-                                    </div>
-
-                                    <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-white border-gray-200'}`}>
-                                            <input 
-                                                type="checkbox" 
-                                                className="hidden" 
-                                                checked={formData.isEidExclusive} 
-                                                onChange={e => {
-                                                    const isChecked = e.target.checked;
-                                                    setFormData({...formData, isEidExclusive: isChecked, deliveryCharge: isChecked ? 0 : 250});
-                                                }} 
-                                            />
-                                            <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.isEidExclusive ? 'bg-aura-gold border-aura-gold text-black' : 'bg-white border-gray-300'}`}>
-                                                {formData.isEidExclusive && <Check size={14} strokeWidth={4} />}
-                                            </div>
-                                            <div>
-                                                <p className={`font-bold text-sm ${formData.isEidExclusive ? 'text-aura-gold' : 'text-gray-600'}`}>Mark as Eid Exclusive</p>
-                                                <p className="text-xs text-gray-400">Hidden from normal shop, only on Locked Page.</p>
-                                            </div>
-                                        </label>
-
-                                        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isPinned ? 'bg-aura-gold/10 border-aura-gold' : 'bg-white border-gray-200'}`}>
-                                            <input type="checkbox" className="hidden" checked={formData.isPinned} onChange={e => setFormData({...formData, isPinned: e.target.checked})} />
-                                            <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.isPinned ? 'bg-aura-gold border-aura-gold text-black' : 'bg-white border-gray-300'}`}>
-                                                {formData.isPinned && <Check size={14} strokeWidth={4} />}
-                                            </div>
-                                            <div>
-                                                <p className={`font-bold text-sm flex items-center gap-1 ${formData.isPinned ? 'text-aura-brown' : 'text-gray-600'}`}><Star size={14} fill={formData.isPinned ? "currentColor" : "none"}/> Pin to Top</p>
-                                                <p className="text-xs text-gray-400">Shows in the top exclusive row on the home page.</p>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section className="space-y-6">
-                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Tag size={16}/> Pricing</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-6 bg-white p-6 rounded-2xl border border-gray-200">
-                                    <div><label className="text-xs font-bold text-gray-500">Original Price</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.originalPrice || 0} onChange={e => handlePriceChange('originalPrice', Number(e.target.value))} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Discount %</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.discount || 0} onChange={e => handlePriceChange('discount', Number(e.target.value))} /></div>
-                                    <div><label className="text-xs font-bold text-aura-brown">Sale Price</label><div className="w-full p-3 bg-aura-gold/20 rounded-xl font-bold text-aura-brown">Rs {(formData.price || 0).toLocaleString()}</div></div>
-                                    <div><label className="text-xs font-bold text-gray-400">Cost Price</label><input type="number" className="w-full p-3 border rounded-xl bg-gray-50" value={formData.costPrice || 0} onChange={e => setFormData({...formData, costPrice: Number(e.target.value)})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-400">Delivery (DC)</label><input type="number" className="w-full p-3 border rounded-xl bg-gray-50" value={formData.deliveryCharge} onChange={e => setFormData({...formData, deliveryCharge: Number(e.target.value)})} /></div>
-                                </div>
-                            </section>
-
-                            {needsSizes && (
-                                <section className="space-y-6">
-                                    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Size Variants</h3>
-                                    <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                                        <label className="block text-xs font-bold text-gray-500 mb-2">Available Sizes (Comma Separated)</label>
-                                        <input 
-                                            type="text" 
-                                            className="w-full p-4 bg-white border rounded-xl focus:border-aura-gold outline-none" 
-                                            value={sizesInput} 
-                                            onChange={e => setSizesInput(e.target.value)} 
-                                            placeholder="e.g. Small, Medium, Large OR 40, 42, 44" 
-                                        />
-                                        <p className="text-[10px] text-gray-400 mt-2">Leave blank if this item does not have size options.</p>
-                                    </div>
-                                </section>
-                            )}
-
+                            {/* SECTION: Visuals & Images */}
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Visuals & Color Variants</h3>
                                 
@@ -1063,20 +977,19 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div className="w-full md:w-1/2 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Main Image (Pic 1)</label>
-                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage && !formData.mainImage.includes('cloudinary') ? 'border-aura-gold' : 'border-gray-300'}`}
+                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'main')} onPaste={(e) => handlePaste(e, 'main')} tabIndex={0}>
                                                 
                                                 {uploadQueue.filter(u => u.type === 'main').map(u => (
                                                     <div key={u.id} className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
                                                         <Loader2 className="animate-spin text-aura-gold mb-2" size={24} />
                                                         <div className="text-xs font-bold text-aura-brown">{u.progress}%</div>
-                                                        <div className="w-20 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden"><div className="h-full bg-aura-gold transition-all duration-300" style={{ width: `${u.progress}%` }}></div></div>
                                                     </div>
                                                 ))}
 
                                                 {formData.mainImage ? (
                                                     <>
-                                                        {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <Image src={formData.mainImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" unoptimized={true} />}
+                                                        {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <img src={formData.mainImage} alt="" className="object-cover w-full h-full" />}
                                                         <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
                                                     </>
                                                 ) : (
@@ -1096,10 +1009,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                         onChange={(e) => setFormData({...formData, mainImage: e.target.value})}
                                                         className="w-full p-2 pr-8 text-xs border border-gray-200 rounded-lg outline-none focus:border-blue-400 bg-white"
                                                     />
-                                                    {formData.mainImage && formData.mainImage.includes('http') && (
-                                                        <button type="button" onClick={() => setFormData({...formData, mainImage: ""})} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
-                                                            <X size={14}/>
-                                                        </button>
+                                                    {formData.mainImage && (
+                                                        <button type="button" onClick={() => setFormData({...formData, mainImage: ""})} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"><X size={14}/></button>
                                                     )}
                                                 </div>
                                             </div>
@@ -1109,20 +1020,19 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div className="w-full md:w-1/2 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Hover Image (Pic 2) - <span className="text-gray-400 font-normal">Shows when card is hovered</span></label>
-                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.hoverImage && !formData.hoverImage.includes('cloudinary') ? 'border-aura-gold' : 'border-gray-300'}`}
+                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.hoverImage ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'hover')} onPaste={(e) => handlePaste(e, 'hover')} tabIndex={0}>
                                                 
                                                 {uploadQueue.filter(u => u.type === 'hover').map(u => (
                                                     <div key={u.id} className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
                                                         <Loader2 className="animate-spin text-aura-gold mb-2" size={24} />
                                                         <div className="text-xs font-bold text-aura-brown">{u.progress}%</div>
-                                                        <div className="w-20 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden"><div className="h-full bg-aura-gold transition-all duration-300" style={{ width: `${u.progress}%` }}></div></div>
                                                     </div>
                                                 ))}
 
                                                 {formData.hoverImage ? (
                                                     <>
-                                                        {isVideoFile(formData.hoverImage) ? <video src={formData.hoverImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <Image src={formData.hoverImage} alt="" fill sizes="(max-width: 768px) 100vw, 300px" className="object-cover" unoptimized={true} />}
+                                                        {isVideoFile(formData.hoverImage) ? <video src={formData.hoverImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <img src={formData.hoverImage} alt="" className="object-cover w-full h-full" />}
                                                         <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('hover');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
                                                     </>
                                                 ) : (
@@ -1142,10 +1052,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                         onChange={(e) => setFormData({...formData, hoverImage: e.target.value})}
                                                         className="w-full p-2 pr-8 text-xs border border-gray-200 rounded-lg outline-none focus:border-blue-400 bg-white"
                                                     />
-                                                    {formData.hoverImage && formData.hoverImage.includes('http') && (
-                                                        <button type="button" onClick={() => setFormData({...formData, hoverImage: ""})} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
-                                                            <X size={14}/>
-                                                        </button>
+                                                    {formData.hoverImage && (
+                                                        <button type="button" onClick={() => setFormData({...formData, hoverImage: ""})} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"><X size={14}/></button>
                                                     )}
                                                 </div>
                                             </div>
@@ -1160,7 +1068,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         
                                         {formData.gallery.map((img, i) => (
                                             <div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200 group bg-gray-50">
-                                                {isVideoFile(img) ? <video src={img} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <Image src={img} alt="" fill sizes="100px" className="object-cover" unoptimized={true} />}
+                                                {isVideoFile(img) ? <video src={img} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <img src={img} alt="" className="object-cover w-full h-full" />}
                                                 <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12}/></button>
                                             </div>
                                         ))}
@@ -1278,13 +1186,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                         <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-full justify-center border relative overflow-hidden ${color.image ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}>
                                                             {uploadQueue.find(u => u.type === 'color' && u.index === index) ? (
                                                                 <span className="text-aura-gold animate-pulse">Uploading...</span>
-                                                            ) : color.image ? "Change Image" : "Upload File"} 
+                                                            ) : color.image ? "Change Image File" : "Upload File"} 
                                                             <input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'color', index)}/>
                                                         </label>
                                                         
                                                         {color.image && (
                                                             <div className="relative w-12 h-12 rounded border border-gray-200 overflow-hidden shrink-0">
-                                                                <Image src={color.image} fill className="object-cover" alt="" unoptimized={true} />
+                                                                <img src={color.image} className="object-cover w-full h-full" alt="" />
                                                             </div>
                                                         )}
 
@@ -1313,18 +1221,83 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </section>
 
                             <section className="space-y-6">
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Tag size={16}/> Pricing</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-6 bg-white p-6 rounded-2xl border border-gray-200">
+                                    <div><label className="text-xs font-bold text-gray-500">Original Price</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.originalPrice || 0} onChange={e => handlePriceChange('originalPrice', Number(e.target.value))} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Discount %</label><input type="number" className="w-full p-3 border rounded-xl" value={formData.discount || 0} onChange={e => handlePriceChange('discount', Number(e.target.value))} /></div>
+                                    <div><label className="text-xs font-bold text-aura-brown">Sale Price</label><div className="w-full p-3 bg-aura-gold/20 rounded-xl font-bold text-aura-brown">Rs {(formData.price || 0).toLocaleString()}</div></div>
+                                    <div><label className="text-xs font-bold text-gray-400">Cost Price</label><input type="number" className="w-full p-3 border rounded-xl bg-gray-50" value={formData.costPrice || 0} onChange={e => setFormData({...formData, costPrice: Number(e.target.value)})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-400">Delivery (DC)</label><input type="number" className="w-full p-3 border rounded-xl bg-gray-50" value={formData.deliveryCharge} onChange={e => setFormData({...formData, deliveryCharge: Number(e.target.value)})} /></div>
+                                </div>
+                            </section>
+
+                            <section className="space-y-6">
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Flame size={16}/> Marketing & Visibility</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500">Tags</label>
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {["Featured", "Sale", "Limited Edition", "Fire", "New Arrival", "Best Seller"].map(tag => (
+                                                <button type="button" key={tag} onClick={() => selectTag(tag)} className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${formData.tags === tag ? 'bg-aura-brown text-white border-aura-brown' : 'bg-white text-gray-400 border-gray-200'}`}>{tag}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><label className="text-xs font-bold text-gray-500">Priority</label><input type="number" className="w-full p-3 border rounded-xl bg-white outline-none focus:border-aura-gold" value={formData.priority} onChange={e => setFormData({...formData, priority: Number(e.target.value)})} /></div>
+                                        <div><label className="text-xs font-bold text-gray-500">Fake Views</label><input type="number" className="w-full p-3 border rounded-xl bg-white outline-none focus:border-aura-gold" value={formData.viewCount || 0} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
+                                    </div>
+
+                                    <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-white border-gray-200'}`}>
+                                            <input 
+                                                type="checkbox" 
+                                                className="hidden" 
+                                                checked={formData.isEidExclusive} 
+                                                onChange={e => {
+                                                    const isChecked = e.target.checked;
+                                                    setFormData({...formData, isEidExclusive: isChecked, deliveryCharge: isChecked ? 0 : 250});
+                                                }} 
+                                            />
+                                            <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.isEidExclusive ? 'bg-aura-gold border-aura-gold text-black' : 'bg-white border-gray-300'}`}>
+                                                {formData.isEidExclusive && <Check size={14} strokeWidth={4} />}
+                                            </div>
+                                            <div>
+                                                <p className={`font-bold text-sm ${formData.isEidExclusive ? 'text-aura-gold' : 'text-gray-600'}`}>Mark as Eid Exclusive</p>
+                                                <p className="text-xs text-gray-400">Hidden from normal shop, only on Locked Page.</p>
+                                            </div>
+                                        </label>
+
+                                        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isPinned ? 'bg-aura-gold/10 border-aura-gold' : 'bg-white border-gray-200'}`}>
+                                            <input type="checkbox" className="hidden" checked={formData.isPinned} onChange={e => setFormData({...formData, isPinned: e.target.checked})} />
+                                            <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.isPinned ? 'bg-aura-gold border-aura-gold text-black' : 'bg-white border-gray-300'}`}>
+                                                {formData.isPinned && <Check size={14} strokeWidth={4} />}
+                                            </div>
+                                            <div>
+                                                <p className={`font-bold text-sm flex items-center gap-1 ${formData.isPinned ? 'text-aura-brown' : 'text-gray-600'}`}><Star size={14} fill={formData.isPinned ? "currentColor" : "none"}/> Pin to Top</p>
+                                                <p className="text-xs text-gray-400">Shows in the top exclusive row on the home page.</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* 🚀 CATEGORY SPECIFIC SPECIFICATIONS (DYNAMIC) */}
+                            <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Specifications</h3>
+                                
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {isWatchCategory ? (
+                                    
+                                    {/* --- 1. WATCHES --- */}
+                                    {isWatchCategory && (
                                         <>
-                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Case & Dial (Watches)</h4></div>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Case & Dial</h4></div>
                                             <div>
                                                 <label className="text-xs font-bold text-gray-500">Case Material</label>
                                                 <input list="caseMaterials" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.caseMaterial || ""} onChange={e => setFormData({...formData, caseMaterial: e.target.value})} placeholder="e.g. Stainless Steel" />
                                                 <datalist id="caseMaterials">{MATERIAL_MAP.map(m => <option key={m} value={m} />)}</datalist>
                                             </div>
-                                            <div><label className="text-xs font-bold text-gray-500">Case Diameter</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.caseDiameter} onChange={e => setFormData({...formData, caseDiameter: e.target.value})} /></div>
-                                            <div><label className="text-xs font-bold text-gray-500">Case Thickness</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.caseThickness} onChange={e => setFormData({...formData, caseThickness: e.target.value})} /></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Case Diameter</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.caseDiameter} onChange={e => setFormData({...formData, caseDiameter: e.target.value})} placeholder="e.g. 40mm"/></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Case Thickness</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.caseThickness} onChange={e => setFormData({...formData, caseThickness: e.target.value})} placeholder="e.g. 10mm"/></div>
                                             <div>
                                                 <label className="text-xs font-bold text-gray-500">Glass Type</label>
                                                 <input list="glassTypes" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.glass || ""} onChange={e => setFormData({...formData, glass: e.target.value})} placeholder="e.g. Mineral" />
@@ -1347,27 +1320,195 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 <input list="strapColors" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.strapColor || ""} onChange={e => setFormData({...formData, strapColor: e.target.value})} placeholder="Type color..." />
                                                 <datalist id="strapColors">{POPULAR_COLORS.map(c => <option key={c} value={c} />)}</datalist>
                                             </div>
-                                            <div><label className="text-xs font-bold text-gray-500">Movement</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.movement || "Quartz (Battery)"} onChange={e => setFormData({...formData, movement: e.target.value})}><option>Quartz (Battery)</option><option>Automatic (Mechanical)</option><option>Digital</option></select></div>
-                                            <div><label className="text-xs font-bold text-gray-500">Water Resistance</label><select className="w-full p-3 bg-white border rounded-xl" value={formData.waterResistance || "0ATM (No Resistance)"} onChange={e => setFormData({...formData, waterResistance: e.target.value})}><option>0ATM (No Resistance)</option><option>3ATM (Splash)</option><option>5ATM (Swim)</option><option>10ATM (Dive)</option></select></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Movement</label>
+                                                <select className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.movement || "Quartz (Battery)"} onChange={e => setFormData({...formData, movement: e.target.value})}>
+                                                    <option>Quartz (Battery)</option><option>Automatic (Mechanical)</option><option>Digital</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Water Resistance</label>
+                                                <select className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.waterResistance || "0ATM (No Resistance)"} onChange={e => setFormData({...formData, waterResistance: e.target.value})}>
+                                                    <option>0ATM (No Resistance)</option><option>3ATM (Splash)</option><option>5ATM (Swim)</option><option>10ATM (Dive)</option>
+                                                </select>
+                                            </div>
                                             
                                             <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Features</h4></div>
-                                            <div className="flex gap-4 col-span-2 md:col-span-4">
+                                            <div className="flex flex-wrap gap-4 col-span-2 md:col-span-4">
                                                 <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.luminous || false} onChange={e => setFormData({...formData, luminous: e.target.checked})} /> Luminous Hands</label>
                                                 <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.dateDisplay || false} onChange={e => setFormData({...formData, dateDisplay: e.target.checked})} /> Date Display</label>
-                                                <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.boxIncluded || false} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> Box Included</label>
                                             </div>
                                         </>
-                                    ) : (
-                                        <div className="col-span-2 md:col-span-4 bg-gray-50 p-4 rounded-xl text-center text-gray-400 italic">
-                                            Watch specific features (Movement, Case Size, Luminous Hands) are hidden for this category.
-                                        </div>
+                                    )}
+
+                                    {/* --- 2. FRAGRANCES --- */}
+                                    {isFragrance && (
+                                        <>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Fragrance Details</h4></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Volume</label>
+                                                <input list="fVolumes" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.volume || ""} onChange={e => setFormData({...formData, volume: e.target.value})} placeholder="e.g. 50ml" />
+                                                <datalist id="fVolumes">{FRAGRANCE_VOLUMES.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Concentration</label>
+                                                <input list="fConcentrations" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.concentration || ""} onChange={e => setFormData({...formData, concentration: e.target.value})} placeholder="e.g. EDP" />
+                                                <datalist id="fConcentrations">{FRAGRANCE_CONCENTRATIONS.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Fragrance Family</label>
+                                                <input list="fFamilies" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.fragranceFamily || ""} onChange={e => setFormData({...formData, fragranceFamily: e.target.value})} placeholder="e.g. Woody" />
+                                                <datalist id="fFamilies">{FRAGRANCE_FAMILIES.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Longevity</label>
+                                                <input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.longevity || ""} onChange={e => setFormData({...formData, longevity: e.target.value})} placeholder="e.g. 8-12 Hours" />
+                                            </div>
+                                            
+                                            <div className="col-span-2 md:col-span-4 mt-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Scent Notes</h4></div>
+                                            <div className="col-span-2"><label className="text-xs font-bold text-gray-500">Top Notes</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.topNotes || ""} onChange={e => setFormData({...formData, topNotes: e.target.value})} placeholder="e.g. Citrus, Bergamot" /></div>
+                                            <div className="col-span-2"><label className="text-xs font-bold text-gray-500">Heart Notes</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.heartNotes || ""} onChange={e => setFormData({...formData, heartNotes: e.target.value})} placeholder="e.g. Rose, Jasmine" /></div>
+                                            <div className="col-span-2 md:col-span-4"><label className="text-xs font-bold text-gray-500">Base Notes</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.baseNotes || ""} onChange={e => setFormData({...formData, baseNotes: e.target.value})} placeholder="e.g. Musk, Vanilla" /></div>
+                                        </>
+                                    )}
+
+                                    {/* --- 3. WALLETS --- */}
+                                    {isWallet && (
+                                        <>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Wallet Details</h4></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Material</label>
+                                                <input list="wMaterials" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.walletMaterial || ""} onChange={e => setFormData({...formData, walletMaterial: e.target.value})} placeholder="e.g. Genuine Leather" />
+                                                <datalist id="wMaterials">{WALLET_MATERIALS.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Card Slots</label>
+                                                <input list="wSlots" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.cardSlots || ""} onChange={e => setFormData({...formData, cardSlots: e.target.value})} placeholder="e.g. 6 Slots" />
+                                                <datalist id="wSlots">{CARD_SLOTS.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div className="col-span-2"><label className="text-xs font-bold text-gray-500">Dimensions</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.dimensions || ""} onChange={e => setFormData({...formData, dimensions: e.target.value})} placeholder="e.g. 11cm x 9cm" /></div>
+                                            
+                                            <div className="flex gap-4 col-span-2 md:col-span-4 mt-2">
+                                                <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.rfid || false} onChange={e => setFormData({...formData, rfid: e.target.checked})} /> RFID Protection</label>
+                                                <label className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg cursor-pointer border"><input type="checkbox" checked={formData.coinPocket || false} onChange={e => setFormData({...formData, coinPocket: e.target.checked})} /> Coin Pocket</label>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* --- 4. BELTS --- */}
+                                    {isBelt && (
+                                        <>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Belt Details</h4></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Belt Material</label>
+                                                <input list="bMaterials" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.beltMaterial || ""} onChange={e => setFormData({...formData, beltMaterial: e.target.value})} placeholder="e.g. Cowhide Leather" />
+                                                <datalist id="bMaterials">{BELT_MATERIALS.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Buckle Type</label>
+                                                <input list="bTypes" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.buckleType || ""} onChange={e => setFormData({...formData, buckleType: e.target.value})} placeholder="e.g. Auto-Lock" />
+                                                <datalist id="bTypes">{BUCKLE_TYPES.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div className="col-span-2"><label className="text-xs font-bold text-gray-500">Buckle Material</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.buckleMaterial || ""} onChange={e => setFormData({...formData, buckleMaterial: e.target.value})} placeholder="e.g. Alloy / Stainless Steel" /></div>
+                                        </>
+                                    )}
+
+                                    {/* --- 5. SUNGLASSES --- */}
+                                    {isSunglasses && (
+                                        <>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Sunglasses Details</h4></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Frame Style/Shape</label>
+                                                <input list="sShapes" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.eyewearShape || ""} onChange={e => setFormData({...formData, eyewearShape: e.target.value})} placeholder="e.g. Aviator" />
+                                                <datalist id="sShapes">{FRAME_STYLES.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Lens Features</label>
+                                                <input list="sLensFeatures" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.lensFeature || ""} onChange={e => setFormData({...formData, lensFeature: e.target.value})} placeholder="e.g. UV400" />
+                                                <datalist id="sLensFeatures">{LENS_FEATURES.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Frame Material</label>
+                                                <input list="sFrameMats" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.frameMaterial || ""} onChange={e => setFormData({...formData, frameMaterial: e.target.value})} placeholder="e.g. Metal" />
+                                                <datalist id="sFrameMats">{FRAME_MATERIALS.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div><label className="text-xs font-bold text-gray-500">Lens Material</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.lensMaterial || ""} onChange={e => setFormData({...formData, lensMaterial: e.target.value})} placeholder="e.g. Resin/Glass" /></div>
+                                        </>
+                                    )}
+
+                                    {/* --- 6. JEWELRY --- */}
+                                    {isJewelry && (
+                                        <>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Jewelry Details</h4></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Base Material</label>
+                                                <input list="jMaterials" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.jewelryMaterial || ""} onChange={e => setFormData({...formData, jewelryMaterial: e.target.value})} placeholder="e.g. Sterling Silver" />
+                                                <datalist id="jMaterials">{JEWELRY_MATERIALS.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Plating</label>
+                                                <input list="jPlatings" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.plating || ""} onChange={e => setFormData({...formData, plating: e.target.value})} placeholder="e.g. 18K Gold" />
+                                                <datalist id="jPlatings">{PLATINGS.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="text-xs font-bold text-gray-500">Main Stone</label>
+                                                <input list="jStones" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.stone || ""} onChange={e => setFormData({...formData, stone: e.target.value})} placeholder="e.g. Zirconia" />
+                                                <datalist id="jStones">{STONES.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* --- 7. SMARTWATCHES --- */}
+                                    {isSmartwatch && (
+                                        <>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Smartwatch Details</h4></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Display Type</label>
+                                                <input list="swDisplays" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.displayType || ""} onChange={e => setFormData({...formData, displayType: e.target.value})} placeholder="e.g. AMOLED" />
+                                                <datalist id="swDisplays">{DISPLAY_TYPES.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Screen Size</label>
+                                                <input list="swSizes" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.screenSize || ""} onChange={e => setFormData({...formData, screenSize: e.target.value})} placeholder="e.g. 2.0 inches" />
+                                                <datalist id="swSizes">{SCREEN_SIZES.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div><label className="text-xs font-bold text-gray-500">App Support</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.appSupport || ""} onChange={e => setFormData({...formData, appSupport: e.target.value})} placeholder="e.g. WearFit Pro" /></div>
+                                            <div><label className="text-xs font-bold text-gray-500">Water Resistance</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.waterResistanceSmart || ""} onChange={e => setFormData({...formData, waterResistanceSmart: e.target.value})} placeholder="e.g. IP68" /></div>
+                                            <div className="col-span-2 md:col-span-4"><label className="text-xs font-bold text-gray-500">Key Features</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.smartFeatures || ""} onChange={e => setFormData({...formData, smartFeatures: e.target.value})} placeholder="e.g. Bluetooth Calling, Heart Rate" /></div>
+                                        </>
+                                    )}
+
+                                    {/* --- 8. EARBUDS --- */}
+                                    {isEarbuds && (
+                                        <>
+                                            <div className="col-span-2 md:col-span-4"><h4 className="text-xs font-bold text-aura-brown bg-aura-gold/10 p-2 rounded">Earbuds Details</h4></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500">Bluetooth Version</label>
+                                                <input list="ebBluetooth" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.bluetoothVersion || ""} onChange={e => setFormData({...formData, bluetoothVersion: e.target.value})} placeholder="e.g. 5.3" />
+                                                <datalist id="ebBluetooth">{BLUETOOTH_VERSIONS.map(v => <option key={v} value={v} />)}</datalist>
+                                            </div>
+                                            <div><label className="text-xs font-bold text-gray-500">Playtime</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.playtime || ""} onChange={e => setFormData({...formData, playtime: e.target.value})} placeholder="e.g. 24 Hours with case" /></div>
+                                            <div className="col-span-2"><label className="text-xs font-bold text-gray-500">Audio Features</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.earbudFeatures || ""} onChange={e => setFormData({...formData, earbudFeatures: e.target.value})} placeholder="e.g. ANC, ENC, Gaming Mode" /></div>
+                                        </>
                                     )}
                                     
+                                    {/* UNIVERSAL WEIGHT */}
                                     <div className="col-span-2 md:col-span-4 mt-2">
-                                        <div><label className="text-xs font-bold text-gray-500">Item Weight (General)</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.weight || "135g"} onChange={e => setFormData({...formData, weight: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold text-gray-500">Item Weight (General)</label><input className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.weight || "135g"} onChange={e => setFormData({...formData, weight: e.target.value})} /></div>
                                     </div>
+                                    
                                 </div>
                             </section>
+                            
+                            {needsSizes && (
+                                <section className="space-y-6">
+                                    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Settings size={16}/> Size Variants</h3>
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                                        <label className="block text-xs font-bold text-gray-500 mb-2">Available Sizes (Comma Separated)</label>
+                                        <input type="text" className="w-full p-4 bg-white border rounded-xl focus:border-aura-gold outline-none" value={sizesInput} onChange={e => setSizesInput(e.target.value)} placeholder="e.g. Small, Medium, Large OR 40, 42, 44" />
+                                    </div>
+                                </section>
+                            )}
 
                             <section className="space-y-6">
                                 <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Star size={16}/> Manual Reviews</h3>
@@ -1424,18 +1565,21 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </section>
 
                             <section className="space-y-6">
-                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Package size={16}/> Shipping & Warranty</h3>
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2"><Package size={16}/> Shipping & Packaging</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="text-xs font-bold text-gray-500">Warranty</label>
-                                        <select className="w-full p-3 bg-white border rounded-xl" value={formData.warranty || "No Official Warranty"} onChange={e => setFormData({...formData, warranty: e.target.value})}>
-                                            <option>No Official Warranty</option>
-                                            <option>6 Months Official Warranty</option>
-                                            <option>1 Year Official Warranty</option>
-                                        </select>
+                                        <input list="warrantyOpts" className="w-full p-3 bg-white border rounded-xl outline-none focus:border-aura-gold" value={formData.warranty || ""} onChange={e => setFormData({...formData, warranty: e.target.value})} />
+                                        <datalist id="warrantyOpts"><option value="6 Months Official Warranty"/><option value="1 Year Official Warranty"/><option value="No Official Warranty"/></datalist>
                                     </div>
                                     <div><label className="text-xs font-bold text-gray-500">Shipping Info</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.shippingText || ""} onChange={e => setFormData({...formData, shippingText: e.target.value})} /></div>
-                                    <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Return Policy</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.returnPolicy || ""} onChange={e => setFormData({...formData, returnPolicy: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-gray-500">Return Policy</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.returnPolicy || ""} onChange={e => setFormData({...formData, returnPolicy: e.target.value})} /></div>
+                                    <div>
+                                        <label className="flex items-center gap-2 text-sm bg-white px-4 py-3 rounded-xl cursor-pointer border mt-5">
+                                            <input type="checkbox" checked={formData.boxIncluded || false} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> 
+                                            <span className="font-bold text-gray-600">Premium Box Included</span>
+                                        </label>
+                                    </div>
                                 </div>
                             </section>
                         </form>
