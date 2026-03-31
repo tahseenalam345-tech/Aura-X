@@ -40,7 +40,7 @@ const BLUETOOTH_VERSIONS = ["Bluetooth 5.0", "Bluetooth 5.2", "Bluetooth 5.3", "
 
 // --- HELPER FUNCTIONS ---
 const isVideoFile = (url: string) => {
-    if (!url) return false;
+    if (!url || typeof url !== 'string') return false;
     const lowerUrl = url.toLowerCase();
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
@@ -212,7 +212,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [searchQuery, setSearchQuery] = useState(""); 
   const [categoryFilter, setCategoryFilter] = useState("All");
 
-  // 🚀 FIX 1: useState<any> added to eliminate red squiggly lines in TS
+  // 🚀 FIX: <any> added to eliminate typescript red lines
   const [newReview, setNewReview] = useState<any>({ user: "", date: "", rating: 5, comment: "", images: [] });
   
   const [externalGalleryLink, setExternalGalleryLink] = useState("");
@@ -237,15 +237,21 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
     manualReviews: [] as any[], variants: { sizes: [] as string[] },
     
+    // FRAGRANCE SPECS
     volume: "", concentration: "", fragranceFamily: "", topNotes: "", heartNotes: "", baseNotes: "", longevity: "",
+    // WALLET SPECS
     walletMaterial: "", cardSlots: "", rfid: false, coinPocket: false, dimensions: "",
+    // BELT SPECS
     beltMaterial: "", buckleType: "", buckleMaterial: "",
+    // SUNGLASSES SPECS
     lensFeature: "", frameMaterial: "", lensMaterial: "", eyewearShape: "",
+    // JEWELRY SPECS
     jewelryMaterial: "", plating: "", stone: "",
+    // SMART TECH SPECS
     displayType: "", screenSize: "", smartFeatures: "", appSupport: "", bluetoothVersion: "", earbudFeatures: "", playtime: "", waterResistanceSmart: ""
   };
   
-  // 🚀 FIX 1: useState<any> added to eliminate red squiggly lines
+  // 🚀 FIX: <any> added to eliminate typescript red lines
   const [formData, setFormData] = useState<any>(initialFormState);
 
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(formData.category.toLowerCase());
@@ -442,7 +448,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     const specs = item.specs || {};
     const variants = item.variants || {};
     
-    // 🚀 FIX 2: BULLETPROOF ARRAYS - Ensures old items won't crash the page if arrays are empty/undefined
+    // 🚀 BULLETPROOF SAFEGUARDS FOR ARRAYS (Taa kay puranay item page ko crash na karein)
     const safeGallery = Array.isArray(specs.gallery) ? specs.gallery : [];
     const safeColors = Array.isArray(item.colors) ? item.colors : [];
     const safeReviews = Array.isArray(item.manual_reviews) ? item.manual_reviews : [];
@@ -625,14 +631,23 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           }
       };
 
-      if (isEditing && editId) {
-          await supabase.from('products').update(productPayload).eq('id', editId);
-          toast.success("Product Updated");
-      } else {
-          await supabase.from('products').insert([productPayload]);
-          toast.success("Product Published");
+      // 🚀 FIX: BULLETPROOF ERROR HANDLING (Shows exact error if Supabase rejects it)
+      try {
+          if (isEditing && editId) {
+              const { error } = await supabase.from('products').update(productPayload).eq('id', editId);
+              if (error) throw error;
+              toast.success("Product Updated");
+          } else {
+              const { error } = await supabase.from('products').insert([productPayload]);
+              if (error) throw error;
+              toast.success("Product Published");
+          }
+          setShowForm(false); 
+          fetchProducts();
+      } catch (error: any) {
+          console.error("Supabase Save Error:", error);
+          toast.error(`Failed to save: ${error.message}`);
       }
-      setShowForm(false); fetchProducts();
   };
 
   const deleteItem = async (id: number) => {
@@ -1112,7 +1127,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div className="flex flex-wrap gap-4 p-4 bg-white border border-gray-200 rounded-2xl min-h-[160px]"
                                         onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'gallery')} onPaste={(e) => handlePaste(e, 'gallery')} tabIndex={0}>
                                         
-                                        {(formData.gallery || []).map((img: string, i: number) => (
+                                        {(Array.isArray(formData.gallery) ? formData.gallery : []).map((img: string, i: number) => (
                                             <div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200 group bg-gray-50">
                                                 {isVideoFile(img) ? <video src={img} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <img src={img} alt="" className="object-cover w-full h-full" />}
                                                 <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12}/></button>
@@ -1187,7 +1202,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             checked={hasMultipleColors}
                                             onChange={(e) => {
                                                 setHasMultipleColors(e.target.checked);
-                                                if (e.target.checked && (!formData.colors || formData.colors.length === 0)) {
+                                                if (e.target.checked && (!Array.isArray(formData.colors) || formData.colors.length === 0)) {
                                                     setFormData({...formData, colors: [{ name: "Silver", hex: "#C0C0C0", image: "" }]});
                                                 }
                                             }}
@@ -1200,7 +1215,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
                                     {hasMultipleColors && (
                                         <div className="mt-4 pt-4 border-t border-gray-100 space-y-4 bg-gray-50/50 p-4 rounded-xl">
-                                            {(formData.colors || []).map((color: any, index: number) => (
+                                            {(Array.isArray(formData.colors) ? formData.colors : []).map((color: any, index: number) => (
                                                 <div key={index} className="flex flex-col md:flex-row gap-4 items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
                                                     
                                                     <input type="color" className="w-10 h-10 rounded border-none cursor-pointer flex-shrink-0" value={color?.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} title="Custom Hex Picker" />
