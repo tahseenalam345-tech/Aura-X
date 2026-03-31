@@ -448,7 +448,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     if (Array.isArray(item.tags) && item.tags.length > 0) singleTag = item.tags[0];
     else if (typeof item.tags === 'string') singleTag = item.tags;
 
-    const productColors = item.colors || [];
+    // 🚀 BULLETPROOF FIX: Check if colors array exists before reading its length
+    const productColors = Array.isArray(item.colors) ? item.colors : [];
     const editHasColors = productColors.length > 1; 
 
     setFormData({
@@ -470,7 +471,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         isEidExclusive: item.is_eid_exclusive ?? false,
         isPinned: item.is_pinned ?? false, 
         colors: editHasColors ? productColors.slice(1) : [], 
-        manualReviews: item.manual_reviews || [],
+        manualReviews: Array.isArray(item.manual_reviews) ? item.manual_reviews : [],
         variants: variants,
         sku: specs.sku || item.sku || "",
         stock: specs.stock ?? 5, 
@@ -497,7 +498,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         shippingText: specs.shipping_text || "2-4 Working Days",
         returnPolicy: specs.return_policy || "7 Days Return Policy",
         boxIncluded: specs.box_included ?? false,
-        gallery: specs.gallery || [],
+        
+        // 🚀 BULLETPROOF FIX: Check if gallery exists
+        gallery: Array.isArray(specs.gallery) ? specs.gallery : [],
         
         volume: specs.volume || "", concentration: specs.concentration || "", fragranceFamily: specs.fragranceFamily || "",
         topNotes: specs.topNotes || "", heartNotes: specs.heartNotes || "", baseNotes: specs.baseNotes || "", longevity: specs.longevity || "",
