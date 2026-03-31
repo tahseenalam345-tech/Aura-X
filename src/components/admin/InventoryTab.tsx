@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Loader2, Copy, Link as LinkIcon, Sparkles } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Upload, Tag, Settings, Flame, Star, Package, Check, Palette, LayoutGrid, List, Table as TableIcon, Search, Calendar, Filter, Eye, Loader2, Copy, Link as LinkIcon, Sparkles, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
-// --- CONSTANTS FOR DROPDOWNS ---
+// --- CONSTANTS FOR DROPDOWNS (Yahan saari lists define hain jo errors de rahi theen) ---
 const COLOR_MAP: Record<string, string> = {
   "Silver": "#C0C0C0", "Gold": "#FFD700", "Rose Gold": "#B76E79", "Black": "#000000",
   "Two-Tone (Silver/Gold)": "#F5F5DC", "Two-Tone (Silver/Rose Gold)": "#FFE4E1", "Two-Tone (Black/Gold)": "#B8860B", "Two-Tone (Black/Silver)": "#708090",
@@ -45,12 +45,6 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
-const formatDate = (dateString: string) => {
-    if (!dateString) return "Unknown Date";
-    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
-// --- SAFE CLIENT-SIDE IMAGE COMPRESSOR ---
 const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -130,6 +124,72 @@ const processFileUpload = async (file: File, isReview: boolean = false, onProgre
     return publicUrl;
 };
 
+// 🚀 BRAND NEW CUSTOM COLOR DROPDOWN COMPONENT (With Color Circles)
+const CustomColorSelect = ({ value, onChange, placeholder, className }: { value: string, onChange: (name: string, hex: string) => void, placeholder: string, className?: string }) => {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState(value || "");
+
+    useEffect(() => {
+        if (!open) setSearch(value || "");
+    }, [value, open]);
+
+    const filtered = POPULAR_COLORS.filter(c => c.toLowerCase().includes(search.toLowerCase()));
+
+    return (
+        <div className={`relative ${className || 'w-full'}`}>
+            <div className="relative">
+                {COLOR_MAP[value] && !open && (
+                    <div 
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border border-gray-300 shadow-sm pointer-events-none"
+                        style={{ backgroundColor: COLOR_MAP[value] }}
+                    />
+                )}
+                <input
+                    type="text"
+                    className={`w-full p-3 ${COLOR_MAP[value] && !open ? 'pl-9' : 'pl-3'} border border-gray-200 rounded-xl text-sm bg-white outline-none focus:border-aura-gold transition-all`}
+                    placeholder={placeholder}
+                    value={search}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setOpen(true);
+                        onChange(e.target.value, COLOR_MAP[e.target.value] || "#ffffff");
+                    }}
+                    onFocus={() => {
+                        setSearch(""); 
+                        setOpen(true);
+                    }}
+                    onBlur={() => setTimeout(() => setOpen(false), 200)}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <ChevronDown size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                </div>
+            </div>
+
+            {open && (
+                <div className="absolute z-[60] w-full mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl p-1">
+                    {filtered.length > 0 ? filtered.map(c => (
+                        <div 
+                            key={c}
+                            className="flex items-center gap-3 p-2.5 hover:bg-aura-gold/10 rounded-lg cursor-pointer transition-colors"
+                            onMouseDown={(e) => { 
+                                e.preventDefault(); 
+                                setSearch(c);
+                                onChange(c, COLOR_MAP[c]);
+                                setOpen(false);
+                            }}
+                        >
+                            <div className="w-5 h-5 rounded-full border border-gray-300 shadow-sm shrink-0" style={{ backgroundColor: COLOR_MAP[c] }}></div>
+                            <span className="text-sm font-bold text-gray-700 truncate">{c}</span>
+                        </div>
+                    )) : (
+                        <div className="p-3 text-xs text-gray-400 text-center font-medium">Type to use as custom color name</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export default function InventoryTab({ products, fetchProducts }: { products: any[], fetchProducts: () => void }) {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -151,7 +211,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const [searchQuery, setSearchQuery] = useState(""); 
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [dateFilter, setDateFilter] = useState<{ start: string, end: string }>({ start: "", end: "" });
 
   const [newReview, setNewReview] = useState({ user: "", date: "", rating: 5, comment: "", images: [] as string[] });
   
@@ -161,7 +220,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [hasMultipleColors, setHasMultipleColors] = useState(false);
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
 
-  // 🚀 FIXED: Defaults applied (Stock=5, Warranty=6M, boxIncluded=false) and Added New Specs Fields
   const initialFormState = {
     name: "", brand: "AURA-X", sku: "", stock: 5, category: "", sub_category: "", 
     price: 0, originalPrice: 0, discount: 0, costPrice: 0, deliveryCharge: 250,
@@ -193,7 +251,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // Conditions to show/hide category specific sections
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(formData.category.toLowerCase());
   const isFragrance = formData.category === 'fragrances';
   const isWallet = formData.sub_category === 'wallets';
@@ -237,7 +294,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           } else {
               const errorMsg = data.error || "Unknown Backend Error";
               toast.error(`AI Failed: ${errorMsg}`, { duration: 6000 });
-              console.error("Backend Error Details:", data);
           }
       } catch (error: any) {
           toast.error(`System Error: ${error.message}`, { duration: 6000 });
@@ -315,7 +371,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         setShowViewsModal(false);
         fetchProducts(); 
     } catch (error) {
-        console.error("Bulk view error:", error);
         toast.dismiss(loadingToast);
         toast.error("Failed to generate bulk views.");
     }
@@ -374,16 +429,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                           (item.brand || "").toLowerCase().includes(q);
                           
     const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
-
-    let matchesDate = true;
-    if (dateFilter.start && dateFilter.end) {
-        const itemDate = new Date(item.created_at).setHours(0,0,0,0);
-        const start = new Date(dateFilter.start).setHours(0,0,0,0);
-        const end = new Date(dateFilter.end).setHours(0,0,0,0);
-        matchesDate = itemDate >= start && itemDate <= end;
-    }
-
-    return matchesSearch && matchesCategory && matchesDate;
+    return matchesSearch && matchesCategory;
   });
 
   const handleAddNewClick = () => {
@@ -554,26 +600,21 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
               warranty: formData.warranty, shipping_text: formData.shippingText, return_policy: formData.returnPolicy, box_included: formData.boxIncluded,
               gallery: formData.gallery,
               
-              // Watch
               movement: formData.movement, water_resistance: formData.waterResistance, glass: formData.glass,
               case_material: formData.caseMaterial, case_color: formData.caseColor, case_shape: formData.caseShape, 
               case_size: formData.caseDiameter, case_thickness: formData.caseThickness,
               strap: formData.strapMaterial, strap_color: formData.strapColor, strap_width: formData.strapWidth, adjustable: formData.adjustable,
               dial_color: formData.dialColor, luminous: formData.luminous, date_display: formData.dateDisplay,
               
-              // Fragrance
               volume: formData.volume, concentration: formData.concentration, fragranceFamily: formData.fragranceFamily,
               topNotes: formData.topNotes, heartNotes: formData.heartNotes, baseNotes: formData.baseNotes, longevity: formData.longevity,
               
-              // Wallets & Belts
               walletMaterial: formData.walletMaterial, cardSlots: formData.cardSlots, rfid: formData.rfid, coinPocket: formData.coinPocket, dimensions: formData.dimensions,
               beltMaterial: formData.beltMaterial, buckleType: formData.buckleType, buckleMaterial: formData.buckleMaterial,
               
-              // Sunglasses & Jewelry
               lensFeature: formData.lensFeature, frameMaterial: formData.frameMaterial, lensMaterial: formData.lensMaterial, eyewearShape: formData.eyewearShape,
               jewelryMaterial: formData.jewelryMaterial, plating: formData.plating, stone: formData.stone,
               
-              // Smart Tech
               displayType: formData.displayType, screenSize: formData.screenSize, smartFeatures: formData.smartFeatures, appSupport: formData.appSupport,
               bluetoothVersion: formData.bluetoothVersion, earbudFeatures: formData.earbudFeatures, playtime: formData.playtime, waterResistanceSmart: formData.waterResistanceSmart
           }
@@ -977,7 +1018,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div className="w-full md:w-1/2 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Main Image (Pic 1)</label>
-                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage ? 'border-aura-gold' : 'border-gray-300'}`}
+                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.mainImage && !formData.mainImage.includes('cloudinary') ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'main')} onPaste={(e) => handlePaste(e, 'main')} tabIndex={0}>
                                                 
                                                 {uploadQueue.filter(u => u.type === 'main').map(u => (
@@ -1020,7 +1061,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                     <div className="w-full md:w-1/2 space-y-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 mb-2">Hover Image (Pic 2) - <span className="text-gray-400 font-normal">Shows when card is hovered</span></label>
-                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.hoverImage ? 'border-aura-gold' : 'border-gray-300'}`}
+                                            <div className={`w-full h-32 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden cursor-pointer hover:border-aura-gold bg-white ${formData.hoverImage && !formData.hoverImage.includes('cloudinary') ? 'border-aura-gold' : 'border-gray-300'}`}
                                                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, 'hover')} onPaste={(e) => handlePaste(e, 'hover')} tabIndex={0}>
                                                 
                                                 {uploadQueue.filter(u => u.type === 'hover').map(u => (
@@ -1125,17 +1166,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><Palette size={14}/> Main Color Base</label>
                                             <p className="text-[10px] text-gray-400">Select the color of the Main Image</p>
                                         </div>
-                                        <div className="relative w-48">
-                                          <input 
-                                            list="baseColors" 
-                                            className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-aura-brown outline-none focus:border-aura-gold" 
-                                            value={formData.baseColorName} 
-                                            onChange={e => setFormData({...formData, baseColorName: e.target.value})}
-                                            placeholder="Type to search color..."
+                                        <div className="relative w-48 z-40">
+                                          {/* 🚀 NEW CUSTOM DROPDOWN FOR MAIN COLOR */}
+                                          <CustomColorSelect 
+                                              value={formData.baseColorName} 
+                                              onChange={(name, hex) => setFormData({...formData, baseColorName: name})} 
+                                              placeholder="Search Color..." 
                                           />
-                                          <datalist id="baseColors">
-                                              {POPULAR_COLORS.map(c => <option key={c} value={c} />)}
-                                          </datalist>
                                         </div>
                                     </div>
 
@@ -1161,25 +1198,22 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <div className="mt-4 pt-4 border-t border-gray-100 space-y-4 bg-gray-50/50 p-4 rounded-xl">
                                             {formData.colors.map((color, index) => (
                                                 <div key={index} className="flex flex-col md:flex-row gap-4 items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                                                    <input type="color" className="w-10 h-10 rounded border-none cursor-pointer flex-shrink-0" value={color.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} />
                                                     
-                                                    <div className="flex-1 w-full relative">
-                                                      <input 
-                                                        list="variantColors"
-                                                        className="w-full p-2 border rounded-lg text-sm bg-white outline-none focus:border-aura-gold" 
-                                                        value={color.name || ""} 
-                                                        onChange={(e) => { 
-                                                            const name = e.target.value; 
-                                                            const c = [...formData.colors]; 
-                                                            c[index].name = name; 
-                                                            if (COLOR_MAP[name]) c[index].hex = COLOR_MAP[name]; 
-                                                            setFormData({...formData, colors: c}); 
-                                                        }}
-                                                        placeholder="Type or select color..."
+                                                    {/* Color Input is still here just in case they want a completely custom hex that is not in the list */}
+                                                    <input type="color" className="w-10 h-10 rounded border-none cursor-pointer flex-shrink-0" value={color.hex || "#ffffff"} onChange={(e) => { const c = [...formData.colors]; c[index].hex = e.target.value; setFormData({...formData, colors: c}); }} title="Custom Hex Picker" />
+                                                    
+                                                    <div className="flex-1 w-full relative z-30">
+                                                      {/* 🚀 NEW CUSTOM DROPDOWN FOR VARIANT COLORS */}
+                                                      <CustomColorSelect 
+                                                          value={color.name || ""} 
+                                                          onChange={(name, hex) => { 
+                                                              const c = [...formData.colors]; 
+                                                              c[index].name = name; 
+                                                              if (hex !== "#ffffff") c[index].hex = hex; 
+                                                              setFormData({...formData, colors: c}); 
+                                                          }} 
+                                                          placeholder="Type or select color..." 
                                                       />
-                                                      <datalist id="variantColors">
-                                                          {POPULAR_COLORS.map(c => <option key={c} value={c} />)}
-                                                      </datalist>
                                                     </div>
 
                                                     <div className="flex flex-col gap-2 w-full md:w-auto items-center">
@@ -1573,7 +1607,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <datalist id="warrantyOpts"><option value="6 Months Official Warranty"/><option value="1 Year Official Warranty"/><option value="No Official Warranty"/></datalist>
                                     </div>
                                     <div><label className="text-xs font-bold text-gray-500">Shipping Info</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.shippingText || ""} onChange={e => setFormData({...formData, shippingText: e.target.value})} /></div>
-                                    <div><label className="text-xs font-bold text-gray-500">Return Policy</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.returnPolicy || ""} onChange={e => setFormData({...formData, returnPolicy: e.target.value})} /></div>
+                                    <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500">Return Policy</label><input className="w-full p-3 bg-white border rounded-xl" value={formData.returnPolicy || ""} onChange={e => setFormData({...formData, returnPolicy: e.target.value})} /></div>
                                     <div>
                                         <label className="flex items-center gap-2 text-sm bg-white px-4 py-3 rounded-xl cursor-pointer border mt-5">
                                             <input type="checkbox" checked={formData.boxIncluded || false} onChange={e => setFormData({...formData, boxIncluded: e.target.checked})} /> 
