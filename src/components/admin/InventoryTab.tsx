@@ -212,7 +212,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [searchQuery, setSearchQuery] = useState(""); 
   const [categoryFilter, setCategoryFilter] = useState("All");
 
-  // 🚀 FIX: <any> added to eliminate typescript red lines
   const [newReview, setNewReview] = useState<any>({ user: "", date: "", rating: 5, comment: "", images: [] });
   
   const [externalGalleryLink, setExternalGalleryLink] = useState("");
@@ -251,7 +250,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     displayType: "", screenSize: "", smartFeatures: "", appSupport: "", bluetoothVersion: "", earbudFeatures: "", playtime: "", waterResistanceSmart: ""
   };
   
-  // 🚀 FIX: <any> added to eliminate typescript red lines
   const [formData, setFormData] = useState<any>(initialFormState);
 
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(formData.category.toLowerCase());
@@ -328,13 +326,13 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
       }
   };
 
-  const handleDrop = async (e: React.DragEvent, type: 'main' | 'hover' | 'gallery' | 'review') => {
+  const handleDrop = async (e: React.DragEvent, type: 'main' | 'hover' | 'gallery' | 'color' | 'review', index?: number) => {
       e.preventDefault();
       const files = Array.from(e.dataTransfer.files || []);
       if (!files.length) return;
       
       const filesToProcess = (type === 'gallery' || type === 'review') ? files : [files[0]];
-      await processFiles(filesToProcess, type);
+      await processFiles(filesToProcess, type, index);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'hover' | 'gallery' | 'color' | 'review', index?: number) => {
@@ -448,7 +446,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     const specs = item.specs || {};
     const variants = item.variants || {};
     
-    // 🚀 BULLETPROOF ARRAYS
     const safeGallery = Array.isArray(specs.gallery) ? specs.gallery : [];
     const safeColors = Array.isArray(item.colors) ? item.colors : [];
     const safeReviews = Array.isArray(item.manual_reviews) ? item.manual_reviews : [];
@@ -460,7 +457,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
     const editHasColors = safeColors.length > 1; 
 
-    // 🚀 THE SKU FIX: Agar SKU nahi hai, toh naya generate karo
     const existingSku = specs.sku || item.sku;
     const finalSku = existingSku ? existingSku : `AX-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -486,7 +482,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         manualReviews: safeReviews,
         variants: { sizes: safeSizes },
         
-        sku: finalSku, // 👈 Yahan fix apply ho gaya
+        sku: finalSku, 
         
         stock: specs.stock ?? 5, 
         costPrice: specs.cost_price ?? 0,
@@ -637,7 +633,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           }
       };
 
-      // 🚀 FIX: BULLETPROOF ERROR HANDLING (Shows exact error if Supabase rejects it)
       try {
           if (isEditing && editId) {
               const { error } = await supabase.from('products').update(productPayload).eq('id', editId);
@@ -1240,7 +1235,11 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                     </div>
 
                                                     <div className="flex flex-col gap-2 w-full md:w-auto items-center">
-                                                        <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-full justify-center border relative overflow-hidden ${color?.image ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}>
+                                                        <label 
+                                                            onDragOver={(e) => e.preventDefault()} 
+                                                            onDrop={(e) => { e.preventDefault(); handleDrop(e, 'color', index); }}
+                                                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-full justify-center border relative overflow-hidden ${color?.image ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white hover:bg-gray-100 text-gray-600'}`}
+                                                        >
                                                             {uploadQueue.find(u => u.type === 'color' && u.index === index) ? (
                                                                 <span className="text-aura-gold animate-pulse">Uploading...</span>
                                                             ) : color?.image ? "Change Image File" : "Upload File"} 
