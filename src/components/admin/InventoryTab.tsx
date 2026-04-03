@@ -211,6 +211,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
 
   const [searchQuery, setSearchQuery] = useState(""); 
   const [categoryFilter, setCategoryFilter] = useState("All");
+  
+  // 🚀 FIX: Naya State Date Filtration ke liye add kar diya
+  const [dateFilter, setDateFilter] = useState<{ start: string, end: string }>({ start: "", end: "" });
 
   const [newReview, setNewReview] = useState<any>({ user: "", date: "", rating: 5, comment: "", images: [] });
   
@@ -430,7 +433,17 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                           (item.brand || "").toLowerCase().includes(q);
                           
     const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+
+    // 🚀 FIX: Yahan Date logic laga di gayi hai
+    let matchesDate = true;
+    if (dateFilter.start && dateFilter.end) {
+        const itemDate = new Date(item.created_at).setHours(0,0,0,0);
+        const start = new Date(dateFilter.start).setHours(0,0,0,0);
+        const end = new Date(dateFilter.end).setHours(0,0,0,0);
+        matchesDate = itemDate >= start && itemDate <= end;
+    }
+
+    return matchesSearch && matchesCategory && matchesDate;
   });
 
   const handleAddNewClick = () => {
@@ -705,7 +718,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between flex-wrap">
                 <div className="relative w-full md:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input 
@@ -717,13 +730,16 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                     />
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto items-center">
-                    <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-xl border border-gray-200">
+                {/* 🚀 FIX: Layout maintained, Category aur naye Date Filter Add kiye gaye */}
+                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-center flex-wrap">
+                    
+                    {/* Category Filter */}
+                    <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-xl border border-gray-200 w-full md:w-auto">
                         <Filter size={14} className="text-gray-400"/>
                         <select 
                             value={categoryFilter}
                             onChange={(e) => setCategoryFilter(e.target.value)}
-                            className="bg-transparent text-sm font-bold text-gray-600 outline-none cursor-pointer py-1.5"
+                            className="bg-transparent text-sm font-bold text-gray-600 outline-none cursor-pointer py-1.5 w-full"
                         >
                             <option value="All">All Categories</option>
                             <option value="men">Men's Watches</option>
@@ -735,7 +751,35 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                         </select>
                     </div>
 
-                    <div className="flex bg-gray-100 p-1 rounded-lg flex-shrink-0">
+                    {/* Date Filters (Start Date to End Date) */}
+                    <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 w-full md:w-auto">
+                        <Calendar size={14} className="text-gray-400"/>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="date" 
+                                value={dateFilter.start} 
+                                onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} 
+                                className="bg-transparent text-[11px] md:text-xs font-bold text-gray-600 outline-none cursor-pointer w-[90px] md:w-auto"
+                                title="Start Date"
+                            />
+                            <span className="text-gray-400 text-[10px]">to</span>
+                            <input 
+                                type="date" 
+                                value={dateFilter.end} 
+                                onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} 
+                                className="bg-transparent text-[11px] md:text-xs font-bold text-gray-600 outline-none cursor-pointer w-[90px] md:w-auto"
+                                title="End Date"
+                            />
+                        </div>
+                        {(dateFilter.start || dateFilter.end) && (
+                            <button onClick={() => setDateFilter({ start: "", end: "" })} className="ml-1 text-red-400 hover:text-red-600" title="Clear Date Filter">
+                                <X size={14}/>
+                            </button>
+                        )}
+                    </div>
+
+                    {/* View Modes */}
+                    <div className="flex bg-gray-100 p-1 rounded-lg flex-shrink-0 ml-auto md:ml-0">
                         <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Grid View"><LayoutGrid size={18}/></button>
                         <button onClick={() => setViewMode('list')} className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="List View"><List size={18}/></button>
                         <button onClick={() => setViewMode('table')} className={`p-2 rounded-md ${viewMode === 'table' ? 'bg-white shadow-sm text-aura-brown' : 'text-gray-500'}`} title="Table View"><TableIcon size={18}/></button>

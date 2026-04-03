@@ -635,7 +635,8 @@ export default function ProductClient() {
                   <button onClick={() => setOpenSection(openSection === 'spec' ? null : 'spec')} className="w-full flex justify-between items-center py-3 text-xs font-bold uppercase tracking-widest text-aura-brown hover:text-aura-gold transition-colors">Details & Specs <ChevronDown size={14} className={`transition-transform duration-300 text-aura-brown/60 group-hover:text-aura-gold ${openSection === 'spec' ? 'rotate-180 text-aura-gold' : ''}`}/></button>
                   <div className={`overflow-hidden transition-all duration-300 ${openSection === 'spec' ? 'max-h-[800px] pb-3 opacity-100' : 'max-h-0 opacity-0'}`}>
                     <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px] px-1">
-                        {Object.entries(specs).filter(([k, v]) => !['gallery','stock','video','view_count','extra_notes','delivery_charge'].includes(k) && v !== null && v !== "").map(([k, v]) => (
+                        {/* 🚀 HIDDEN THE PRIVATE FIELDS HERE */}
+                        {Object.entries(specs).filter(([k, v]) => !['gallery','stock','video','view_count','extra_notes','delivery_charge', 'cost_price', 'rfid', 'coinPocket'].includes(k) && v !== null && v !== "").map(([k, v]) => (
                             <li key={k} className="flex flex-col border-b border-dashed border-aura-gold/30 pb-1 hover:bg-aura-gold/5 transition-colors rounded">
                                 <span className="text-aura-brown/60 uppercase font-bold tracking-wider text-[9px] mb-0.5">{k.replace(/_/g, " ")}</span>
                                 <span className="text-aura-brown font-bold truncate">{v === true ? "Yes" : v === false ? "No" : String(v)}</span>
