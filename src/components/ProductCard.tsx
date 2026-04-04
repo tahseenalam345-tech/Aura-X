@@ -26,6 +26,12 @@ interface Product {
   is_eid_exclusive?: boolean; 
 }
 
+const optimizeCloudinaryUrl = (url: string) => {
+    if (!url || !url.includes('cloudinary.com')) return url; 
+    if (url.includes('f_auto') || url.includes('q_auto')) return url; 
+    return url.replace('/upload/', '/upload/f_auto,q_auto/');
+};
+
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const { addToCart } = useCart();
   
@@ -128,16 +134,28 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   </h3>
                 </Link>
 
-                {/* 🚀 Visual Color Boxes (From Inventory) */}
+                {/* 🚀 Visual Color Boxes (Tiny Pictures Instead of Hex) */}
                 {product.colors && product.colors.length > 1 && (
-                    <div className="flex flex-wrap items-center gap-1 mt-2.5">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
                         {product.colors.map((color, idx) => (
                             <div
                                 key={idx}
-                                className="w-3 h-3 rounded-sm border border-gray-200 shadow-sm"
-                                style={{ backgroundColor: color.hex || '#E5E7EB' }}
+                                className="relative w-5 h-5 rounded-full overflow-hidden border border-gray-200 shadow-sm"
                                 title={color.name}
-                            />
+                            >
+                                {color.image ? (
+                                    <Image 
+                                        src={optimizeCloudinaryUrl(color.image)} 
+                                        alt={color.name} 
+                                        fill 
+                                        className="object-cover"
+                                        sizes="20px"
+                                        unoptimized={true}
+                                    />
+                                ) : (
+                                    <div className="w-full h-full" style={{ backgroundColor: color.hex || '#E5E7EB' }}></div>
+                                )}
+                            </div>
                         ))}
                     </div>
                 )}
