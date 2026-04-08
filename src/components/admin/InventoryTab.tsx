@@ -45,6 +45,24 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
+// 🚀 NAYA HELPER: URL se file ka original naam nikalne ke liye
+const extractFilenameFromUrl = (url: string) => {
+    if (!url) return "";
+    try {
+        const parts = url.split('/');
+        const lastPart = parts[parts.length - 1];
+        if (lastPart.startsWith('v4-')) {
+            const nameParts = lastPart.split('-');
+            if (nameParts.length >= 3) {
+                return nameParts.slice(2).join('-').split('.')[0]; 
+            }
+        }
+        if(url.includes('cloudinary')) return "Cloudinary Image";
+        if(url.startsWith('http')) return "External Link";
+        return lastPart.split('.')[0] || "Image";
+    } catch { return "Image"; }
+};
+
 const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -54,7 +72,8 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = isReview ? 600 : 1000; 
+        // 🚀 THE FIX: Max width increased to 1200 for HD sharp dials. 
+        const MAX_WIDTH = isReview ? 600 : 1200; 
         let width = img.width;
         let height = img.height;
         
@@ -73,11 +92,12 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
             ctx.drawImage(img, 0, 0, width, height);
         }
         
-        const quality = isReview ? 0.7 : 0.85;
+        // 🚀 THE FIX: Export as WEBP at 90% quality. (Ensures HD crisp text but low file size ~150kb)
+        const quality = isReview ? 0.8 : 0.90;
         canvas.toBlob((blob) => { 
             if (blob) resolve(blob); 
             else reject(new Error("Compression failed")); 
-        }, "image/jpeg", quality); 
+        }, "image/webp", quality); 
       };
     };
     reader.onerror = (error) => reject(error);
@@ -93,8 +113,9 @@ const processFileUpload = async (file: File, isReview: boolean = false, onProgre
         catch (e) { console.error("Compression failed:", e); return null; } 
     }
 
-    const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
-    const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
+    // 🚀 NAYA LOGIC: Original file name mein se ( ) - _ ko retain karega
+    const ext = isVideo ? 'mp4' : 'webp';
+    const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9()_-]/g, '').toLowerCase().slice(0, 20);
     const fileName = `v4-${Date.now()}-${cleanName}.${ext}`;
 
     const targetBucket = 'product-images';
@@ -212,7 +233,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
   const [searchQuery, setSearchQuery] = useState(""); 
   const [categoryFilter, setCategoryFilter] = useState("All");
   
-  // 🚀 FIX: Naya State Date Filtration ke liye add kar diya
   const [dateFilter, setDateFilter] = useState<{ start: string, end: string }>({ start: "", end: "" });
 
   const [newReview, setNewReview] = useState<any>({ user: "", date: "", rating: 5, comment: "", images: [] });
@@ -239,17 +259,11 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     gallery: [] as string[], colors: [] as { name: string; hex: string; image: string }[],
     manualReviews: [] as any[], variants: { sizes: [] as string[] },
     
-    // FRAGRANCE SPECS
     volume: "", concentration: "", fragranceFamily: "", topNotes: "", heartNotes: "", baseNotes: "", longevity: "",
-    // WALLET SPECS
     walletMaterial: "", cardSlots: "", rfid: false, coinPocket: false, dimensions: "",
-    // BELT SPECS
     beltMaterial: "", buckleType: "", buckleMaterial: "",
-    // SUNGLASSES SPECS
     lensFeature: "", frameMaterial: "", lensMaterial: "", eyewearShape: "",
-    // JEWELRY SPECS
     jewelryMaterial: "", plating: "", stone: "",
-    // SMART TECH SPECS
     displayType: "", screenSize: "", smartFeatures: "", appSupport: "", bluetoothVersion: "", earbudFeatures: "", playtime: "", waterResistanceSmart: ""
   };
   
@@ -434,7 +448,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                           
     const matchesCategory = categoryFilter === "All" || item.category === categoryFilter;
 
-    // 🚀 FIX: Yahan Date logic laga di gayi hai
     let matchesDate = true;
     if (dateFilter.start && dateFilter.end) {
         const itemDate = new Date(item.created_at).setHours(0,0,0,0);
@@ -730,7 +743,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                     />
                 </div>
 
-                {/* 🚀 FIX: Layout maintained, Category aur naye Date Filter Add kiye gaye */}
                 <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-center flex-wrap">
                     
                     {/* Category Filter */}
@@ -751,7 +763,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                         </select>
                     </div>
 
-                    {/* Date Filters (Start Date to End Date) */}
+                    {/* Date Filters */}
                     <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 w-full md:w-auto">
                         <Calendar size={14} className="text-gray-400"/>
                         <div className="flex items-center gap-2">
@@ -1096,7 +1108,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 {formData.mainImage ? (
                                                     <>
                                                         {isVideoFile(formData.mainImage) ? <video src={formData.mainImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <img src={formData.mainImage} alt="" className="object-cover w-full h-full" />}
-                                                        <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
+                                                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] text-center truncate py-1 px-2 z-10 font-medium tracking-wider backdrop-blur-sm">
+                                                            {extractFilenameFromUrl(formData.mainImage)}
+                                                        </div>
+                                                        <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('main');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-20"><X size={14}/></button>
                                                     </>
                                                 ) : (
                                                     <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-[10px] text-gray-400 mt-1">Upload/Paste File</span><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'main')}/></label>
@@ -1139,7 +1154,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                 {formData.hoverImage ? (
                                                     <>
                                                         {isVideoFile(formData.hoverImage) ? <video src={formData.hoverImage} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <img src={formData.hoverImage} alt="" className="object-cover w-full h-full" />}
-                                                        <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('hover');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-10"><X size={14}/></button>
+                                                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] text-center truncate py-1 px-2 z-10 font-medium tracking-wider backdrop-blur-sm">
+                                                            {extractFilenameFromUrl(formData.hoverImage)}
+                                                        </div>
+                                                        <button type="button" onClick={(e) => {e.stopPropagation(); removeImage('hover');}} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 z-20"><X size={14}/></button>
                                                     </>
                                                 ) : (
                                                     <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer"><Upload size={24} className="mx-auto text-gray-300"/><span className="text-[10px] text-gray-400 mt-1">Upload/Paste File</span><input type="file" className="hidden" onChange={(e) => handleImageUpload(e as any, 'hover')}/></label>
@@ -1175,7 +1193,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         {(Array.isArray(formData.gallery) ? formData.gallery : []).map((img: string, i: number) => (
                                             <div key={i} className="w-24 h-24 rounded-xl relative overflow-hidden flex-shrink-0 border border-gray-200 group bg-gray-50">
                                                 {isVideoFile(img) ? <video src={img} className="object-cover w-full h-full" autoPlay muted loop playsInline /> : <img src={img} alt="" className="object-cover w-full h-full" />}
-                                                <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12}/></button>
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] text-center truncate py-1 px-1 z-10 font-medium backdrop-blur-sm">
+                                                    {extractFilenameFromUrl(img)}
+                                                </div>
+                                                <button type="button" onClick={() => removeImage('gallery', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"><X size={12}/></button>
                                             </div>
                                         ))}
 
@@ -1291,8 +1312,11 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                                         </label>
                                                         
                                                         {color?.image && (
-                                                            <div className="relative w-12 h-12 rounded border border-gray-200 overflow-hidden shrink-0">
+                                                            <div className="relative w-12 h-12 rounded border border-gray-200 overflow-hidden shrink-0 group">
                                                                 <img src={color.image} className="object-cover w-full h-full" alt="" />
+                                                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[7px] text-center truncate py-0.5 px-0.5 z-10 backdrop-blur-sm">
+                                                                    {extractFilenameFromUrl(color.image).substring(0, 8)}
+                                                                </div>
                                                             </div>
                                                         )}
 
@@ -1629,7 +1653,10 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                             {(Array.isArray(newReview.images) ? newReview.images : []).map((img: string, idx: number) => (
                                                 <div key={idx} className="w-16 h-16 rounded-lg relative overflow-hidden border border-gray-200 group">
                                                     <Image src={img} alt="" fill className="object-cover" unoptimized={true} />
-                                                    <button type="button" onClick={() => removeImage('review', idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-80 hover:opacity-100"><X size={12}/></button>
+                                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] text-center truncate py-1 px-1 z-10 font-medium backdrop-blur-sm">
+                                                        {extractFilenameFromUrl(img)}
+                                                    </div>
+                                                    <button type="button" onClick={() => removeImage('review', idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity z-20"><X size={12}/></button>
                                                 </div>
                                             ))}
                                             <div className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-aura-gold bg-gray-50"
