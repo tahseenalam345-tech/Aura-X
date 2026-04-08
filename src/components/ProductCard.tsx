@@ -26,7 +26,6 @@ interface Product {
   is_eid_exclusive?: boolean; 
 }
 
-// 🚀 NAYA FUNCTION: Brackets () ko crash hone se bachanay ke liye!
 // 🚀 FIX: Vercel Proxy hataya. Ab direct Supabase chalega (No 400 Error!)
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
@@ -59,6 +58,13 @@ export function ProductCard({ product, priority = false }: { product: Product; p
   }
 
   const displayShortName = product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name;
+
+  // 🚀 Logic for Item Type (MENS, WOMENS, etc.)
+  const categoryStr = product.category?.toLowerCase() || "";
+  let displayCategory = "";
+  if (categoryStr.includes("men") && !categoryStr.includes("women")) displayCategory = "MENS";
+  else if (categoryStr.includes("women")) displayCategory = "WOMENS";
+  else if (categoryStr.includes("couple")) displayCategory = "COUPLE";
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); 
@@ -102,14 +108,23 @@ export function ProductCard({ product, priority = false }: { product: Product; p
     >
       <div className="relative h-full bg-white rounded-2xl transition-all duration-500 flex flex-col overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1">
         
-        <div className="absolute top-2 right-2 z-30 flex flex-col gap-1 pointer-events-none">
+        {/* 🚀 Darker Tags & New Item Type Badge */}
+        <div className="absolute top-2 left-2 z-30 flex flex-col gap-1 pointer-events-none">
+            {displayCategory && (
+                <span className="bg-[#1E1B18] text-white text-[8px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest">
+                    {displayCategory}
+                </span>
+            )}
+        </div>
+        
+        <div className="absolute top-2 right-2 z-30 flex flex-col gap-1 pointer-events-none items-end">
             {isOutOfStock ? (
                 <span className="bg-red-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">
                     Sold Out
                 </span>
             ) : (
                 product.tags && product.tags.length > 0 && (
-                    <span className="bg-black/5 text-black/40 backdrop-blur-[2px] text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest border border-black/5 animate-pulse">
+                    <span className="bg-gray-800 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-md">
                         {product.tags[0]}
                     </span>
                 )
@@ -130,7 +145,8 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
         <div className="p-3 md:p-4 flex flex-col justify-between flex-1">
             <div>
-                <p className="text-[9px] text-aura-gold font-serif italic tracking-[0.2em] uppercase mb-1 opacity-80">
+                {/* 🚀 Brand Name Bigger & Bolder */}
+                <p className="text-[10px] text-aura-gold font-serif italic font-semibold tracking-[0.15em] uppercase mb-1">
                     {product.brand || "AURA-X"}
                 </p>
 
