@@ -118,6 +118,12 @@ const processFileUpload = async (file: File, isReview: boolean = false, onProgre
     const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9()_-]/g, '').toLowerCase().slice(0, 20);
     const fileName = `v4-${Date.now()}-${cleanName}.${ext}`;
 
+    // 👇 YAHAN HUMNE SIZE CHECK LAGAYA HAI 👇
+    console.log(`📸 Image Name: ${file.name}`);
+    console.log(`🔴 Original Size: ${(file.size / 1024).toFixed(2)} KB`);
+    console.log(`🟢 Compressed Size: ${(fileToUpload.size / 1024).toFixed(2)} KB`);
+    // 👆 YAHAN TAK 👆
+
     const targetBucket = 'product-images';
 
     let progress = 0;
