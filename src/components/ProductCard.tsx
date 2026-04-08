@@ -26,23 +26,17 @@ interface Product {
   is_eid_exclusive?: boolean; 
 }
 
-// 🚀 FIX: Vercel Proxy hataya. Ab direct Supabase chalega (No 400 Error!)
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
-    
-    // Fallback for old cloudinary images
     if (url.includes('cloudinary.com')) {
         if (url.includes('f_auto') || url.includes('q_auto')) return url; 
         return url.replace('/upload/', '/upload/f_auto,q_auto/');
     }
-    
-    // Direct return Supabase URL
     return url;
 };
 
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const { addToCart } = useCart();
-  
   const [isHovered, setIsHovered] = useState(false);
   
   const mainImg = product.main_image || "/placeholder.jpg";
@@ -59,11 +53,11 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
   const displayShortName = product.name?.includes('|') ? product.name.split('|')[0].trim() : product.name;
 
-  // 🚀 Logic for Item Type (MENS, WOMENS, etc.)
+  // 🚀 Logic for Gender Badge
   const categoryStr = product.category?.toLowerCase() || "";
   let displayCategory = "";
-  if (categoryStr.includes("men") && !categoryStr.includes("women")) displayCategory = "MENS";
-  else if (categoryStr.includes("women")) displayCategory = "WOMENS";
+  if (categoryStr.includes("men") && !categoryStr.includes("women")) displayCategory = "MEN";
+  else if (categoryStr.includes("women")) displayCategory = "WOMEN";
   else if (categoryStr.includes("couple")) displayCategory = "COUPLE";
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -103,28 +97,18 @@ export function ProductCard({ product, priority = false }: { product: Product; p
       className="group block relative h-full"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onTouchStart={() => setIsHovered(true)}
-      onTouchEnd={() => setIsHovered(false)}
     >
       <div className="relative h-full bg-white rounded-2xl transition-all duration-500 flex flex-col overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1">
         
-        {/* 🚀 Darker Tags & New Item Type Badge */}
-        <div className="absolute top-2 left-2 z-30 flex flex-col gap-1 pointer-events-none">
-            {displayCategory && (
-                <span className="bg-[#1E1B18] text-white text-[8px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest">
-                    {displayCategory}
-                </span>
-            )}
-        </div>
-        
+        {/* 🚀 BREATHING TAGS EFFECT (Top Right Only) */}
         <div className="absolute top-2 right-2 z-30 flex flex-col gap-1 pointer-events-none items-end">
             {isOutOfStock ? (
-                <span className="bg-red-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">
+                <span className="bg-red-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase shadow-sm animate-pulse">
                     Sold Out
                 </span>
             ) : (
                 product.tags && product.tags.length > 0 && (
-                    <span className="bg-gray-800 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-md">
+                    <span className="bg-gray-900 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-md animate-pulse">
                         {product.tags[0]}
                     </span>
                 )
@@ -145,10 +129,17 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
         <div className="p-3 md:p-4 flex flex-col justify-between flex-1">
             <div>
-                {/* 🚀 Brand Name Bigger & Bolder */}
-                <p className="text-[10px] text-aura-gold font-serif italic font-semibold tracking-[0.15em] uppercase mb-1">
-                    {product.brand || "AURA-X"}
-                </p>
+                {/* 🚀 BRAND & GENDER IN ONE ROW */}
+                <div className="flex justify-between items-center mb-1">
+                    <p className="text-[10px] text-aura-gold font-serif italic font-semibold tracking-[0.15em] uppercase">
+                        {product.brand || "AURA-X"}
+                    </p>
+                    {displayCategory && (
+                        <span className="text-[8px] font-bold text-gray-400 tracking-widest border-l border-gray-200 pl-2">
+                            {displayCategory}
+                        </span>
+                    )}
+                </div>
 
                 <Link href={`/product/${product.id}`} className="block">
                   <h3 className="text-[#1E1B18] font-bold text-sm md:text-base leading-tight line-clamp-1 group-hover:text-aura-brown transition-colors">
@@ -162,7 +153,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                             <div
                                 key={idx}
                                 className="relative w-5 h-5 rounded-full overflow-hidden border border-gray-200 shadow-sm"
-                                title={color.name}
                             >
                                 {color.image ? (
                                     <Image 
