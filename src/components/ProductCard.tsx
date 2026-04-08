@@ -13,7 +13,7 @@ interface Product {
   name: string;
   brand?: string; 
   price: number;
-  image?: string; // Yeh aapki hover image hai
+  image?: string; 
   main_image?: string; 
   category?: string;
   sub_category?: string;
@@ -26,7 +26,7 @@ interface Product {
   is_eid_exclusive?: boolean; 
 }
 
-// 🚀 NAYA FUNCTION: Cloudinary URL ko cdn-images mein badalne ke liye
+// 🚀 NAYA FUNCTION: Brackets () ko crash hone se bachanay ke liye!
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
     
@@ -34,7 +34,13 @@ const optimizeCloudinaryUrl = (url: string) => {
     if (url.includes('supabase.co')) {
         const parts = url.split('/product-images/');
         if (parts.length === 2) {
-            return `/cdn-images/${parts[1]}`;
+            // 🚀 BARA FIX: Next.js '()' brackets par 400 error deta hai. Hum unko safe format mein encode kar rahay hain!
+            const safePath = parts[1]
+                .replace(/\(/g, '%28')
+                .replace(/\)/g, '%29')
+                .replace(/ /g, '%20'); // Space ko bhi safe kar diya
+                
+            return `/cdn-images/${safePath}`;
         }
     }
     
@@ -44,11 +50,10 @@ const optimizeCloudinaryUrl = (url: string) => {
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const { addToCart } = useCart();
   
-  // 🚀 Logic for Hover Image Toggle
   const [isHovered, setIsHovered] = useState(false);
   
   const mainImg = product.main_image || "/placeholder.jpg";
-  const hoverImg = product.image || mainImg; // Agar hover pic na ho toh main hi dikhaye
+  const hoverImg = product.image || mainImg; 
   
   const hasSizes = product.variants?.sizes && product.variants.sizes.length > 0;
   const isOutOfStock = product.specs?.stock !== undefined && Number(product.specs.stock) <= 0;
@@ -103,7 +108,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
     >
       <div className="relative h-full bg-white rounded-2xl transition-all duration-500 flex flex-col overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1">
         
-        {/* 🚀 New Minimal & Dim Tag UI */}
         <div className="absolute top-2 right-2 z-30 flex flex-col gap-1 pointer-events-none">
             {isOutOfStock ? (
                 <span className="bg-red-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">
@@ -132,7 +136,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
         <div className="p-3 md:p-4 flex flex-col justify-between flex-1">
             <div>
-                {/* 🚀 Luxury Brand Styling */}
                 <p className="text-[9px] text-aura-gold font-serif italic tracking-[0.2em] uppercase mb-1 opacity-80">
                     {product.brand || "AURA-X"}
                 </p>
@@ -143,7 +146,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   </h3>
                 </Link>
 
-                {/* 🚀 Visual Color Boxes (Tiny Pictures Instead of Hex) */}
                 {product.colors && product.colors.length > 1 && (
                     <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
                         {product.colors.map((color, idx) => (

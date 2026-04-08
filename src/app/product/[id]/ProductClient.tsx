@@ -22,22 +22,26 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
-// 🚀 FAST LOAD & CLOUDFLARE CACHE HELPER
+// 🚀 NAYA FUNCTION: Brackets () ko crash hone se bachanay ke liye!
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
     
-    // Agar link Supabase ka hai, toh usko hamari apni domain ke /cdn-images/ route par bhej do ta k Cloudflare cache kar le
     if (url.includes('supabase.co')) {
         const parts = url.split('/product-images/');
         if (parts.length === 2) {
-            return `/cdn-images/${parts[1]}`;
+            // 🚀 BARA FIX: Next.js '()' brackets par 400 error deta hai. Hum unko safe format mein encode kar rahay hain!
+            const safePath = parts[1]
+                .replace(/\(/g, '%28')
+                .replace(/\)/g, '%29')
+                .replace(/ /g, '%20');
+                
+            return `/cdn-images/${safePath}`;
         }
     }
     
     return url;
 };
 
-// 🚀 METER ANIMATION LOGIC (For Journey Box)
 function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number, suffix?: string, duration?: number }) {
   const [count, setCount] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
@@ -100,11 +104,9 @@ export default function ProductClient() {
   const [isGift, setIsGift] = useState(false);
   const [boxType, setBoxType] = useState<'none' | 'black' | 'rolex'>('none');
   
-  // 🚀 ZOOM STATES
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   
-  // 🚀 COLOR WARNING POPUP STATE
   const [showColorWarning, setShowColorWarning] = useState(false);
 
   const GIFT_COST = 300;
@@ -124,7 +126,6 @@ export default function ProductClient() {
   const deliveryDate = addBizDays(dispatchDate, 2);
   const formatShortDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-  // 🚀 RESET ZOOM WHEN LIGHTBOX OPENS/CHANGES
   useEffect(() => {
       setZoomLevel(1);
   }, [lightboxImage]);
@@ -134,7 +135,6 @@ export default function ProductClient() {
        if (!id) return;
        setLoading(true);
        
-       // 🚀 SCROLL TO TOP ON LOAD FIX
        window.scrollTo({ top: 0, behavior: 'smooth' });
 
        const { data: currentProduct } = await supabase.from('products').select('*').eq('id', id).single();
@@ -144,11 +144,10 @@ export default function ProductClient() {
            
            if (currentProduct.variants?.sizes?.length > 0) setSelectedSize(null);
            
-           // 🚀 AUTO-SELECT COLOR LOGIC
            if (currentProduct.colors?.length === 1) {
-               setSelectedColorIndex(0); // Single color auto-select
+               setSelectedColorIndex(0); 
            } else if (currentProduct.colors?.length > 1) {
-               setSelectedColorIndex(null); // Multiple colors require manual selection
+               setSelectedColorIndex(null); 
            }
 
            const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
@@ -291,10 +290,9 @@ export default function ProductClient() {
   const handleAddToCart = () => {
     if (specs.stock <= 0) return toast.error("Sorry, this item is out of stock.");
     
-    // 🚀 COLOR VALIDATION & POPUP
     if (product.colors?.length > 1) {
         if (selectedColorIndex === null) {
-            setShowColorWarning(true); // Open Popup instead of Toast
+            setShowColorWarning(true); 
             return; 
         }
         if (quantity > 1 && extraColors.includes(null)) {
@@ -346,7 +344,6 @@ export default function ProductClient() {
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30">
       <Navbar />
 
-      {/* 🚀 COLOR SELECTION POPUP MODAL */}
       {showColorWarning && product.colors && (
           <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
               <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl relative border-t-8 border-aura-gold">
@@ -383,10 +380,8 @@ export default function ProductClient() {
           </div>
       )}
 
-      {/* 🚀 LIGHTBOX WITH ZOOM CONTROLS */}
       {lightboxImage && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center animate-in fade-in duration-200">
-           {/* Zoom Controls */}
            <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full z-50 border border-white/20 shadow-xl">
                <button onClick={() => setZoomLevel(Math.max(1, zoomLevel - 0.5))} className="text-white hover:text-aura-gold transition-colors"><Minus size={20}/></button>
                <span className="text-white text-xs font-bold w-12 text-center select-none">{Math.round(zoomLevel * 100)}%</span>
@@ -395,10 +390,9 @@ export default function ProductClient() {
            
            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2.5 rounded-full hover:bg-red-500 hover:text-white transition-all hover:scale-110 z-50 border border-white/20"><X size={24}/></button>
            
-           {/* Image Container */}
            <div 
                className="relative w-full h-full max-w-6xl overflow-auto flex items-center justify-center scrollbar-hide cursor-zoom-in"
-               onClick={() => setZoomLevel(zoomLevel === 1 ? 2 : 1)} // Double click / Single click zoom
+               onClick={() => setZoomLevel(zoomLevel === 1 ? 2 : 1)}
            >
              {isVideoFile(lightboxImage) ? (
                  <video src={lightboxImage} autoPlay muted loop playsInline poster={optimizeCloudinaryUrl(product.main_image)} className="w-full h-full object-contain pointer-events-none drop-shadow-2xl" />
@@ -519,7 +513,6 @@ export default function ProductClient() {
                 </div>
              </div>
 
-             {/* 🚀 BIGGER AND CLEARER COLOR BOXES UI */}
              {product.colors && product.colors.length > 1 && (
                 <div className="mb-3 p-4 rounded-2xl border border-aura-gold/30 bg-white shadow-sm transition-all hover:shadow-md">
                     <div className="flex justify-between items-center mb-3">
@@ -721,7 +714,6 @@ export default function ProductClient() {
                   <button onClick={() => setOpenSection(openSection === 'spec' ? null : 'spec')} className="w-full flex justify-between items-center py-3 text-xs font-bold uppercase tracking-widest text-aura-brown hover:text-aura-gold transition-colors">Details & Specs <ChevronDown size={14} className={`transition-transform duration-300 text-aura-brown/60 group-hover:text-aura-gold ${openSection === 'spec' ? 'rotate-180 text-aura-gold' : ''}`}/></button>
                   <div className={`overflow-hidden transition-all duration-300 ${openSection === 'spec' ? 'max-h-[800px] pb-3 opacity-100' : 'max-h-0 opacity-0'}`}>
                     <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px] px-1">
-                        {/* 🚀 HIDDEN THE PRIVATE FIELDS HERE */}
                         {Object.entries(specs).filter(([k, v]) => !['gallery','stock','video','view_count','extra_notes','delivery_charge', 'cost_price', 'rfid', 'coinPocket'].includes(k) && v !== null && v !== "").map(([k, v]) => (
                             <li key={k} className="flex flex-col border-b border-dashed border-aura-gold/30 pb-1 hover:bg-aura-gold/5 transition-colors rounded">
                                 <span className="text-aura-brown/60 uppercase font-bold tracking-wider text-[9px] mb-0.5">{k.replace(/_/g, " ")}</span>
