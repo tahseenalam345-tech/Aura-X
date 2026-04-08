@@ -27,23 +27,17 @@ interface Product {
 }
 
 // 🚀 NAYA FUNCTION: Brackets () ko crash hone se bachanay ke liye!
+// 🚀 FIX: Vercel Proxy hataya. Ab direct Supabase chalega (No 400 Error!)
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
     
-    // Agar link Supabase ka hai, toh usko hamari apni domain ke /cdn-images/ route par bhej do
-    if (url.includes('supabase.co')) {
-        const parts = url.split('/product-images/');
-        if (parts.length === 2) {
-            // 🚀 BARA FIX: Next.js '()' brackets par 400 error deta hai. Hum unko safe format mein encode kar rahay hain!
-            const safePath = parts[1]
-                .replace(/\(/g, '%28')
-                .replace(/\)/g, '%29')
-                .replace(/ /g, '%20'); // Space ko bhi safe kar diya
-                
-            return `/cdn-images/${safePath}`;
-        }
+    // Fallback for old cloudinary images
+    if (url.includes('cloudinary.com')) {
+        if (url.includes('f_auto') || url.includes('q_auto')) return url; 
+        return url.replace('/upload/', '/upload/f_auto,q_auto/');
     }
     
+    // Direct return Supabase URL
     return url;
 };
 
