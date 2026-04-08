@@ -11,7 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { 
   ShoppingBag, Heart, Share2, 
   ChevronDown, ChevronLeft, ChevronRight, X, Maximize2, Home, Check, Play, Package, Sun, Calendar, Sparkles, Gift,
-  Minus, Plus, Truck, ShieldCheck, Flame, MapPin
+  Minus, Plus, Truck, ShieldCheck, Flame, MapPin, Palette
 } from "lucide-react";
 import toast from "react-hot-toast"; 
 import * as fbq from "@/lib/fpixel";
@@ -22,10 +22,19 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
+// 🚀 FAST LOAD & CLOUDFLARE CACHE HELPER
 const optimizeCloudinaryUrl = (url: string) => {
-    if (!url || !url.includes('cloudinary.com')) return url; 
-    if (url.includes('f_auto') || url.includes('q_auto')) return url; 
-    return url.replace('/upload/', '/upload/f_auto,q_auto/');
+    if (!url) return url;
+    
+    // Agar link Supabase ka hai, toh usko hamari apni domain ke /cdn-images/ route par bhej do ta k Cloudflare cache kar le
+    if (url.includes('supabase.co')) {
+        const parts = url.split('/product-images/');
+        if (parts.length === 2) {
+            return `/cdn-images/${parts[1]}`;
+        }
+    }
+    
+    return url;
 };
 
 // 🚀 METER ANIMATION LOGIC (For Journey Box)
@@ -76,7 +85,7 @@ export default function ProductClient() {
 
   const [product, setProduct] = useState<any>(null);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
-  const [recentlyViewed, setRecentlyViewed] = useState<any[]>([]); // 🚀 NEW STATE: For Cache Memory Products
+  const [recentlyViewed, setRecentlyViewed] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
 
   const [mediaIndex, setMediaIndex] = useState(0);
@@ -90,7 +99,13 @@ export default function ProductClient() {
   const [isLiked, setIsLiked] = useState(false);
   const [isGift, setIsGift] = useState(false);
   const [boxType, setBoxType] = useState<'none' | 'black' | 'rolex'>('none');
+  
+  // 🚀 ZOOM STATES
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  
+  // 🚀 COLOR WARNING POPUP STATE
+  const [showColorWarning, setShowColorWarning] = useState(false);
 
   const GIFT_COST = 300;
 
@@ -109,10 +124,18 @@ export default function ProductClient() {
   const deliveryDate = addBizDays(dispatchDate, 2);
   const formatShortDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
+  // 🚀 RESET ZOOM WHEN LIGHTBOX OPENS/CHANGES
+  useEffect(() => {
+      setZoomLevel(1);
+  }, [lightboxImage]);
+
   useEffect(() => {
     const fetchData = async () => {
        if (!id) return;
        setLoading(true);
+       
+       // 🚀 SCROLL TO TOP ON LOAD FIX
+       window.scrollTo({ top: 0, behavior: 'smooth' });
 
        const { data: currentProduct } = await supabase.from('products').select('*').eq('id', id).single();
 
@@ -120,20 +143,23 @@ export default function ProductClient() {
            setProduct(currentProduct);
            
            if (currentProduct.variants?.sizes?.length > 0) setSelectedSize(null);
-           if (currentProduct.colors?.length > 0) setSelectedColorIndex(null);
+           
+           // 🚀 AUTO-SELECT COLOR LOGIC
+           if (currentProduct.colors?.length === 1) {
+               setSelectedColorIndex(0); // Single color auto-select
+           } else if (currentProduct.colors?.length > 1) {
+               setSelectedColorIndex(null); // Multiple colors require manual selection
+           }
 
            const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
            setIsLiked(wishlist.some((w: any) => w.id === currentProduct.id));
 
-           // 🚀 LOGIC 1: Cache Memory for Recently Viewed
            const localRecent = JSON.parse(localStorage.getItem('recently_viewed') || '[]');
            const filteredRecent = localRecent.filter((item: any) => item.id !== currentProduct.id);
            setRecentlyViewed(filteredRecent.slice(0, 4));
            
-           // Update cache with the current product
            localStorage.setItem('recently_viewed', JSON.stringify([currentProduct, ...filteredRecent].slice(0, 10)));
 
-           // 🚀 LOGIC 2: Fetch diverse similar products (1 from each category)
            const { data: allRelatedData } = await supabase.from('products').select('*').neq('id', id).limit(30);
            if (allRelatedData) {
                const uniqueCats = new Set();
@@ -234,17 +260,13 @@ export default function ProductClient() {
   };
 
   const handleColorToggle = (index: number, colorImgUrl?: string) => {
-      if (selectedColorIndex === index) {
-          setSelectedColorIndex(null); 
-      } else {
-          setSelectedColorIndex(index); 
-          if (colorImgUrl) {
-              const mediaIdx = unifiedMedia.findIndex(m => m.url === optimizeCloudinaryUrl(colorImgUrl));
-              if (mediaIdx !== -1) setMediaIndex(mediaIdx);
-          } else if (index === 0 && product.main_image) {
-              const mediaIdx = unifiedMedia.findIndex(m => m.type === 'main');
-              if (mediaIdx !== -1) setMediaIndex(mediaIdx);
-          }
+      setSelectedColorIndex(index); 
+      if (colorImgUrl) {
+          const mediaIdx = unifiedMedia.findIndex(m => m.url === optimizeCloudinaryUrl(colorImgUrl));
+          if (mediaIdx !== -1) setMediaIndex(mediaIdx);
+      } else if (index === 0 && product.main_image) {
+          const mediaIdx = unifiedMedia.findIndex(m => m.type === 'main');
+          if (mediaIdx !== -1) setMediaIndex(mediaIdx);
       }
   };
 
@@ -269,10 +291,15 @@ export default function ProductClient() {
   const handleAddToCart = () => {
     if (specs.stock <= 0) return toast.error("Sorry, this item is out of stock.");
     
-    if (product.colors?.length > 0) {
-        if (selectedColorIndex === null) return toast.error("Please select a Finish for Item 1!");
+    // 🚀 COLOR VALIDATION & POPUP
+    if (product.colors?.length > 1) {
+        if (selectedColorIndex === null) {
+            setShowColorWarning(true); // Open Popup instead of Toast
+            return; 
+        }
         if (quantity > 1 && extraColors.includes(null)) {
-            return toast.error("Please select Finishes for all items!");
+            toast.error("Please select Finishes for all items!");
+            return;
         }
     }
     
@@ -319,14 +346,66 @@ export default function ProductClient() {
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30">
       <Navbar />
 
+      {/* 🚀 COLOR SELECTION POPUP MODAL */}
+      {showColorWarning && product.colors && (
+          <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl relative border-t-8 border-aura-gold">
+                  <button onClick={() => setShowColorWarning(false)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500 bg-gray-50 hover:bg-red-50 p-1.5 rounded-full transition-colors"><X size={18}/></button>
+                  <div className="text-center mb-5 mt-2">
+                      <div className="w-14 h-14 bg-amber-50 text-aura-gold rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                          <Palette size={24}/>
+                      </div>
+                      <h3 className="text-xl font-bold text-aura-brown font-serif">Select Your Article</h3>
+                      <p className="text-xs text-gray-500 mt-1">Please select a finish before adding to bag.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1 scrollbar-hide">
+                      {product.colors.map((color: any, idx: number) => (
+                          <button
+                              key={idx}
+                              onClick={() => {
+                                  handleColorToggle(idx, color.image);
+                                  setShowColorWarning(false);
+                              }}
+                              className="flex flex-col items-center gap-2 p-2.5 border-2 border-gray-100 rounded-xl hover:border-aura-gold hover:shadow-md transition-all group bg-gray-50/50 hover:bg-white"
+                          >
+                              <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-white border border-gray-100 shadow-sm group-hover:scale-105 transition-transform">
+                                  {color.image ? (
+                                      <Image src={optimizeCloudinaryUrl(color.image)} alt={color.name} fill className="object-cover" unoptimized={true} />
+                                  ) : (
+                                      <div className="w-full h-full" style={{ backgroundColor: color.hex || '#ccc' }}></div>
+                                  )}
+                              </div>
+                              <span className="text-xs font-bold text-gray-700 truncate w-full text-center group-hover:text-aura-gold">{color.name}</span>
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* 🚀 LIGHTBOX WITH ZOOM CONTROLS */}
       {lightboxImage && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-200">
-           <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-aura-gold bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all hover:scale-110 z-50 border border-aura-gold/30"><X size={24}/></button>
-           <div className="relative w-full h-full max-w-4xl max-h-[85vh]">
+        <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center animate-in fade-in duration-200">
+           {/* Zoom Controls */}
+           <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full z-50 border border-white/20 shadow-xl">
+               <button onClick={() => setZoomLevel(Math.max(1, zoomLevel - 0.5))} className="text-white hover:text-aura-gold transition-colors"><Minus size={20}/></button>
+               <span className="text-white text-xs font-bold w-12 text-center select-none">{Math.round(zoomLevel * 100)}%</span>
+               <button onClick={() => setZoomLevel(Math.min(4, zoomLevel + 0.5))} className="text-white hover:text-aura-gold transition-colors"><Plus size={20}/></button>
+           </div>
+           
+           <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 text-white bg-white/10 p-2.5 rounded-full hover:bg-red-500 hover:text-white transition-all hover:scale-110 z-50 border border-white/20"><X size={24}/></button>
+           
+           {/* Image Container */}
+           <div 
+               className="relative w-full h-full max-w-6xl overflow-auto flex items-center justify-center scrollbar-hide cursor-zoom-in"
+               onClick={() => setZoomLevel(zoomLevel === 1 ? 2 : 1)} // Double click / Single click zoom
+           >
              {isVideoFile(lightboxImage) ? (
                  <video src={lightboxImage} autoPlay muted loop playsInline poster={optimizeCloudinaryUrl(product.main_image)} className="w-full h-full object-contain pointer-events-none drop-shadow-2xl" />
              ) : (
-                 <Image src={lightboxImage} alt="Zoomed view" fill className="object-contain drop-shadow-2xl" quality={90} unoptimized={true} />
+                 <div className="relative transition-transform duration-300 ease-out origin-center" style={{ transform: `scale(${zoomLevel})`, width: '100%', height: '100%', minHeight: '50vh' }}>
+                     <Image src={lightboxImage} alt="Zoomed view" fill className="object-contain drop-shadow-2xl" quality={100} priority unoptimized={true} />
+                 </div>
              )}
            </div>
         </div>
@@ -375,16 +454,16 @@ export default function ProductClient() {
                 </div>
 
                 {hasColorMedia && (
-                    <div className="w-10 md:w-12 flex flex-col gap-2 overflow-y-auto scrollbar-hide shrink-0 py-0.5">
+                    <div className="w-12 md:w-16 flex flex-col gap-2.5 overflow-y-auto scrollbar-hide shrink-0 py-0.5">
                         {unifiedMedia.map((m, i) => {
                             if (m.type === 'main' || m.type === 'color') {
                                 return (
                                     <button 
                                         key={i} 
                                         onClick={() => { setMediaIndex(i); }} 
-                                        className={`relative w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-[2px] transition-all duration-200 shrink-0 ${mediaIndex === i ? 'border-aura-brown scale-105 shadow-md' : 'border-aura-gold/30 opacity-80 hover:opacity-100 hover:border-aura-gold/80'}`}
+                                        className={`relative w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden border-[2px] transition-all duration-200 shrink-0 ${mediaIndex === i ? 'border-aura-brown scale-105 shadow-md' : 'border-aura-gold/30 opacity-80 hover:opacity-100 hover:border-aura-gold/80'}`}
                                     >
-                                        <Image src={m.url} alt="Color Variant" fill className="object-cover" sizes="50px" unoptimized={true} />
+                                        <Image src={m.url} alt="Color Variant" fill className="object-cover" sizes="60px" unoptimized={true} />
                                     </button>
                                 )
                             }
@@ -395,19 +474,19 @@ export default function ProductClient() {
             </div>
 
             {hasGalleryMedia && (
-                <div className="flex gap-2.5 mt-2.5 overflow-x-auto pb-1 scrollbar-hide">
+                <div className="flex gap-2.5 mt-3 overflow-x-auto pb-2 scrollbar-hide">
                    {unifiedMedia.map((m, i) => {
                        if (m.type === 'hover' || m.type === 'gallery' || m.type === 'video') {
                            return (
-                             <button key={i} onClick={() => setMediaIndex(i)} className={`relative w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden border-[2px] transition-all duration-200 ${mediaIndex === i ? 'border-aura-brown shadow-md scale-105' : 'border-aura-gold/30 opacity-80 hover:opacity-100 hover:border-aura-gold/80'}`}>
+                             <button key={i} onClick={() => setMediaIndex(i)} className={`relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 rounded-xl overflow-hidden border-[2px] transition-all duration-200 ${mediaIndex === i ? 'border-aura-brown shadow-md scale-105' : 'border-aura-gold/30 opacity-80 hover:opacity-100 hover:border-aura-gold/80'}`}>
                                  {isVideoFile(m.url) ? (
                                      <div className="w-full h-full flex items-center justify-center relative bg-[#FDFBF7]">
-                                         <Image src={optimizeCloudinaryUrl(product.main_image)} alt="Video Preview" fill className="object-cover opacity-60" sizes="50px" unoptimized={true} />
+                                         <Image src={optimizeCloudinaryUrl(product.main_image)} alt="Video Preview" fill className="object-cover opacity-60" sizes="60px" unoptimized={true} />
                                          <div className="absolute inset-0 bg-black/20"></div> 
-                                         <Play size={14} className="relative z-10 text-white drop-shadow-md" fill="currentColor"/>
+                                         <Play size={16} className="relative z-10 text-white drop-shadow-md" fill="currentColor"/>
                                      </div>
                                  ) : (
-                                     <Image src={m.url} alt="Gallery Thumb" fill className="object-cover" sizes="50px" quality={60} unoptimized={true} />
+                                     <Image src={m.url} alt="Gallery Thumb" fill className="object-cover" sizes="60px" quality={60} unoptimized={true} />
                                  )}
                              </button>
                            )
@@ -440,45 +519,49 @@ export default function ProductClient() {
                 </div>
              </div>
 
-             {product.colors && product.colors.length > 0 && (
-                <div className="mb-3 p-3 rounded-xl border border-aura-gold/30 bg-gradient-to-r from-[#FDFBF7] to-[#F5EEDC] shadow-sm transition-all hover:shadow-md">
-                    <div className="flex justify-between items-center mb-2">
-                        <span className="text-[10px] font-bold text-aura-brown uppercase tracking-widest">Select Finish {quantity > 1 ? "(Item 1)" : ""} <span className="text-red-500 drop-shadow-sm">*</span></span>
-                        <span className="text-[10px] text-aura-gold font-bold drop-shadow-sm">{selectedColorIndex !== null ? product.colors[selectedColorIndex]?.name : "None Selected"}</span>
+             {/* 🚀 BIGGER AND CLEARER COLOR BOXES UI */}
+             {product.colors && product.colors.length > 1 && (
+                <div className="mb-3 p-4 rounded-2xl border border-aura-gold/30 bg-white shadow-sm transition-all hover:shadow-md">
+                    <div className="flex justify-between items-center mb-3">
+                        <span className="text-[11px] font-bold text-aura-brown uppercase tracking-widest">Select Finish {quantity > 1 ? "(Item 1)" : ""} <span className="text-red-500 drop-shadow-sm">*</span></span>
+                        <span className="text-[11px] text-aura-gold font-bold drop-shadow-sm bg-aura-gold/10 px-2 py-0.5 rounded-md">{selectedColorIndex !== null ? product.colors[selectedColorIndex]?.name : "Required"}</span>
                     </div>
-                    <div className="flex flex-wrap gap-2.5">
+                    <div className="grid grid-cols-4 md:grid-cols-5 gap-3">
                         {product.colors.map((color: any, index: number) => (
                             <button 
                                 key={index} 
                                 onClick={() => handleColorToggle(index, color.image)} 
-                                className={`relative w-9 h-9 rounded-full overflow-hidden transition-all duration-200 ${
+                                className={`relative flex flex-col items-center gap-2 p-2 rounded-xl transition-all duration-300 border-2 ${
                                     selectedColorIndex === index 
-                                    ? 'ring-2 ring-offset-2 ring-aura-brown scale-105 shadow-[0_4px_15px_rgba(212,175,55,0.3)]' 
-                                    : 'border border-aura-gold/40 opacity-90 hover:opacity-100 hover:border-aura-gold'
+                                    ? 'border-aura-brown bg-gradient-to-b from-aura-gold/10 to-transparent shadow-md scale-[1.02]' 
+                                    : 'border-gray-100 bg-gray-50/50 hover:border-aura-gold/50 hover:bg-white'
                                 }`}
                                 title={color.name}
                             >
-                                {color.image ? (
-                                    <Image src={optimizeCloudinaryUrl(color.image)} alt={color.name} fill className="object-cover" unoptimized={true} />
-                                ) : (
-                                    <div className="w-full h-full" style={{ backgroundColor: color.hex }}></div>
-                                )}
-                                {selectedColorIndex === index && (
-                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
-                                        <Check size={12} className="text-white drop-shadow-md" />
-                                    </div>
-                                )}
+                                <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border border-gray-200 bg-white shadow-sm">
+                                    {color.image ? (
+                                        <Image src={optimizeCloudinaryUrl(color.image)} alt={color.name} fill className="object-cover" unoptimized={true} />
+                                    ) : (
+                                        <div className="w-full h-full" style={{ backgroundColor: color.hex }}></div>
+                                    )}
+                                    {selectedColorIndex === index && (
+                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
+                                            <Check size={16} className="text-white drop-shadow-md" />
+                                        </div>
+                                    )}
+                                </div>
+                                <span className={`text-[9px] md:text-[10px] font-bold text-center leading-tight truncate w-full px-1 ${selectedColorIndex === index ? 'text-aura-brown' : 'text-gray-500'}`}>{color.name}</span>
                             </button>
                         ))}
                     </div>
 
                     {quantity > 1 && extraColors.map((extColorIdx, extI) => (
-                        <div key={extI} className="mt-4 pt-3 border-t border-aura-gold/20">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-[10px] font-bold text-aura-brown uppercase tracking-widest">Select Finish (Item {extI + 2}) <span className="text-red-500 drop-shadow-sm">*</span></span>
-                                <span className="text-[10px] text-aura-gold font-bold drop-shadow-sm">{extColorIdx !== null ? product.colors[extColorIdx]?.name : "None Selected"}</span>
+                        <div key={extI} className="mt-5 pt-4 border-t border-aura-gold/20">
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-[11px] font-bold text-aura-brown uppercase tracking-widest">Select Finish (Item {extI + 2}) <span className="text-red-500 drop-shadow-sm">*</span></span>
+                                <span className="text-[11px] text-aura-gold font-bold drop-shadow-sm bg-aura-gold/10 px-2 py-0.5 rounded-md">{extColorIdx !== null ? product.colors[extColorIdx]?.name : "Required"}</span>
                             </div>
-                            <div className="flex flex-wrap gap-2.5">
+                            <div className="grid grid-cols-4 md:grid-cols-5 gap-3">
                                 {product.colors.map((color: any, index: number) => (
                                     <button 
                                         key={index} 
@@ -491,23 +574,26 @@ export default function ProductClient() {
                                                 if (mediaIdx !== -1) setMediaIndex(mediaIdx);
                                             }
                                         }} 
-                                        className={`relative w-9 h-9 rounded-full overflow-hidden transition-all duration-200 ${
+                                        className={`relative flex flex-col items-center gap-2 p-2 rounded-xl transition-all duration-300 border-2 ${
                                             extColorIdx === index 
-                                            ? 'ring-2 ring-offset-2 ring-aura-brown scale-105 shadow-[0_4px_15px_rgba(212,175,55,0.3)]' 
-                                            : 'border border-aura-gold/40 opacity-90 hover:opacity-100 hover:border-aura-gold'
+                                            ? 'border-aura-brown bg-gradient-to-b from-aura-gold/10 to-transparent shadow-md scale-[1.02]' 
+                                            : 'border-gray-100 bg-gray-50/50 hover:border-aura-gold/50 hover:bg-white'
                                         }`}
                                         title={color.name}
                                     >
-                                        {color.image ? (
-                                            <Image src={optimizeCloudinaryUrl(color.image)} alt={color.name} fill className="object-cover" unoptimized={true} />
-                                        ) : (
-                                            <div className="w-full h-full" style={{ backgroundColor: color.hex }}></div>
-                                        )}
-                                        {extColorIdx === index && (
-                                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
-                                                <Check size={12} className="text-white drop-shadow-md" />
-                                            </div>
-                                        )}
+                                        <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border border-gray-200 bg-white shadow-sm">
+                                            {color.image ? (
+                                                <Image src={optimizeCloudinaryUrl(color.image)} alt={color.name} fill className="object-cover" unoptimized={true} />
+                                            ) : (
+                                                <div className="w-full h-full" style={{ backgroundColor: color.hex }}></div>
+                                            )}
+                                            {extColorIdx === index && (
+                                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
+                                                    <Check size={16} className="text-white drop-shadow-md" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className={`text-[9px] md:text-[10px] font-bold text-center leading-tight truncate w-full px-1 ${extColorIdx === index ? 'text-aura-brown' : 'text-gray-500'}`}>{color.name}</span>
                                     </button>
                                 ))}
                             </div>
@@ -574,7 +660,7 @@ export default function ProductClient() {
                 )}
              </div>
 
-             {/* 🚀 RESTORED: ESTIMATED DELIVERY TIMELINE */}
+             {/* 🚀 ESTIMATED DELIVERY TIMELINE */}
              <div className="mb-6 p-6 rounded-2xl bg-gradient-to-br from-[#FFFFFF] via-[#FDFBF7] to-[#F5EEDC] border border-aura-gold/40 shadow-[0_10px_30px_rgba(212,175,55,0.15)] relative overflow-hidden">
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-aura-gold/10 rounded-full blur-3xl pointer-events-none"></div>
                 <p className="text-[10px] font-bold text-aura-brown uppercase tracking-widest mb-6 text-center relative z-10">Estimated Delivery Timeline</p>
@@ -650,7 +736,7 @@ export default function ProductClient() {
           </div>
         </div>
 
-        {/* 🚀 RESTORED: WHY CHOOSE AURA-X (Moved Top) */}
+        {/* 🚀 WHY CHOOSE AURA-X */}
         <div className="mb-12 max-w-5xl mx-auto border border-aura-gold/20 rounded-2xl overflow-hidden bg-white shadow-sm mt-8">
             <div className="bg-[#FDFBF7] p-4 border-b border-aura-gold/20 text-center">
                 <h4 className="text-sm font-bold text-aura-brown tracking-[0.2em] uppercase">Why Choose AURA-X</h4>
@@ -679,7 +765,7 @@ export default function ProductClient() {
             </div>
         </div>
 
-        {/* 🚀 OUR JOURNEY SO FAR (Moved Bottom) */}
+        {/* 🚀 OUR JOURNEY SO FAR */}
         <div className="mb-12 max-w-5xl mx-auto rounded-2xl bg-gradient-to-br from-[#2A241D] to-[#1A1612] border border-aura-gold/30 shadow-[0_10px_30px_rgba(212,175,55,0.15)] relative overflow-hidden mt-8 p-6 md:p-10">
             <div className="absolute top-0 right-0 w-64 h-64 bg-aura-gold/5 rounded-full blur-3xl pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 w-40 h-40 bg-aura-gold/5 rounded-full blur-2xl pointer-events-none"></div>

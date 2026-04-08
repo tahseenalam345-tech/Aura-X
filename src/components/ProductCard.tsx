@@ -26,10 +26,19 @@ interface Product {
   is_eid_exclusive?: boolean; 
 }
 
+// 🚀 NAYA FUNCTION: Cloudinary URL ko cdn-images mein badalne ke liye
 const optimizeCloudinaryUrl = (url: string) => {
-    if (!url || !url.includes('cloudinary.com')) return url; 
-    if (url.includes('f_auto') || url.includes('q_auto')) return url; 
-    return url.replace('/upload/', '/upload/f_auto,q_auto/');
+    if (!url) return url;
+    
+    // Agar link Supabase ka hai, toh usko hamari apni domain ke /cdn-images/ route par bhej do
+    if (url.includes('supabase.co')) {
+        const parts = url.split('/product-images/');
+        if (parts.length === 2) {
+            return `/cdn-images/${parts[1]}`;
+        }
+    }
+    
+    return url;
 };
 
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
@@ -111,7 +120,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
         <Link href={`/product/${product.id}`} className="relative aspect-[4/5] w-full overflow-hidden block bg-[#F9F9F9]">
             <Image
-                src={isHovered ? hoverImg : mainImg}
+                src={optimizeCloudinaryUrl(isHovered ? hoverImg : mainImg)}
                 alt={product.name} 
                 fill
                 className={`object-cover transition-all duration-700 ease-in-out ${isHovered ? 'scale-110' : 'scale-100'} ${isOutOfStock ? 'grayscale opacity-60' : ''}`}

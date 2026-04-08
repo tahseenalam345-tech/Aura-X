@@ -14,7 +14,16 @@ const nextConfig = {
       },
     ],
   },
-  swcMinify: true, 
+  swcMinify: true,
+  // 🚀 NAYA RULE: Supabase ko cdn-images ke peechay chhupana taake Cloudflare cache kare
+  async rewrites() {
+    return [
+      {
+        source: '/cdn-images/:path*',
+        destination: 'https://kdwpnvkgghdksnajalmj.supabase.co/storage/v1/object/public/product-images/:path*'
+      }
+    ]
+  }
 };
 
 export default nextConfig;
