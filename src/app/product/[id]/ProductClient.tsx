@@ -22,18 +22,13 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
-// 🚀 NAYA FUNCTION: Brackets () ko crash hone se bachanay ke liye!
-// 🚀 FIX: Vercel Proxy hataya. Ab direct Supabase chalega (No 400 Error!)
+// 🚀 FAST LOAD & CLOUDFLARE CACHE HELPER
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
-    
-    // Fallback for old cloudinary images
     if (url.includes('cloudinary.com')) {
         if (url.includes('f_auto') || url.includes('q_auto')) return url; 
         return url.replace('/upload/', '/upload/f_auto,q_auto/');
     }
-    
-    // Direct return Supabase URL
     return url;
 };
 
@@ -334,6 +329,9 @@ export default function ProductClient() {
   };
 
   const seoAltText = `${product.name} - Premium Luxury Item | AURA-X`;
+
+  // 🚀 SMART KEYS FILTER: Yeh keys hum list mein hide kar rahay hain (Kuch zaroori nahi hain, kuch separate tabs mein jayengi)
+  const hiddenKeys = ['gallery','stock','video','view_count','extra_notes','delivery_charge', 'cost_price', 'rfid', 'coinPocket', 'return_policy', 'shipping_text', 'warranty'];
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30">
@@ -698,6 +696,7 @@ export default function ProductClient() {
                  </button>
              </div>
 
+             {/* 🚀 UPDATED: Details, Specs & Policies TABS */}
              <div className="border-t border-aura-gold/30">
                 <div className="border-b border-aura-gold/20 group">
                   <button onClick={() => setOpenSection(openSection === 'desc' ? null : 'desc')} className="w-full flex justify-between items-center py-3 text-xs font-bold uppercase tracking-widest text-aura-brown hover:text-aura-gold transition-colors">Description <ChevronDown size={14} className={`transition-transform duration-300 text-aura-brown/60 group-hover:text-aura-gold ${openSection === 'desc' ? 'rotate-180 text-aura-gold' : ''}`}/></button>
@@ -705,19 +704,44 @@ export default function ProductClient() {
                      <p className="text-[11px] text-aura-brown/80 font-medium leading-relaxed px-1">{product.description}</p>
                   </div>
                 </div>
+                
                 <div className="border-b border-aura-gold/20 group">
                   <button onClick={() => setOpenSection(openSection === 'spec' ? null : 'spec')} className="w-full flex justify-between items-center py-3 text-xs font-bold uppercase tracking-widest text-aura-brown hover:text-aura-gold transition-colors">Details & Specs <ChevronDown size={14} className={`transition-transform duration-300 text-aura-brown/60 group-hover:text-aura-gold ${openSection === 'spec' ? 'rotate-180 text-aura-gold' : ''}`}/></button>
-                  <div className={`overflow-hidden transition-all duration-300 ${openSection === 'spec' ? 'max-h-[800px] pb-3 opacity-100' : 'max-h-0 opacity-0'}`}>
-                    <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px] px-1">
-                        {Object.entries(specs).filter(([k, v]) => !['gallery','stock','video','view_count','extra_notes','delivery_charge', 'cost_price', 'rfid', 'coinPocket'].includes(k) && v !== null && v !== "").map(([k, v]) => (
-                            <li key={k} className="flex flex-col border-b border-dashed border-aura-gold/30 pb-1 hover:bg-aura-gold/5 transition-colors rounded">
-                                <span className="text-aura-brown/60 uppercase font-bold tracking-wider text-[9px] mb-0.5">{k.replace(/_/g, " ")}</span>
-                                <span className="text-aura-brown font-bold truncate">{v === true ? "Yes" : v === false ? "No" : String(v)}</span>
-                            </li>
-                        ))}
+                  <div className={`overflow-hidden transition-all duration-300 ${openSection === 'spec' ? 'max-h-[1500px] pb-3 opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px] px-1">
+                        {/* 🚀 SMART FILTER LOGIC APPLIED HERE */}
+                        {Object.entries(specs).filter(([k, v]) => {
+                            const isHiddenField = hiddenKeys.includes(k);
+                            const isEmptyValue = v === null || v === "" || v === false || String(v).toLowerCase() === "n/a" || String(v).toLowerCase() === "none";
+                            return !isHiddenField && !isEmptyValue;
+                        }).map(([k, v]) => {
+                            // Agar text lamba ho (Smart Features) toh poori width (col-span-2) le le ga
+                            const isLongText = String(v).length > 25; 
+                            return (
+                                <li key={k} className={`flex flex-col border-b border-dashed border-aura-gold/30 pb-1.5 hover:bg-aura-gold/5 transition-colors rounded ${isLongText ? 'col-span-2' : ''}`}>
+                                    <span className="text-aura-brown/60 uppercase font-bold tracking-wider text-[9px] mb-0.5">{k.replace(/_/g, " ")}</span>
+                                    {/* 🚀 TRUNCATE HATAYA: Ab text full wrap hoga aur show hoga */}
+                                    <span className="text-aura-brown font-bold leading-snug break-words whitespace-normal pr-1">{v === true ? "Yes" : String(v)}</span>
+                                </li>
+                            )
+                        })}
                     </ul>
                   </div>
                 </div>
+
+                {/* 🚀 SEPARATE POLICY SECTION (Only shows if entered) */}
+                {(specs.shipping_text || specs.return_policy || specs.warranty) && (
+                  <div className="border-b border-aura-gold/20 group">
+                    <button onClick={() => setOpenSection(openSection === 'policy' ? null : 'policy')} className="w-full flex justify-between items-center py-3 text-xs font-bold uppercase tracking-widest text-aura-brown hover:text-aura-gold transition-colors">Delivery & Policies <ChevronDown size={14} className={`transition-transform duration-300 text-aura-brown/60 group-hover:text-aura-gold ${openSection === 'policy' ? 'rotate-180 text-aura-gold' : ''}`}/></button>
+                    <div className={`overflow-hidden transition-all duration-300 ${openSection === 'policy' ? 'max-h-[800px] pb-3 opacity-100' : 'max-h-0 opacity-0'}`}>
+                      <div className="flex flex-col gap-4 px-1 text-[11px] text-aura-brown/80 font-medium leading-relaxed">
+                          {specs.warranty && <div><strong className="text-aura-brown block uppercase text-[9px] tracking-widest mb-0.5">Warranty</strong>{specs.warranty}</div>}
+                          {specs.shipping_text && <div><strong className="text-aura-brown block uppercase text-[9px] tracking-widest mb-0.5">Shipping Details</strong>{specs.shipping_text}</div>}
+                          {specs.return_policy && <div><strong className="text-aura-brown block uppercase text-[9px] tracking-widest mb-0.5">Return Policy</strong>{specs.return_policy}</div>}
+                      </div>
+                    </div>
+                  </div>
+                )}
              </div>
              
           </div>
