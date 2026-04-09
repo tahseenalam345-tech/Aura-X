@@ -149,19 +149,30 @@ export default function ProductClient() {
            
            localStorage.setItem('recently_viewed', JSON.stringify([currentProduct, ...filteredRecent].slice(0, 10)));
 
-           const { data: allRelatedData } = await supabase.from('products').select('*').neq('id', id).limit(30);
-           if (allRelatedData) {
-               const uniqueCats = new Set();
-               const diverseRelated = [];
-               for (const p of allRelatedData) {
-                   if (!uniqueCats.has(p.category)) {
-                       uniqueCats.add(p.category);
-                       diverseRelated.push(p);
-                   }
-                   if (diverseRelated.length >= 4) break;
+           // 🚀 SMART RELATED PRODUCTS LOGIC (Same Category First)
+           const { data: sameCategoryData } = await supabase
+               .from('products')
+               .select('*')
+               .eq('category', currentProduct.category)
+               .neq('id', id)
+               .limit(4);
+               
+           let finalRelated = sameCategoryData || [];
+
+           // Agar apni category mein 4 products poori nahi hain, toh doosri category se la kar poori karo
+           if (finalRelated.length < 4) {
+               const { data: otherData } = await supabase
+                   .from('products')
+                   .select('*')
+                   .neq('category', currentProduct.category)
+                   .neq('id', id)
+                   .limit(4 - finalRelated.length);
+                   
+               if (otherData) {
+                   finalRelated = [...finalRelated, ...otherData];
                }
-               setRelatedProducts(diverseRelated);
            }
+           setRelatedProducts(finalRelated);
        }
        setLoading(false);
     };
@@ -330,8 +341,32 @@ export default function ProductClient() {
 
   const seoAltText = `${product.name} - Premium Luxury Item | AURA-X`;
 
-  // 🚀 SMART KEYS FILTER: Yeh keys hum list mein hide kar rahay hain (Kuch zaroori nahi hain, kuch separate tabs mein jayengi)
-  const hiddenKeys = ['gallery','stock','video','view_count','extra_notes','delivery_charge', 'cost_price', 'rfid', 'coinPocket', 'return_policy', 'shipping_text', 'warranty'];
+  const fullCategory = `${product?.category || ''} ${product?.sub_category || ''}`.toLowerCase();
+  
+  const globalHiddenKeys = [
+      'gallery', 'stock', 'video', 'view_count', 'extra_notes', 
+      'delivery_charge', 'cost_price', 'rfid', 'coinPocket', 
+      'return_policy', 'shipping_text', 'warranty', 
+      'luminous', 'date_display'
+  ];
+
+  let categoryHiddenKeys: string[] = [];
+
+  if (fullCategory.includes('smart')) {
+      categoryHiddenKeys = ['premium_black_box', 'weight', 'movement', 'case_size', 'adjustable', 'case_color', 'case_shape', 'strap_width', 'case_thickness'];
+  } else if (fullCategory.includes('wallet')) {
+      categoryHiddenKeys = ['premium_black_box', 'weight', 'movement', 'case_size', 'adjustable', 'case_color', 'case_shape', 'strap_width', 'case_thickness', 'water_resistance'];
+  } else if (fullCategory.includes('bracelet')) {
+      categoryHiddenKeys = ['weight', 'movement', 'case_size', 'adjustable', 'case_color', 'case_shape', 'strap_width', 'case_thickness', 'water_resistance'];
+  } else if (fullCategory.includes('earbud') || fullCategory.includes('pod') || fullCategory.includes('audio')) {
+      categoryHiddenKeys = ['premium_black_box', 'weight', 'movement', 'case_size', 'adjustable', 'case_color', 'case_shape', 'strap_width', 'case_thickness'];
+  } else if (fullCategory.includes('men') || fullCategory.includes('women') || fullCategory.includes('couple') || fullCategory.includes('watch')) {
+      categoryHiddenKeys = ['case_color', 'case_shape', 'strap_width', 'case_thickness', 'case_size'];
+  } else {
+      categoryHiddenKeys = ['premium_black_box', 'weight', 'movement', 'case_size', 'adjustable', 'case_color', 'case_shape', 'strap_width', 'case_thickness'];
+  }
+
+  const allHiddenKeys = [...globalHiddenKeys, ...categoryHiddenKeys];
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30">
@@ -435,7 +470,8 @@ export default function ProductClient() {
                             <source src={currentDisplayMedia.url} type="video/mp4" />
                         </video>
                     ) : (
-                        <Image src={currentDisplayMedia.url} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 50vw" className="object-cover cursor-zoom-in transition-all duration-500 group-hover:scale-105" unoptimized={true} onClick={() => setLightboxImage(currentDisplayMedia.url)} />
+                        // 🚀 FIX: object-contain for main image to prevent cropping of rectangle images
+                        <Image src={currentDisplayMedia.url} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 50vw" className="object-contain p-2 cursor-zoom-in transition-all duration-500 group-hover:scale-105" unoptimized={true} onClick={() => setLightboxImage(currentDisplayMedia.url)} />
                     )
                   )}
                 </div>
@@ -696,7 +732,6 @@ export default function ProductClient() {
                  </button>
              </div>
 
-             {/* 🚀 UPDATED: Details, Specs & Policies TABS */}
              <div className="border-t border-aura-gold/30">
                 <div className="border-b border-aura-gold/20 group">
                   <button onClick={() => setOpenSection(openSection === 'desc' ? null : 'desc')} className="w-full flex justify-between items-center py-3 text-xs font-bold uppercase tracking-widest text-aura-brown hover:text-aura-gold transition-colors">Description <ChevronDown size={14} className={`transition-transform duration-300 text-aura-brown/60 group-hover:text-aura-gold ${openSection === 'desc' ? 'rotate-180 text-aura-gold' : ''}`}/></button>
@@ -709,18 +744,15 @@ export default function ProductClient() {
                   <button onClick={() => setOpenSection(openSection === 'spec' ? null : 'spec')} className="w-full flex justify-between items-center py-3 text-xs font-bold uppercase tracking-widest text-aura-brown hover:text-aura-gold transition-colors">Details & Specs <ChevronDown size={14} className={`transition-transform duration-300 text-aura-brown/60 group-hover:text-aura-gold ${openSection === 'spec' ? 'rotate-180 text-aura-gold' : ''}`}/></button>
                   <div className={`overflow-hidden transition-all duration-300 ${openSection === 'spec' ? 'max-h-[1500px] pb-3 opacity-100' : 'max-h-0 opacity-0'}`}>
                     <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px] px-1">
-                        {/* 🚀 SMART FILTER LOGIC APPLIED HERE */}
                         {Object.entries(specs).filter(([k, v]) => {
-                            const isHiddenField = hiddenKeys.includes(k);
+                            const isHiddenField = allHiddenKeys.includes(k);
                             const isEmptyValue = v === null || v === "" || v === false || String(v).toLowerCase() === "n/a" || String(v).toLowerCase() === "none";
                             return !isHiddenField && !isEmptyValue;
                         }).map(([k, v]) => {
-                            // Agar text lamba ho (Smart Features) toh poori width (col-span-2) le le ga
                             const isLongText = String(v).length > 25; 
                             return (
                                 <li key={k} className={`flex flex-col border-b border-dashed border-aura-gold/30 pb-1.5 hover:bg-aura-gold/5 transition-colors rounded ${isLongText ? 'col-span-2' : ''}`}>
                                     <span className="text-aura-brown/60 uppercase font-bold tracking-wider text-[9px] mb-0.5">{k.replace(/_/g, " ")}</span>
-                                    {/* 🚀 TRUNCATE HATAYA: Ab text full wrap hoga aur show hoga */}
                                     <span className="text-aura-brown font-bold leading-snug break-words whitespace-normal pr-1">{v === true ? "Yes" : String(v)}</span>
                                 </li>
                             )
@@ -729,7 +761,6 @@ export default function ProductClient() {
                   </div>
                 </div>
 
-                {/* 🚀 SEPARATE POLICY SECTION (Only shows if entered) */}
                 {(specs.shipping_text || specs.return_policy || specs.warranty) && (
                   <div className="border-b border-aura-gold/20 group">
                     <button onClick={() => setOpenSection(openSection === 'policy' ? null : 'policy')} className="w-full flex justify-between items-center py-3 text-xs font-bold uppercase tracking-widest text-aura-brown hover:text-aura-gold transition-colors">Delivery & Policies <ChevronDown size={14} className={`transition-transform duration-300 text-aura-brown/60 group-hover:text-aura-gold ${openSection === 'policy' ? 'rotate-180 text-aura-gold' : ''}`}/></button>
