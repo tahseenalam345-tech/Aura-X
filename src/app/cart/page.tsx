@@ -59,6 +59,9 @@ export default function CartPage() {
                 const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
                 const itemTotalPrice = (item.price + extras) * item.quantity;
 
+                // 🚀 SMART CHECK: Agar color ka naam 'Standard' ya 'Standard Variant' hai (mtlb us product k multiple colors hain hi nahi), toh color line hide kr do.
+                const isDefaultColor = !item.color || item.color.toLowerCase() === 'standard' || item.color.toLowerCase() === 'standard variant' || item.color.toLowerCase() === 'selected';
+
                 return (
                   <div key={`${item.id}-${item.color}`} className="flex gap-4 md:gap-6 bg-white p-4 md:p-5 rounded-2xl border border-gray-100 shadow-sm relative group hover:border-aura-gold/30 hover:shadow-md transition-all">
                     <div className="relative w-24 h-24 md:w-32 md:h-32 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
@@ -85,7 +88,8 @@ export default function CartPage() {
                            </button>
                         </div>
                         
-                        {item.color && (
+                        {/* 🚀 APPLYING THE SMART CHECK */}
+                        {!isDefaultColor && (
                             <p className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-wider mt-1.5 md:mt-2 truncate">
                                 Variant: <span className="text-aura-gold">{item.color}</span>
                             </p>
