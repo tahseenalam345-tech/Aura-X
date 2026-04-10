@@ -265,12 +265,12 @@ export default function Home() {
                       <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
                   </div>
 
-                  {/* 🚀 FIXED: Replaced Fragrances with Bracelets & Renamed Leather */}
+                  {/* 🚀 FIXED: LINKS UPDATED TO /bracelets and /wallets */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-fade-in-up">
                       {[
                         { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
-                        { title: "Men's Bracelets", img: "/cat-perfume.jpg", link: "/accessories" },
-                        { title: "Wallets & Belts", img: "/cat-wallet.jpg", link: "/accessories" },
+                        { title: "Men's Bracelets", img: "/cat-perfume.jpg", link: "/bracelets" }, 
+                        { title: "Wallets & Belts", img: "/cat-wallet.jpg", link: "/wallets" }, 
                         { title: "Smart Tech", img: "/cat-tech.jpg", link: "/smart-tech" }
                       ].map((cat, i) => (
                          <Link href={cat.link} key={i} className="group relative w-full aspect-[4/5] md:aspect-square overflow-hidden rounded-2xl bg-[#EBE4D8] border border-[#D4AF37]/20 shadow-md">
@@ -373,8 +373,8 @@ export default function Home() {
                       <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 bg-[#FDFBF7]">
                           {[
                             { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
-                            { title: "Men's Bracelets", img: "/cat-perfume.jpg", link: "/accessories" },
-                            { title: "Wallets & Belts", img: "/cat-wallet.jpg", link: "/accessories" },
+                            { title: "Men's Bracelets", img: "/cat-perfume.jpg", link: "/bracelets" }, 
+                            { title: "Wallets & Belts", img: "/cat-wallet.jpg", link: "/wallets" }, 
                             { title: "Tech", img: "/cat-tech.jpg", link: "/smart-tech" }
                           ].map((cat, i) => (
                              <Link href={cat.link} key={i} className="group relative w-full aspect-[4/5] md:aspect-square overflow-hidden rounded-xl md:rounded-2xl bg-[#EBE4D8] border border-[#D4AF37]/20 shadow-sm hover:shadow-md">
