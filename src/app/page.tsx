@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
@@ -265,11 +265,12 @@ export default function Home() {
                       <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
                   </div>
 
+                  {/* 🚀 FIXED: Replaced Fragrances with Bracelets & Renamed Leather */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-fade-in-up">
                       {[
                         { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
-                        { title: "Fragrances", img: "/cat-perfume.jpg", link: "/fragrances" },
-                        { title: "Leather Essentials", img: "/cat-wallet.jpg", link: "/accessories" },
+                        { title: "Men's Bracelets", img: "/cat-perfume.jpg", link: "/accessories" },
+                        { title: "Wallets & Belts", img: "/cat-wallet.jpg", link: "/accessories" },
                         { title: "Smart Tech", img: "/cat-tech.jpg", link: "/smart-tech" }
                       ].map((cat, i) => (
                          <Link href={cat.link} key={i} className="group relative w-full aspect-[4/5] md:aspect-square overflow-hidden rounded-2xl bg-[#EBE4D8] border border-[#D4AF37]/20 shadow-md">
@@ -301,7 +302,6 @@ export default function Home() {
                                       <h2 className="text-2xl md:text-5xl font-serif text-aura-brown leading-none">The Luxury Vault</h2>
                                   </div>
                                   
-                                  {/* 🚀 FIXED: Mobile View All now visible and opens Category Modal */}
                                   <button onClick={() => setShowCategoryModal(true)} className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
                                       View All <ArrowRight size={16}/>
                                   </button>
@@ -314,7 +314,6 @@ export default function Home() {
                                   ))}
                               </div>
                               
-                              {/* 🚀 FIXED: Added "View All" to the bottom of the products list too */}
                               <div className="flex justify-center mt-10 md:mt-12 w-full">
                                   <button onClick={() => setShowCategoryModal(true)} className="px-8 py-3.5 rounded-full border border-[#D4AF37]/50 text-aura-brown font-bold text-xs md:text-sm uppercase tracking-widest hover:bg-[#D4AF37] hover:text-white transition-all flex items-center gap-2 shadow-sm">
                                       View All Collections <ArrowRight size={16} />
@@ -332,7 +331,7 @@ export default function Home() {
                         <Gift size={14}/> Special Pairings
                      </p>
                      <h2 className="text-3xl md:text-5xl font-serif text-white leading-tight mb-4">The Perfect Gift Combos</h2>
-                     <p className="text-gray-400 text-sm md:text-base mb-6">Carefully curated combinations of our finest watches, wallets, and fragrances.</p>
+                     <p className="text-gray-400 text-sm md:text-base mb-6">Carefully curated combinations of our finest watches, wallets, and bracelets.</p>
                      <div>
                         <span className="inline-block bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-[#1E1B18] font-black text-[10px] md:text-xs tracking-widest uppercase px-4 py-2 rounded-full border border-[#F9E596]">
                             Extra Rs. 200 Off In Custom Combos
@@ -369,11 +368,13 @@ export default function Home() {
                               <X size={20} />
                           </button>
                       </div>
+                      
+                      {/* 🚀 FIXED: Modal Categories Also Updated */}
                       <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 bg-[#FDFBF7]">
                           {[
                             { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
-                            { title: "Fragrances", img: "/cat-perfume.jpg", link: "/fragrances" },
-                            { title: "Leather", img: "/cat-wallet.jpg", link: "/accessories" },
+                            { title: "Men's Bracelets", img: "/cat-perfume.jpg", link: "/accessories" },
+                            { title: "Wallets & Belts", img: "/cat-wallet.jpg", link: "/accessories" },
                             { title: "Tech", img: "/cat-tech.jpg", link: "/smart-tech" }
                           ].map((cat, i) => (
                              <Link href={cat.link} key={i} className="group relative w-full aspect-[4/5] md:aspect-square overflow-hidden rounded-xl md:rounded-2xl bg-[#EBE4D8] border border-[#D4AF37]/20 shadow-sm hover:shadow-md">

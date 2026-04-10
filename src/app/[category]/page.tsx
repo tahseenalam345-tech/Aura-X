@@ -31,6 +31,7 @@ const getCategoryTitle = (slug: string) => {
     'fragrances': 'Signature Fragrances',
     'wallets': 'Premium Wallets',
     'belts': 'Classic Leather Belts',
+    'bracelets': 'Luxury Bracelets', // 🚀 ADDED NEW CATEGORY TITLE
     'sunglasses': 'Designer Sunglasses',
     'jewelry': 'Bracelets & Rings',
     'smartwatches': 'Advanced Smartwatches',
@@ -42,7 +43,7 @@ const getCategoryTitle = (slug: string) => {
     'couple': "Couple's Bonds",
     'combos': "Curated Combos"
   };
-  return titles[slug.toLowerCase()] || slug.replace('-', ' ');
+  return titles[slug.toLowerCase()] || slug.replace('-', ' ').toUpperCase();
 };
 
 export default function CategoryPage() {
@@ -72,7 +73,7 @@ export default function CategoryPage() {
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
-  // 🚀 NEW: GLOBAL GENDER FILTER (REPLACING BRANDS)
+  // 🚀 NEW: GLOBAL GENDER FILTER
   const [globalGender, setGlobalGender] = useState<string>("all");
 
   useEffect(() => {
@@ -119,11 +120,11 @@ export default function CategoryPage() {
 
       let query = supabase.from('products').select('*');
 
-      // 🚀 THE FIX: Smart Routing for Watches Parent Category
+      // 🚀 Smart Routing for Categories
       if (categorySlug.toLowerCase() === 'watches') {
           query = query.in('category', ['men', 'women', 'couple', 'watches']);
       } else {
-          // Standard query for other categories
+          // 🚀 This explicitly grabs only wallets when slug is 'wallets', no bracelets will come here!
           query = query.or(`category.ilike.${categorySlug},sub_category.ilike.${categorySlug}`);
       }
 
@@ -148,28 +149,20 @@ export default function CategoryPage() {
   }, [priceRange, selectedMovements, selectedStraps, sortBy, globalGender]);
 
   const filteredProducts = products.filter((product) => {
-    // 🚀 APPLY GLOBAL GENDER FILTER
+    
+    // 🚀 ULTRA-SMART GLOBAL GENDER FILTER APPLIED EVERYWHERE
     if (globalGender !== "all") {
         const cat = product.category?.toLowerCase() || '';
         const subCat = product.sub_category?.toLowerCase() || '';
 
-        // Watches category strict matching based on gender
-        if (categorySlug.toLowerCase() === 'watches' || isWatchCategory) {
-            if (globalGender === 'men' && !['men', 'watches'].includes(cat)) return false;
-            if (globalGender === 'women' && !['women', 'watches'].includes(cat)) return false;
-            if (globalGender === 'couple' && cat !== 'couple') return false;
+        if (globalGender === 'men') {
+            if (cat === 'women' || subCat.includes('women') || subCat === 'jewelry') return false;
         }
-        
-        // Fragrances strict matching based on gender
-        if (categorySlug.toLowerCase() === 'fragrances') {
-            if (globalGender === 'men' && subCat !== 'perfume-men') return false;
-            if (globalGender === 'women' && subCat !== 'perfume-women') return false;
+        if (globalGender === 'women') {
+            if (cat === 'men' || subCat.includes('men') || subCat === 'wallets' || subCat === 'wallet' || subCat === 'belts') return false;
         }
-
-        // Accessories logic (assume mostly men unless jewelry)
-        if (categorySlug.toLowerCase() === 'accessories') {
-            if (globalGender === 'women' && subCat !== 'jewelry') return false;
-            if (globalGender === 'men' && subCat === 'jewelry') return false; 
+        if (globalGender === 'couple') {
+            if (cat !== 'couple') return false;
         }
     }
 
@@ -297,7 +290,7 @@ export default function CategoryPage() {
         </motion.div>
       </div>
 
-      {/* 🚀 FIXED: Replaced Brands with Gender Pills */}
+      {/* 🚀 Gender Filter Pills */}
       {!loading && products.length > 0 && (
           <div className="max-w-[1600px] mx-auto px-4 md:px-12 mb-8">
               <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide items-center justify-start md:justify-center">
@@ -413,7 +406,6 @@ export default function CategoryPage() {
                 </div>
             )}
             
-            {/* 🚀 FIXED: EMPTY STATE UI */}
             {!loading && products.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-2">No masterpieces found.</p>

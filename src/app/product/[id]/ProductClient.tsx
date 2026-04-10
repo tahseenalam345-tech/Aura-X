@@ -149,7 +149,6 @@ export default function ProductClient() {
            
            localStorage.setItem('recently_viewed', JSON.stringify([currentProduct, ...filteredRecent].slice(0, 10)));
 
-           // 🚀 SMART RELATED PRODUCTS LOGIC (Same Category First)
            const { data: sameCategoryData } = await supabase
                .from('products')
                .select('*')
@@ -159,7 +158,6 @@ export default function ProductClient() {
                
            let finalRelated = sameCategoryData || [];
 
-           // Agar apni category mein 4 products poori nahi hain, toh doosri category se la kar poori karo
            if (finalRelated.length < 4) {
                const { data: otherData } = await supabase
                    .from('products')
@@ -435,13 +433,35 @@ export default function ProductClient() {
 
       <div className="max-w-6xl mx-auto px-3 md:px-6 pt-20 md:pt-28">
         
+        {/* 🚀 FIXED: BREADCRUMBS NAVIGATION */}
         <div className="flex flex-wrap items-center gap-1.5 text-[10px] md:text-xs mb-3 font-bold uppercase tracking-widest text-aura-brown/60">
             <Link href="/" className="hover:text-aura-gold flex items-center transition-colors"><Home size={12} className="mr-1"/> Home</Link>
             <span>/</span>
-            <Link href={`/${product.category}`} className="hover:text-aura-gold transition-colors">{product.category}</Link>
-            {product.sub_category && (<><span>/</span><span>{product.sub_category}</span></>)}
-            <span>/</span>
-            <span className="truncate max-w-[120px] md:max-w-none text-aura-brown drop-shadow-sm" title={product.name}>{displayShortName}</span>
+            
+            {/* Category Link Fixed */}
+            {product.category && (
+                <>
+                    <Link href={`/${product.category.toLowerCase()}`} className="hover:text-aura-gold transition-colors">
+                        {product.category}
+                    </Link>
+                    <span>/</span>
+                </>
+            )}
+            
+            {/* Sub-Category Link Fixed (If it exists) */}
+            {product.sub_category && (
+                <>
+                    <Link href={`/${product.sub_category.toLowerCase()}`} className="hover:text-aura-gold transition-colors">
+                        {product.sub_category}
+                    </Link>
+                    <span>/</span>
+                </>
+            )}
+
+            {/* Product Name - No link needed as we are already on this page */}
+            <span className="truncate max-w-[120px] md:max-w-none text-aura-brown drop-shadow-sm" title={product.name}>
+                {displayShortName}
+            </span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-10 mb-6">
@@ -470,7 +490,6 @@ export default function ProductClient() {
                             <source src={currentDisplayMedia.url} type="video/mp4" />
                         </video>
                     ) : (
-                        // 🚀 FIX: object-contain for main image to prevent cropping of rectangle images
                         <Image src={currentDisplayMedia.url} alt={seoAltText} fill priority sizes="(max-width: 768px) 100vw, 50vw" className="object-contain p-2 cursor-zoom-in transition-all duration-500 group-hover:scale-105" unoptimized={true} onClick={() => setLightboxImage(currentDisplayMedia.url)} />
                     )
                   )}
