@@ -17,7 +17,6 @@ const fadeInUp: Variants = {
 const categoryCache: Record<string, any[]> = {};
 let lastVisitedCategory = "";
 let globalVisibleCount = 8;
-let globalSelectedBrand = "All";
 let globalPriceRange = 500000;
 let globalSelectedMovements: string[] = [];
 let globalSelectedStraps: string[] = [];
@@ -57,7 +56,6 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(!categoryCache[categorySlug]); 
   const [visibleCount, setVisibleCount] = useState(isReturning ? globalVisibleCount : 8);
   
-  const [selectedBrand, setSelectedBrand] = useState(isReturning ? globalSelectedBrand : "All"); 
   const [priceRange, setPriceRange] = useState(isReturning ? globalPriceRange : 500000); 
   const [selectedMovements, setSelectedMovements] = useState<string[]>(isReturning ? globalSelectedMovements : []);
   const [selectedStraps, setSelectedStraps] = useState<string[]>(isReturning ? globalSelectedStraps : []);
@@ -74,25 +72,22 @@ export default function CategoryPage() {
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
-  // 🚀 NEW: GLOBAL GENDER FILTER
+  // 🚀 NEW: GLOBAL GENDER FILTER (REPLACING BRANDS)
   const [globalGender, setGlobalGender] = useState<string>("all");
 
   useEffect(() => {
       lastVisitedCategory = categorySlug;
       globalVisibleCount = visibleCount;
-      globalSelectedBrand = selectedBrand;
       globalPriceRange = priceRange;
       globalSelectedMovements = selectedMovements;
       globalSelectedStraps = selectedStraps;
       globalSortBy = sortBy;
-  }, [categorySlug, visibleCount, selectedBrand, priceRange, selectedMovements, selectedStraps, sortBy]);
+  }, [categorySlug, visibleCount, priceRange, selectedMovements, selectedStraps, sortBy]);
 
   useEffect(() => {
       if (typeof window !== 'undefined') {
           const urlParams = new URLSearchParams(window.location.search);
-          const brandFromUrl = urlParams.get('brand');
-          if (brandFromUrl) setSelectedBrand(brandFromUrl);
-
+          
           // 🚀 CHECK FOR GENDER URL PARAM OR LOCAL STORAGE
           const genderFromUrl = urlParams.get('gender');
           if (genderFromUrl) {
@@ -103,6 +98,13 @@ export default function CategoryPage() {
           }
       }
   }, []);
+
+  const handleGenderSelect = (gender: string) => {
+      setGlobalGender(gender);
+      if (typeof window !== 'undefined') {
+          localStorage.setItem('aura_gender', gender);
+      }
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -143,29 +145,7 @@ export default function CategoryPage() {
         return;
     }
     setVisibleCount(8);
-  }, [priceRange, selectedMovements, selectedStraps, sortBy, selectedBrand, globalGender]);
-
-  const availableBrands = useMemo(() => {
-      const brandCounts: Record<string, number> = {};
-      const originalNames: Record<string, string> = {}; 
-
-      products.forEach(p => {
-          const rawBrand = (p.brand || "AURA-X").trim();
-          const upperBrand = rawBrand.toUpperCase();
-
-          if (!brandCounts[upperBrand]) {
-              brandCounts[upperBrand] = 0;
-              originalNames[upperBrand] = rawBrand; 
-          }
-          brandCounts[upperBrand]++;
-      });
-
-      const sortedBrands = Object.keys(brandCounts)
-          .sort((a, b) => brandCounts[b] - brandCounts[a])
-          .map(upper => originalNames[upper]);
-
-      return ["All", ...sortedBrands];
-  }, [products]);
+  }, [priceRange, selectedMovements, selectedStraps, sortBy, globalGender]);
 
   const filteredProducts = products.filter((product) => {
     // 🚀 APPLY GLOBAL GENDER FILTER
@@ -192,8 +172,6 @@ export default function CategoryPage() {
             if (globalGender === 'men' && subCat === 'jewelry') return false; 
         }
     }
-
-    if (selectedBrand !== "All" && (product.brand || "AURA-X").trim().toUpperCase() !== selectedBrand.toUpperCase()) return false;
 
     if (product.price > priceRange) return false;
     
@@ -311,28 +289,29 @@ export default function CategoryPage() {
       <div className="pt-32 md:pt-40 pb-8 text-center bg-gradient-to-b from-white to-[#FDFBF7]">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <span className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase block mb-3">
-            {selectedBrand !== "All" ? 'Brand Showcase' : globalGender !== 'all' ? `For ${globalGender}` : 'Collection'}
+            {globalGender !== 'all' ? `For ${globalGender}` : 'Collection'}
           </span>
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-aura-brown capitalize px-4">
-            {selectedBrand !== "All" ? `${selectedBrand} Masterpieces` : getCategoryTitle(categorySlug)}
+            {getCategoryTitle(categorySlug)}
           </h1>
         </motion.div>
       </div>
 
-      {!loading && availableBrands.length > 2 && (
+      {/* 🚀 FIXED: Replaced Brands with Gender Pills */}
+      {!loading && products.length > 0 && (
           <div className="max-w-[1600px] mx-auto px-4 md:px-12 mb-8">
               <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide items-center justify-start md:justify-center">
-                  {availableBrands.map(brand => (
+                  {['all', 'men', 'women', 'couple'].map(gender => (
                       <button
-                          key={brand}
-                          onClick={() => setSelectedBrand(brand)}
-                          className={`px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
-                              selectedBrand === brand
-                              ? 'bg-aura-brown text-white border-aura-brown shadow-lg scale-105'
+                          key={gender}
+                          onClick={() => handleGenderSelect(gender)}
+                          className={`px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all border shadow-sm ${
+                              globalGender === gender
+                              ? 'bg-aura-brown text-white border-aura-brown shadow-md scale-105'
                               : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold hover:text-aura-brown'
                           }`}
                       >
-                          {brand}
+                          {gender}
                       </button>
                   ))}
               </div>
@@ -445,7 +424,7 @@ export default function CategoryPage() {
             {!loading && products.length > 0 && filteredProducts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-6">No pieces match these criteria.</p>
-                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]); setSortBy("featured"); setSelectedBrand("All"); setGlobalGender("all"); localStorage.setItem('aura_gender', 'all')}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs hover:bg-aura-gold transition-colors">
+                    <button onClick={() => {setPriceRange(500000); setSelectedMovements([]); setSelectedStraps([]); setSortBy("featured"); setGlobalGender("all"); localStorage.setItem('aura_gender', 'all')}} className="bg-aura-brown text-white px-8 py-3 rounded-full font-bold text-xs hover:bg-aura-gold transition-colors">
                       CLEAR ALL FILTERS
                     </button>
                 </div>
