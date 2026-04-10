@@ -15,9 +15,9 @@ const IS_EID_LIVE = false;
 // 🚀 8 ITEMS EXACTLY FROM YOUR SCREENSHOT
 const carouselItems = [
   { src: "/pic1.webp", tag: "Premium Men's Watch", title: "Legacy in", highlight: "Motion" },       
-  { src: "/pic2.webp", tag: "Signature Pour Homme Scent", title: "Aura of", highlight: "Prestige" },         
-  { src: "/pic3.webp", tag: "Designer Aviator Sunglasses", title: "Visionary", highlight: "Style" },         
-  { src: "/pic4.webp", tag: "Classic Casual Leather Belt", title: "Signature", highlight: "Craft" },         
+  { src: "/pic2.webp", tag: "Signature Pour Homme Scent", title: "Aura of", highlight: "Prestige" },        
+  { src: "/pic3.webp", tag: "Designer Aviator Sunglasses", title: "Visionary", highlight: "Style" },        
+  { src: "/pic4.webp", tag: "Classic Casual Leather Belt", title: "Signature", highlight: "Craft" },        
   { src: "/pic5.webp", tag: "Next-Gen Smartwatch", title: "Smart", highlight: "Evolution" },            
   { src: "/pic6.webp", tag: "Active Noise Cancelling acoustics", title: "Immersive", highlight: "Sound" },           
   { src: "/pic7.webp", tag: "Luxury Leather Wallet", title: "Refined", highlight: "Elegance" },         
@@ -89,15 +89,15 @@ export default function Home() {
     fetchFastData();
   }, []);
 
-  // 🚀 SMART VAULT FILTERING (PINNED ONLY & RANDOMIZED)
+  // 🚀 SMART VAULT FILTERING (ONE ITEM PER CATEGORY)
   const trendingVaultProducts = useMemo(() => {
       if (allStoreProducts.length === 0) return [];
       
-      // Select ONLY pinned products
-      let pinnedProducts = allStoreProducts.filter(p => p.is_pinned === true);
+      let filteredProducts = allStoreProducts;
 
+      // 1. Filter by Gender if selected
       if (globalGender !== 'all') {
-          pinnedProducts = pinnedProducts.filter(p => {
+          filteredProducts = filteredProducts.filter(p => {
               const cat = p.category?.toLowerCase() || '';
               const subCat = p.sub_category?.toLowerCase() || '';
               
@@ -108,10 +108,39 @@ export default function Home() {
           });
       }
 
-      // Randomize the pinned products so they look fresh
-      const randomized = pinnedProducts.sort(() => 0.5 - Math.random());
+      // 2. Select ONE item from each unique category/subcategory combination
+      const uniqueItemsMap = new Map();
+      const diverseList: any[] = [];
       
-      return randomized.slice(0, 8);
+      // Shuffle first to ensure we don't always pick the exact same item from a category
+      const shuffledProducts = [...filteredProducts].sort(() => 0.5 - Math.random());
+
+      for (const p of shuffledProducts) {
+          // Create a unique key for this product type (e.g., 'watches-men', 'fragrances-perfume-men')
+          const categoryKey = `${p.category || ''}-${p.sub_category || ''}`;
+          
+          if (!uniqueItemsMap.has(categoryKey)) {
+              uniqueItemsMap.set(categoryKey, true);
+              diverseList.push(p);
+          }
+          
+          // Stop when we have 8 diverse items
+          if (diverseList.length >= 8) break;
+      }
+
+      // 3. Fallback: If we don't have 8 diverse categories, fill the rest with other random items
+      if (diverseList.length < 8) {
+          const usedIds = new Set(diverseList.map(p => p.id));
+          for (const p of shuffledProducts) {
+              if (!usedIds.has(p.id)) {
+                  diverseList.push(p);
+                  usedIds.add(p.id);
+              }
+              if (diverseList.length >= 8) break;
+          }
+      }
+
+      return diverseList;
   }, [allStoreProducts, globalGender]);
 
   return (
@@ -274,7 +303,7 @@ export default function Home() {
                                   
                                   {/* 🚀 FIXED: Mobile View All now visible and opens Category Modal */}
                                   <button onClick={() => setShowCategoryModal(true)} className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-sm font-bold text-[#8B7355] hover:text-[#D4AF37] transition-colors uppercase tracking-widest">
-                                     View All <ArrowRight size={16}/>
+                                      View All <ArrowRight size={16}/>
                                   </button>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 w-full pt-4">
