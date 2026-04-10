@@ -31,7 +31,7 @@ const getCategoryTitle = (slug: string) => {
     'fragrances': 'Signature Fragrances',
     'wallets': 'Premium Wallets',
     'belts': 'Classic Leather Belts',
-    'bracelets': 'Luxury Bracelets', // 🚀 ADDED NEW CATEGORY TITLE
+    'bracelets': 'Luxury Bracelets', 
     'sunglasses': 'Designer Sunglasses',
     'jewelry': 'Bracelets & Rings',
     'smartwatches': 'Advanced Smartwatches',
@@ -73,7 +73,6 @@ export default function CategoryPage() {
   const movements = ["Automatic", "Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
-  // 🚀 NEW: GLOBAL GENDER FILTER
   const [globalGender, setGlobalGender] = useState<string>("all");
 
   useEffect(() => {
@@ -88,8 +87,6 @@ export default function CategoryPage() {
   useEffect(() => {
       if (typeof window !== 'undefined') {
           const urlParams = new URLSearchParams(window.location.search);
-          
-          // 🚀 CHECK FOR GENDER URL PARAM OR LOCAL STORAGE
           const genderFromUrl = urlParams.get('gender');
           if (genderFromUrl) {
               setGlobalGender(genderFromUrl);
@@ -119,13 +116,22 @@ export default function CategoryPage() {
       }
 
       let query = supabase.from('products').select('*');
+      const slug = categorySlug.toLowerCase();
 
-      // 🚀 Smart Routing for Categories
-      if (categorySlug.toLowerCase() === 'watches') {
+      // 🚀 THE FIX: Smart Routing for Databases Mismatches
+      if (slug === 'watches') {
           query = query.in('category', ['men', 'women', 'couple', 'watches']);
-      } else {
-          // 🚀 This explicitly grabs only wallets when slug is 'wallets', no bracelets will come here!
-          query = query.or(`category.ilike.${categorySlug},sub_category.ilike.${categorySlug}`);
+      } 
+      // 🚀 BRACELETS FIX: Database mein 'jewelry' naam se bhi search karega!
+      else if (slug === 'bracelets') {
+          query = query.or('category.ilike.%bracelet%,sub_category.ilike.%bracelet%,sub_category.ilike.%jewelry%');
+      } 
+      // 🚀 WALLETS FIX: Wallets & Belts dono nikal kar layega
+      else if (slug === 'wallets') {
+          query = query.or('category.ilike.%wallet%,sub_category.ilike.%wallet%,sub_category.ilike.%belt%');
+      } 
+      else {
+          query = query.or(`category.ilike.%${slug}%,sub_category.ilike.%${slug}%`);
       }
 
       const { data } = await query;
@@ -150,13 +156,13 @@ export default function CategoryPage() {
 
   const filteredProducts = products.filter((product) => {
     
-    // 🚀 ULTRA-SMART GLOBAL GENDER FILTER APPLIED EVERYWHERE
+    // 🚀 FIXED: GENDER FILTER (Ab men ke liye jewelry block nahi hogi)
     if (globalGender !== "all") {
         const cat = product.category?.toLowerCase() || '';
         const subCat = product.sub_category?.toLowerCase() || '';
 
         if (globalGender === 'men') {
-            if (cat === 'women' || subCat.includes('women') || subCat === 'jewelry') return false;
+            if (cat === 'women' || subCat.includes('women')) return false;
         }
         if (globalGender === 'women') {
             if (cat === 'men' || subCat.includes('men') || subCat === 'wallets' || subCat === 'wallet' || subCat === 'belts') return false;
@@ -168,7 +174,6 @@ export default function CategoryPage() {
 
     if (product.price > priceRange) return false;
     
-    // 🚀 APPLY WATCH SPECIFIC FILTERS ONLY IF IT IS A WATCH CATEGORY
     if (isWatchCategory) {
         if (selectedMovements.length > 0) {
             const move = product.specs?.movement || "Quartz";
@@ -218,7 +223,6 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {/* 🚀 ONLY SHOW THESE FILTERS IF IT IS A WATCH CATEGORY */}
       {isWatchCategory && (
           <>
             <div>
@@ -290,7 +294,6 @@ export default function CategoryPage() {
         </motion.div>
       </div>
 
-      {/* 🚀 Gender Filter Pills */}
       {!loading && products.length > 0 && (
           <div className="max-w-[1600px] mx-auto px-4 md:px-12 mb-8">
               <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide items-center justify-start md:justify-center">
