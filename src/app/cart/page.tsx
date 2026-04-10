@@ -27,17 +27,7 @@ export default function CartPage() {
     <main className="min-h-screen bg-[#FDFBF7] text-aura-brown pb-32">
       <Navbar />
 
-      {/* --- TRUST STRIP --- */}
-      <div className="pt-24 md:pt-32"> 
-          <div className="bg-[#1E1B18] border-y border-aura-gold py-3 text-center shadow-lg">
-            <p className="text-xs md:text-sm font-bold text-white flex items-center justify-center gap-2 tracking-wide">
-              <ShieldCheck size={16} className="text-aura-gold"/> 
-              OFFICIAL POLICY: Open Parcel Before Payment Allowed
-            </p>
-          </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 md:pt-12">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-32 md:pt-40">
         <h1 className="text-4xl md:text-5xl font-serif font-medium text-center mb-12">Your Shopping Bag</h1>
 
         {cart.length === 0 ? (
@@ -59,8 +49,9 @@ export default function CartPage() {
                 const extras = (item.isGift ? 300 : 0) + (item.addBox ? 200 : 0);
                 const itemTotalPrice = (item.price + extras) * item.quantity;
 
-                // 🚀 SMART CHECK: Agar color ka naam 'Standard' ya 'Standard Variant' hai (mtlb us product k multiple colors hain hi nahi), toh color line hide kr do.
-                const isDefaultColor = !item.color || item.color.toLowerCase() === 'standard' || item.color.toLowerCase() === 'standard variant' || item.color.toLowerCase() === 'selected';
+                // 🚀 SMART CHECK: Hide variant line if it's explicitly 'Silver', 'Standard', etc.
+                const colorValue = item.color?.trim().toLowerCase() || '';
+                const hideVariant = !colorValue || colorValue === 'standard' || colorValue === 'standard variant' || colorValue === 'selected' || colorValue === 'silver';
 
                 return (
                   <div key={`${item.id}-${item.color}`} className="flex gap-4 md:gap-6 bg-white p-4 md:p-5 rounded-2xl border border-gray-100 shadow-sm relative group hover:border-aura-gold/30 hover:shadow-md transition-all">
@@ -88,8 +79,8 @@ export default function CartPage() {
                            </button>
                         </div>
                         
-                        {/* 🚀 APPLYING THE SMART CHECK */}
-                        {!isDefaultColor && (
+                        {/* 🚀 FIXED: Variant details are now perfectly hidden when not needed */}
+                        {!hideVariant && (
                             <p className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-wider mt-1.5 md:mt-2 truncate">
                                 Variant: <span className="text-aura-gold">{item.color}</span>
                             </p>
