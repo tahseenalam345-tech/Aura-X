@@ -28,16 +28,24 @@ let cachedProducts: any[] = [];
 let hasVisitedHomepage = false; 
 
 // 🚀 CLOUDFLARE SHIELD APPLIED HERE
+// 🚀 CLOUDFLARE SHIELD (Updated with NEW Project ID)
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
 
-    // Cloudinary fallback
+    // 1. Cloudinary fallback
     if (url.includes('cloudinary.com')) {
         if (url.includes('f_auto') || url.includes('q_auto')) return url; 
         return url.replace('/upload/', '/upload/f_auto,q_auto/');
     }
 
-    // 🚨 EMERGENCY REVERT: Cloudflare worker hata diya hai taake pictures fauran wapis aa jayein!
+    // 2. 🛡️ Directing Traffic to Cloudflare
+    if (url.includes('kxsthielcdurxinctkxi.supabase.co')) {
+        return url.replace(
+            'https://kxsthielcdurxinctkxi.supabase.co', 
+            'https://image-proxy-aurax.tahseenalam345.workers.dev'
+        );
+    }
+
     return url;
 };
 

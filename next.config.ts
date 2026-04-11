@@ -9,7 +9,12 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'kdwpnvkgghdksnajalmj.supabase.co',
+        hostname: 'kxsthielcdurxinctkxi.supabase.co', // 🚀 Naya Supabase ID
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'image-proxy-aurax.tahseenalam345.workers.dev', // 🚀 Aapka Cloudflare Shield Worker
         pathname: '/storage/v1/object/public/**',
       },
     ],
