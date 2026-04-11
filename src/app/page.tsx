@@ -7,6 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase"; 
+// 🚀 FIXED: Added 'Sparkles' back for the luxury banner
 import { ArrowRight, ChevronRight, Sparkles, Star, Flame, Moon, Gift, X } from "lucide-react"; 
 
 // 🚀 MASTER SWITCH: Set to false to hide all Eid/Ramzan content.
@@ -27,7 +28,6 @@ const carouselItems = [
 let cachedProducts: any[] = [];
 let hasVisitedHomepage = false; 
 
-// 🚀 CLOUDFLARE SHIELD APPLIED HERE
 // 🚀 CLOUDFLARE SHIELD (Updated with NEW Project ID)
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
@@ -232,30 +232,51 @@ export default function Home() {
           <div className="relative w-full h-[220px] md:h-[400px] flex justify-center items-center z-30 pointer-events-none order-1 md:order-2">
               <AnimatePresence>
                   {carouselItems.map((item, index) => {
-                      const pos = getPosition(index);
-                      if (pos.opacity === 0) return null; 
-                      return (
-                          <motion.div
-                              key={index}
-                              initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-                              animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
-                              transition={{ duration: 0.5, ease: "easeOut" }}
-                              className="absolute flex justify-center items-center"
-                          >
-                              <div className="relative w-[220px] h-[220px] md:w-[400px] md:h-[400px]">
-                                  <Image src={item.src} alt="" fill className="object-contain drop-shadow-[0_20px_30px_rgba(30,27,24,0.35)]" priority={index === 0} unoptimized={true} />
-                              </div>
-                          </motion.div>
-                      );
-                  })}
+                    const pos = getPosition(index);
+                    if (pos.opacity === 0) return null; 
+                    return (
+                        <motion.div
+                            key={index}
+                            initial={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+                            animate={{ x: pos.x, scale: pos.scale, zIndex: pos.zIndex, opacity: pos.opacity }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            className="absolute flex justify-center items-center"
+                        >
+                            <div className="relative w-[220px] h-[220px] md:w-[400px] md:h-[400px]">
+                                <Image 
+                                    src={item.src} 
+                                    alt={item.title || "Aura-X Luxury Item"} // 🚀 SEO aur Accessibility score ke liye
+                                    fill 
+                                    className="object-contain drop-shadow-[0_20px_30px_rgba(30,27,24,0.35)]" 
+                                    priority={index === 0} 
+                                    fetchPriority={index === 0 ? "high" : "auto"} // 🚀 LCP FIX: Browser ko force karega pehli pic fauran laane par
+                                    unoptimized={true} 
+                                />
+                            </div>
+                        </motion.div>
+                    );
+                })}
               </AnimatePresence>
           </div>
       </section>
 
+      {/* 🚀 HIGH-CONVERSION PROMO BANNER 🚀 (Updated Contrast & Font) */}
+      <div className="w-full bg-gradient-to-r from-[#1A1612] via-[#2A241D] to-[#1A1612] py-4 md:py-5 z-40 relative shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+          <div className="flex justify-center items-center gap-3 md:gap-5 px-4">
+              <Sparkles size={20} className="text-[#D4AF37] animate-pulse" />
+              <p className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-[#F9E596] to-[#D4AF37] font-serif italic text-sm md:text-xl font-bold tracking-[0.05em] md:tracking-[0.1em] text-center drop-shadow-md">
+                  100% Free Delivery & <span className="font-sans not-italic font-black text-white px-1 tracking-widest">UP TO 30% OFF</span>
+              </p>
+              <Sparkles size={20} className="text-[#D4AF37] animate-pulse" />
+          </div>
+          {/* Subtle golden bottom border for separation */}
+          <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-50"></div>
+      </div>
+
       <div className="relative z-10 flex flex-col w-full bg-gradient-to-b from-[#FDFBF7] via-[#F2EFE9] to-[#EBE4D8]">
           <div className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply opacity-50" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }}></div>
 
-          <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-8">
+          <div className="max-w-[1400px] mx-auto pb-24 flex-1 w-full relative z-30 px-4 md:px-8 mt-12 md:mt-16">
               
               {/* 🚀 BOX SHAPE BUTTONS IN ONE LINE */}
               <div className="flex flex-col items-center justify-center mb-10 relative z-40 animate-fade-in-up">

@@ -85,7 +85,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, 0);
 
   // 🚀 FIXED: Standard Flat Rate Shipping (Rs 250)
-  const shippingCost = cart.length === 0 ? 0 : 250;
+  // 🚀 MARKETING UPDATE: 100% Free Shipping 
+const shippingCost = 0;
   
   const finalTotal = cartTotal + shippingCost;
 

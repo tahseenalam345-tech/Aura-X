@@ -22,7 +22,6 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
-// 🚀 FAST LOAD & CLOUDFLARE CACHE HELPER
 // 🚀 CLOUDFLARE SHIELD (Updated with NEW Project ID)
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
@@ -445,6 +444,17 @@ export default function ProductClient() {
 
       <div className="max-w-6xl mx-auto px-3 md:px-6 pt-20 md:pt-28">
         
+        {/* 🚀 HIGH-CONVERSION PROMO BANNER 🚀 */}
+        <div className="w-full bg-gradient-to-r from-[#D4AF37] via-[#F9E596] to-[#D4AF37] py-3 rounded-xl mb-6 z-40 relative shadow-[0_5px_15px_rgba(212,175,55,0.3)] border border-[#8B7355]/30">
+            <div className="flex justify-center items-center gap-2 md:gap-4 px-2">
+                <Truck size={18} className="text-[#1E1B18] animate-bounce" />
+                <p className="text-[#1E1B18] font-black text-[10px] md:text-sm tracking-[0.10em] md:tracking-[0.20em] uppercase text-center drop-shadow-sm">
+                    100% Free Delivery & Up To 30% Off
+                </p>
+                <Gift size={18} className="text-[#1E1B18] animate-pulse" />
+            </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-1.5 text-[10px] md:text-xs mb-3 font-bold uppercase tracking-widest text-aura-brown/60">
             <Link href="/" className="hover:text-aura-gold flex items-center transition-colors"><Home size={12} className="mr-1"/> Home</Link>
             <span>/</span>
