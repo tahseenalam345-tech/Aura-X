@@ -11,21 +11,13 @@ import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Loader2 } fr
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
 
-    // 1. Cloudinary fallback
+    // Cloudinary fallback
     if (url.includes('cloudinary.com')) {
         if (url.includes('f_auto') || url.includes('q_auto')) return url; 
         return url.replace('/upload/', '/upload/f_auto,q_auto/');
     }
 
-    // 2. 🛡️ CLOUDFLARE SHIELD (Updated with NEW Project ID)
-    // Ab ye 'kxsthielcdurxinctkxi' ko detect karke replace karega
-    if (url.includes('kxsthielcdurxinctkxi.supabase.co')) {
-        return url.replace(
-            'https://kxsthielcdurxinctkxi.supabase.co', 
-            'https://image-proxy-aurax.tahseenalam345.workers.dev'
-        );
-    }
-
+    // 🚨 EMERGENCY REVERT: Cloudflare worker hata diya hai taake pictures fauran wapis aa jayein!
     return url;
 };
 
