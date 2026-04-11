@@ -101,6 +101,7 @@ export default function CartPage() {
                            </button>
                         </div>
                         
+                        {/* 🚀 FIXED: Variant details are now perfectly hidden when not needed */}
                         {!hideVariant && (
                             <p className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-wider mt-1.5 md:mt-2 truncate">
                                 Variant: <span className="text-aura-gold">{item.color}</span>
