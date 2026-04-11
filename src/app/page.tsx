@@ -27,6 +27,25 @@ const carouselItems = [
 let cachedProducts: any[] = [];
 let hasVisitedHomepage = false; 
 
+// 🚀 CLOUDFLARE SHIELD APPLIED HERE
+const optimizeCloudinaryUrl = (url: string) => {
+    if (!url) return url;
+    if (url.includes('cloudinary.com')) {
+        if (url.includes('f_auto') || url.includes('q_auto')) return url; 
+        return url.replace('/upload/', '/upload/f_auto,q_auto/');
+    }
+    
+    // 🚀 Routing Traffic to Cloudflare Worker
+    if (url.includes('kdwpnvkgghdksnajalmj.supabase.co')) {
+        return url.replace(
+            'https://kdwpnvkgghdksnajalmj.supabase.co', 
+            'https://image-proxy-aurax.tahseenalam345.workers.dev' 
+        );
+    }
+    
+    return url;
+};
+
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allStoreProducts, setAllStoreProducts] = useState<any[]>(cachedProducts);
@@ -265,7 +284,7 @@ export default function Home() {
                       <h2 className="text-3xl md:text-5xl font-serif text-aura-brown leading-tight">Curated Masterpieces</h2>
                   </div>
 
-                  {/* 🚀 FIXED: LINKS UPDATED TO /bracelets and /wallets */}
+                  {/* 🚀 FIXED: Replaced Fragrances with Bracelets & Updated cat-ring Image */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-fade-in-up">
                       {[
                         { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
@@ -373,7 +392,7 @@ export default function Home() {
                       <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 bg-[#FDFBF7]">
                           {[
                             { title: "Timepieces", img: "/cat-watch.jpg", link: "/watches" },
-                            { title: "Men's Bracelets", img: "/cat-perfume.jpg", link: "/bracelets" }, 
+                            { title: "Men's Bracelets", img: "/cat-ring.jpg", link: "/bracelets" }, 
                             { title: "Wallets & Belts", img: "/cat-wallet.jpg", link: "/wallets" }, 
                             { title: "Tech", img: "/cat-tech.jpg", link: "/smart-tech" }
                           ].map((cat, i) => (

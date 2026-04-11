@@ -22,12 +22,20 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
-// 🚀 FAST LOAD & CLOUDFLARE CACHE HELPER
+// 🚀 CLOUDFLARE SHIELD ADDED HERE
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
     if (url.includes('cloudinary.com')) {
         if (url.includes('f_auto') || url.includes('q_auto')) return url; 
         return url.replace('/upload/', '/upload/f_auto,q_auto/');
+    }
+    
+    // Directing Traffic to Cloudflare
+    if (url.includes('kdwpnvkgghdksnajalmj.supabase.co')) {
+        return url.replace(
+            'https://kdwpnvkgghdksnajalmj.supabase.co', 
+            'https://image-proxy-aurax.tahseenalam345.workers.dev' 
+        );
     }
     return url;
 };
@@ -433,12 +441,10 @@ export default function ProductClient() {
 
       <div className="max-w-6xl mx-auto px-3 md:px-6 pt-20 md:pt-28">
         
-        {/* 🚀 FIXED: BREADCRUMBS NAVIGATION */}
         <div className="flex flex-wrap items-center gap-1.5 text-[10px] md:text-xs mb-3 font-bold uppercase tracking-widest text-aura-brown/60">
             <Link href="/" className="hover:text-aura-gold flex items-center transition-colors"><Home size={12} className="mr-1"/> Home</Link>
             <span>/</span>
             
-            {/* Category Link Fixed */}
             {product.category && (
                 <>
                     <Link href={`/${product.category.toLowerCase()}`} className="hover:text-aura-gold transition-colors">
@@ -448,7 +454,6 @@ export default function ProductClient() {
                 </>
             )}
             
-            {/* Sub-Category Link Fixed (If it exists) */}
             {product.sub_category && (
                 <>
                     <Link href={`/${product.sub_category.toLowerCase()}`} className="hover:text-aura-gold transition-colors">
@@ -458,7 +463,6 @@ export default function ProductClient() {
                 </>
             )}
 
-            {/* Product Name - No link needed as we are already on this page */}
             <span className="truncate max-w-[120px] md:max-w-none text-aura-brown drop-shadow-sm" title={product.name}>
                 {displayShortName}
             </span>

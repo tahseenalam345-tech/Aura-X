@@ -32,6 +32,15 @@ const optimizeCloudinaryUrl = (url: string) => {
         if (url.includes('f_auto') || url.includes('q_auto')) return url; 
         return url.replace('/upload/', '/upload/f_auto,q_auto/');
     }
+    
+    // 🚀 SHIELD ACTIVATED: Directing Traffic to Cloudflare
+    if (url.includes('kdwpnvkgghdksnajalmj.supabase.co')) {
+        return url.replace(
+            'https://kdwpnvkgghdksnajalmj.supabase.co', 
+            'https://image-proxy-aurax.tahseenalam345.workers.dev' 
+        );
+    }
+    
     return url;
 };
 

@@ -7,6 +7,24 @@ import { Navbar } from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
 import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, ShoppingBag, Loader2 } from "lucide-react";
 
+// 🚀 CLOUDFLARE SHIELD ACTIVATED HERE
+const optimizeCloudinaryUrl = (url: string) => {
+    if (!url) return url;
+    if (url.includes('cloudinary.com')) {
+        if (url.includes('f_auto') || url.includes('q_auto')) return url; 
+        return url.replace('/upload/', '/upload/f_auto,q_auto/');
+    }
+    
+    // Directing Traffic to Cloudflare
+    if (url.includes('kdwpnvkgghdksnajalmj.supabase.co')) {
+        return url.replace(
+            'https://kdwpnvkgghdksnajalmj.supabase.co', 
+            'https://image-proxy-aurax.tahseenalam345.workers.dev' 
+        );
+    }
+    return url;
+};
+
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, cartTotal, shippingCost, finalTotal } = useCart();
   const [isMounted, setIsMounted] = useState(false);
@@ -57,7 +75,7 @@ export default function CartPage() {
                   <div key={`${item.id}-${item.color}`} className="flex gap-4 md:gap-6 bg-white p-4 md:p-5 rounded-2xl border border-gray-100 shadow-sm relative group hover:border-aura-gold/30 hover:shadow-md transition-all">
                     <div className="relative w-24 h-24 md:w-32 md:h-32 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
                       <Image 
-                        src={item.image} 
+                        src={optimizeCloudinaryUrl(item.image)} // 🚀 SHIELD APPLIED HERE
                         alt={item.name} 
                         fill 
                         sizes="150px"
@@ -79,7 +97,6 @@ export default function CartPage() {
                            </button>
                         </div>
                         
-                        {/* 🚀 FIXED: Variant details are now perfectly hidden when not needed */}
                         {!hideVariant && (
                             <p className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-wider mt-1.5 md:mt-2 truncate">
                                 Variant: <span className="text-aura-gold">{item.color}</span>
