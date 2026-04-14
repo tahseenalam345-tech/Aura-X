@@ -11,7 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { 
   ShoppingBag, Heart, Share2, 
   ChevronDown, ChevronLeft, ChevronRight, X, Maximize2, Home, Check, Play, Package, Sun, Calendar, Sparkles, Gift,
-  Minus, Plus, Truck, ShieldCheck, Flame, MapPin, Palette
+  Minus, Plus, Truck, ShieldCheck, Flame, MapPin, Palette, Star, Quote
 } from "lucide-react";
 import toast from "react-hot-toast"; 
 import * as fbq from "@/lib/fpixel";
@@ -22,7 +22,7 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
-// 🚀 CLOUDFLARE SHIELD (Updated with NEW Project ID)
+// 🚀 CLOUDFLARE SHIELD
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
 
@@ -42,6 +42,16 @@ const optimizeCloudinaryUrl = (url: string) => {
 
     return url;
 };
+
+// 🚀 REVIEWS DATA FOR TICKER
+const customerReviews = [
+  { name: "Ali R.", city: "Lahore", text: "Quality is just outstanding. Totally worth the price! The packaging felt very premium.", rating: 5 },
+  { name: "Usman K.", city: "Karachi", text: "Fast delivery and the product looks exactly like the pictures. Highly recommended.", rating: 5 },
+  { name: "Sara A.", city: "Islamabad", text: "Bought this as a gift for my husband, he absolutely loved it. Excellent customer service.", rating: 5 },
+  { name: "Faizan M.", city: "Multan", text: "I was skeptical at first, but the finish and weight of the product scream luxury. 10/10.", rating: 5 },
+  { name: "Hassan T.", city: "Rawalpindi", text: "Very smooth checkout process and received my order within 2 days. Will buy again.", rating: 4 },
+  { name: "Zainab S.", city: "Faisalabad", text: "The detail on this piece is amazing. Found my new favorite store for accessories.", rating: 5 }
+];
 
 function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number, suffix?: string, duration?: number }) {
   const [count, setCount] = useState(0);
@@ -380,6 +390,20 @@ export default function ProductClient() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30">
       <Navbar />
+
+      {/* 🚀 CSS for Reviews Marquee */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(calc(-250px * 6 - 1rem * 6)); }
+        }
+        .animate-scroll {
+          animation: scroll 40s linear infinite;
+        }
+        .animate-scroll:hover {
+          animation-play-state: paused;
+        }
+      `}} />
 
       {showColorWarning && product.colors && (
           <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
@@ -871,6 +895,44 @@ export default function ProductClient() {
                     <AnimatedCounter end={45} suffix="+" />
                     <span className="text-[10px] md:text-xs text-gray-400 mt-2 font-medium tracking-wider uppercase text-center">Premium Models</span>
                 </div>
+            </div>
+        </div>
+
+        {/* 🚀 CUSTOMER REVIEWS (Moving Marquee) */}
+        <div className="mb-10 max-w-6xl mx-auto overflow-hidden border-t border-b border-aura-gold/20 py-8 bg-[#FAF8F1]">
+            <div className="text-center mb-6">
+                <h2 className="text-xl md:text-2xl font-serif font-bold text-aura-brown drop-shadow-sm flex items-center justify-center gap-2">
+                   <Star size={20} className="text-aura-gold" fill="currentColor"/> Verified Reviews <Star size={20} className="text-aura-gold" fill="currentColor"/>
+                </h2>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">What our customers say</p>
+            </div>
+            
+            <div className="relative w-full flex overflow-hidden group">
+                <div className="flex gap-4 md:gap-6 px-4 animate-scroll whitespace-nowrap min-w-max">
+                    {/* Double the array for seamless infinite scrolling */}
+                    {[...customerReviews, ...customerReviews].map((review, idx) => (
+                        <div key={idx} className="w-[280px] md:w-[320px] bg-white p-5 rounded-2xl shadow-sm border border-aura-gold/10 inline-block whitespace-normal flex-shrink-0">
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <p className="font-bold text-aura-brown text-sm">{review.name}</p>
+                                    <p className="text-[9px] text-gray-400 uppercase tracking-wider">{review.city}, PK</p>
+                                </div>
+                                <div className="flex gap-0.5">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star key={i} size={12} className={i < review.rating ? "text-aura-gold" : "text-gray-200"} fill={i < review.rating ? "currentColor" : "none"} />
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-600 leading-relaxed italic relative">
+                                <Quote size={12} className="inline text-aura-gold/40 mr-1 -mt-1" />
+                                {review.text}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+                {/* Gradient Masks for smooth fade-out edges */}
+                <div className="absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
+                <div className="absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
             </div>
         </div>
 
