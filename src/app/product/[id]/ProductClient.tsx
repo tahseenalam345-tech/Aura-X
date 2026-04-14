@@ -8,10 +8,11 @@ import { supabase } from "@/lib/supabase";
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { useCart } from "@/context/CartContext";
+import { AnimatePresence } from "framer-motion";
 import { 
   ShoppingBag, Heart, Share2, 
   ChevronDown, ChevronLeft, ChevronRight, X, Maximize2, Home, Check, Play, Package, Sun, Calendar, Sparkles, Gift,
-  Minus, Plus, Truck, ShieldCheck, Flame, MapPin, Palette, Star, Quote
+  Minus, Plus, Truck, ShieldCheck, Flame, MapPin, Palette, Star, Quote, Edit3, ImagePlus, Loader2, BellRing
 } from "lucide-react";
 import toast from "react-hot-toast"; 
 import * as fbq from "@/lib/fpixel";
@@ -26,13 +27,11 @@ const isVideoFile = (url: string) => {
 const optimizeCloudinaryUrl = (url: string) => {
     if (!url) return url;
 
-    // 1. Cloudinary fallback
     if (url.includes('cloudinary.com')) {
         if (url.includes('f_auto') || url.includes('q_auto')) return url; 
         return url.replace('/upload/', '/upload/f_auto,q_auto/');
     }
 
-    // 2. 🛡️ Directing Traffic to Cloudflare
     if (url.includes('kxsthielcdurxinctkxi.supabase.co')) {
         return url.replace(
             'https://kxsthielcdurxinctkxi.supabase.co', 
@@ -52,6 +51,49 @@ const customerReviews = [
   { name: "Hassan T.", city: "Rawalpindi", text: "Very smooth checkout process and received my order within 2 days. Will buy again.", rating: 4 },
   { name: "Zainab S.", city: "Faisalabad", text: "The detail on this piece is amazing. Found my new favorite store for accessories.", rating: 5 }
 ];
+
+// 🚀 Image Compression Helper
+const compressImage = async (file: File, maxWidth = 800): Promise<File> => {
+    return new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            img.src = e.target?.result as string;
+        };
+
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const compressedFile = new File([blob], file.name, {
+                        type: 'image/webp',
+                        lastModified: Date.now(),
+                    });
+                    resolve(compressedFile);
+                } else {
+                    reject(new Error("Compression failed"));
+                }
+            }, 'image/webp', 0.8);
+        };
+
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
 
 function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number, suffix?: string, duration?: number }) {
   const [count, setCount] = useState(0);
@@ -102,6 +144,14 @@ export default function ProductClient() {
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
+
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [genericReviews, setGenericReviews] = useState<any[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ name: "", city: "", comment: "", rating: 5 });
+  const [reviewImage, setReviewImage] = useState<File | null>(null);
+  const [reviewImagePreview, setReviewImagePreview] = useState<string | null>(null);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const [mediaIndex, setMediaIndex] = useState(0);
   const [selectedColorIndex, setSelectedColorIndex] = useState<number | null>(null);
@@ -192,6 +242,25 @@ export default function ProductClient() {
                }
            }
            setRelatedProducts(finalRelated);
+
+           // 🚀 FIXED TYPESCRIPT ERROR HERE: Added "as string"
+           const { data: productReviews } = await supabase
+               .from('product_reviews')
+               .select('*')
+               .eq('product_id', id as string)
+               .order('created_at', { ascending: false });
+           
+           if (productReviews) {
+               setReviews(productReviews);
+           }
+
+           const { data: randomReviews } = await supabase
+               .from('product_reviews')
+               .select('*')
+               .limit(8);
+           if (randomReviews && randomReviews.length > 0) {
+               setGenericReviews(randomReviews);
+           }
        }
        setLoading(false);
     };
@@ -210,9 +279,87 @@ export default function ProductClient() {
       }
   }, [quantity]);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          if (file.size > 5 * 1024 * 1024) {
+              toast.error("Image must be less than 5MB");
+              return;
+          }
+          setReviewImage(file);
+          setReviewImagePreview(URL.createObjectURL(file));
+      }
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!id) return; // Prevent any undefined ID errors
+      
+      if (!reviewForm.name || !reviewForm.comment) {
+          toast.error("Please provide your name and a comment.");
+          return;
+      }
+      setIsSubmittingReview(true);
+
+      let uploadedImageUrl = null;
+
+      try {
+          if (reviewImage) {
+              const compressedFile = await compressImage(reviewImage);
+              const fileExt = compressedFile.name.split('.').pop();
+              const fileName = `${Math.random()}.${fileExt}`;
+              const filePath = `reviews/${fileName}`;
+
+              const { error: uploadError } = await supabase.storage
+                  .from('review-images') 
+                  .upload(filePath, compressedFile);
+
+              if (uploadError) {
+                  console.error("Upload error:", uploadError);
+                  toast.error("Failed to upload image, but saving review...");
+              } else {
+                  const { data } = supabase.storage.from('review-images').getPublicUrl(filePath);
+                  uploadedImageUrl = data.publicUrl;
+              }
+          }
+
+          // 🚀 FIXED TYPESCRIPT ERROR HERE: Added "as string"
+          const newReview = {
+              product_id: id as string,
+              customer_name: reviewForm.name,
+              rating: reviewForm.rating,
+              comment: reviewForm.comment,
+              city: reviewForm.city || "Pakistan",
+              image_url: uploadedImageUrl
+          };
+
+          const { error } = await supabase.from('product_reviews').insert([newReview]);
+
+          if (error) throw error;
+
+          toast.success("Thank you for your review!");
+          setReviews([newReview, ...reviews]);
+          setShowReviewModal(false);
+          setReviewForm({ name: "", city: "", comment: "", rating: 5 });
+          setReviewImage(null);
+          setReviewImagePreview(null);
+
+      } catch (err) {
+          console.error(err);
+          toast.error("Could not post review. Please try again later.");
+      } finally {
+          setIsSubmittingReview(false);
+      }
+  };
+
+  const handleNotifyMe = () => {
+      toast.success("We'll notify you when it's back in stock!");
+  };
+
   const categoryName = product?.category?.toLowerCase() || '';
   const isWatch = ['men', 'women', 'couple', 'watches'].includes(categoryName);
   const sizesAvailable = product?.variants?.sizes || [];
+  const isOutOfStock = product?.specs?.stock <= 0; 
 
   const unifiedMedia = useMemo(() => {
       if (!product) return [];
@@ -308,7 +455,7 @@ export default function ProductClient() {
   };
 
   const handleAddToCart = () => {
-    if (specs.stock <= 0) return toast.error("Sorry, this item is out of stock.");
+    if (isOutOfStock) return;
     
     if (product.colors?.length > 1) {
         if (selectedColorIndex === null) {
@@ -391,7 +538,6 @@ export default function ProductClient() {
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30">
       <Navbar />
 
-      {/* 🚀 CSS for Reviews Marquee */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -403,7 +549,82 @@ export default function ProductClient() {
         .animate-scroll:hover {
           animation-play-state: paused;
         }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1; 
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #d4af37; 
+          border-radius: 4px;
+        }
       `}} />
+
+      <AnimatePresence>
+        {showReviewModal && (
+            <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl relative border-t-8 border-aura-gold max-h-[90vh] overflow-y-auto custom-scrollbar">
+                    <button onClick={() => setShowReviewModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500 bg-gray-50 hover:bg-red-50 p-1.5 rounded-full transition-colors"><X size={18}/></button>
+                    <div className="mb-6 mt-2">
+                        <h3 className="text-2xl font-bold text-aura-brown font-serif flex items-center gap-2"><Edit3 size={20} className="text-aura-gold"/> Write a Review</h3>
+                        <p className="text-xs text-gray-500 mt-1">Share your experience with others.</p>
+                    </div>
+                    
+                    <form onSubmit={handleReviewSubmit} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Name *</label>
+                                <input required value={reviewForm.name} onChange={e => setReviewForm({...reviewForm, name: e.target.value})} type="text" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold text-sm" placeholder="Ali Raza" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">City</label>
+                                <input value={reviewForm.city} onChange={e => setReviewForm({...reviewForm, city: e.target.value})} type="text" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold text-sm" placeholder="Lahore" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Rating</label>
+                            <div className="flex gap-2">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <button type="button" key={star} onClick={() => setReviewForm({...reviewForm, rating: star})}>
+                                        <Star size={24} className={star <= reviewForm.rating ? "text-aura-gold" : "text-gray-200"} fill={star <= reviewForm.rating ? "currentColor" : "none"} />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Review *</label>
+                            <textarea required value={reviewForm.comment} onChange={e => setReviewForm({...reviewForm, comment: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-aura-gold text-sm h-24 resize-none" placeholder="I absolutely loved this piece..."></textarea>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Upload Photo (Optional)</label>
+                            <div className="flex items-center justify-center w-full">
+                                <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-24 border-2 border-aura-gold/30 border-dashed rounded-xl cursor-pointer bg-[#FDFBF7] hover:bg-aura-gold/5 transition-colors overflow-hidden relative">
+                                    {reviewImagePreview ? (
+                                        <Image src={reviewImagePreview} alt="Preview" fill className="object-contain p-1" />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                            <ImagePlus className="w-6 h-6 mb-2 text-aura-gold" />
+                                            <p className="text-xs text-gray-500"><span className="font-bold">Click to upload</span> or drag and drop</p>
+                                        </div>
+                                    )}
+                                    <input id="dropzone-file" type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                                </label>
+                            </div>
+                        </div>
+
+                        <button disabled={isSubmittingReview} type="submit" className="w-full bg-gradient-to-r from-aura-brown to-yellow-800 text-white py-3.5 rounded-xl font-bold text-xs tracking-widest uppercase hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                            {isSubmittingReview ? <><Loader2 className="animate-spin" size={16}/> Submitting...</> : "Submit Review"}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        )}
+      </AnimatePresence>
 
       {showColorWarning && product.colors && (
           <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
@@ -468,7 +689,6 @@ export default function ProductClient() {
 
       <div className="max-w-6xl mx-auto px-3 md:px-6 pt-20 md:pt-28">
         
-        {/* 🚀 HIGH-CONVERSION PROMO BANNER 🚀 */}
         <div className="w-full bg-gradient-to-r from-[#D4AF37] via-[#F9E596] to-[#D4AF37] py-3 rounded-xl mb-6 z-40 relative shadow-[0_5px_15px_rgba(212,175,55,0.3)] border border-[#8B7355]/30">
             <div className="flex justify-center items-center gap-2 md:gap-4 px-2">
                 <Truck size={18} className="text-[#1E1B18] animate-bounce" />
@@ -585,7 +805,7 @@ export default function ProductClient() {
              <div className="mb-3">
                 <div className="flex items-center gap-2 mb-1.5">
                     <span className="px-2.5 py-1 bg-gradient-to-r from-white to-[#FAF8F1] border border-aura-gold/40 text-aura-brown text-[9px] font-bold tracking-widest uppercase rounded shadow-sm">{product.sub_category || product.category}</span>
-                    {specs.stock > 0 
+                    {!isOutOfStock 
                         ? <span className="px-2.5 py-1 bg-gradient-to-r from-green-50 to-green-100 border border-green-300 text-green-800 text-[9px] font-bold tracking-widest uppercase rounded flex items-center gap-1.5 shadow-sm"><span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_#22c55e]"></span> IN STOCK</span>
                         : <span className="px-2.5 py-1 bg-gradient-to-r from-red-50 to-red-100 border border-red-300 text-red-800 text-[9px] font-bold tracking-widest uppercase rounded shadow-sm">OUT OF STOCK</span>
                     }
@@ -778,19 +998,31 @@ export default function ProductClient() {
              </div>
 
              <div className="flex flex-col gap-3 mb-6 mt-4">
-                 <div className="flex gap-3 h-12 md:h-14">
-                     <div className="flex items-center bg-white border border-aura-gold/30 rounded-full px-3 shadow-sm">
-                         <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-2 hover:text-aura-gold text-aura-brown/60"><Minus size={16}/></button>
-                         <span className="w-8 text-center font-bold text-sm text-aura-brown">{quantity}</span>
-                         <button onClick={() => setQuantity(quantity + 1)} className="p-2 hover:text-aura-gold text-aura-brown/60"><Plus size={16}/></button>
-                     </div>
-                     <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-aura-brown to-yellow-800 text-white rounded-full font-bold text-xs md:text-sm tracking-widest flex items-center justify-center gap-2 shadow-[0_5px_15px_rgba(212,175,55,0.4)] hover:shadow-[0_8px_20px_rgba(212,175,55,0.6)] hover:scale-[1.02] transition-all border border-aura-gold/40">
-                         <ShoppingBag size={18}/> ADD TO BAG
+                 {/* 🚀 OUT OF STOCK LOGIC APPLIED HERE */}
+                 {isOutOfStock ? (
+                     <button 
+                         onClick={handleNotifyMe} 
+                         className="w-full h-12 md:h-14 bg-gray-200 text-gray-500 rounded-full font-bold text-xs md:text-sm tracking-widest flex items-center justify-center gap-2 transition-all shadow-inner border border-gray-300"
+                     >
+                         <BellRing size={18}/> NOTIFY ME WHEN AVAILABLE
                      </button>
-                 </div>
-                 <button onClick={handleAddToCart} className="w-full h-12 md:h-14 border-2 border-aura-gold/40 text-aura-brown bg-transparent rounded-full font-bold text-xs md:text-sm tracking-widest hover:bg-aura-gold/10 transition-all shadow-sm">
-                     ORDER NOW
-                 </button>
+                 ) : (
+                     <>
+                         <div className="flex gap-3 h-12 md:h-14">
+                             <div className="flex items-center bg-white border border-aura-gold/30 rounded-full px-3 shadow-sm">
+                                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-2 hover:text-aura-gold text-aura-brown/60"><Minus size={16}/></button>
+                                 <span className="w-8 text-center font-bold text-sm text-aura-brown">{quantity}</span>
+                                 <button onClick={() => setQuantity(quantity + 1)} className="p-2 hover:text-aura-gold text-aura-brown/60"><Plus size={16}/></button>
+                             </div>
+                             <button onClick={handleAddToCart} className="flex-1 bg-gradient-to-r from-aura-brown to-yellow-800 text-white rounded-full font-bold text-xs md:text-sm tracking-widest flex items-center justify-center gap-2 shadow-[0_5px_15px_rgba(212,175,55,0.4)] hover:shadow-[0_8px_20px_rgba(212,175,55,0.6)] hover:scale-[1.02] transition-all border border-aura-gold/40">
+                                 <ShoppingBag size={18}/> ADD TO BAG
+                             </button>
+                         </div>
+                         <button onClick={handleAddToCart} className="w-full h-12 md:h-14 border-2 border-aura-gold/40 text-aura-brown bg-transparent rounded-full font-bold text-xs md:text-sm tracking-widest hover:bg-aura-gold/10 transition-all shadow-sm">
+                             ORDER NOW
+                         </button>
+                     </>
+                 )}
              </div>
 
              <div className="border-t border-aura-gold/30">
@@ -898,24 +1130,62 @@ export default function ProductClient() {
             </div>
         </div>
 
-        {/* 🚀 CUSTOMER REVIEWS (Moving Marquee) */}
+        {/* 🚀 CUSTOMER REVIEWS (Moving Marquee & Real Product Reviews) */}
         <div className="mb-10 max-w-6xl mx-auto overflow-hidden border-t border-b border-aura-gold/20 py-8 bg-[#FAF8F1]">
-            <div className="text-center mb-6">
+            <div className="flex flex-col items-center text-center mb-6 px-4">
                 <h2 className="text-xl md:text-2xl font-serif font-bold text-aura-brown drop-shadow-sm flex items-center justify-center gap-2">
                    <Star size={20} className="text-aura-gold" fill="currentColor"/> Verified Reviews <Star size={20} className="text-aura-gold" fill="currentColor"/>
                 </h2>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">What our customers say</p>
+                <div className="flex justify-between items-center w-full max-w-sm mt-3">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">What our customers say</p>
+                    <button onClick={() => setShowReviewModal(true)} className="bg-aura-gold text-white px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider hover:bg-yellow-600 transition flex items-center gap-1 shadow-sm">
+                        <Edit3 size={12}/> Write a Review
+                    </button>
+                </div>
             </div>
             
-            <div className="relative w-full flex overflow-hidden group">
-                <div className="flex gap-4 md:gap-6 px-4 animate-scroll whitespace-nowrap min-w-max">
-                    {/* Double the array for seamless infinite scrolling */}
-                    {[...customerReviews, ...customerReviews].map((review, idx) => (
-                        <div key={idx} className="w-[280px] md:w-[320px] bg-white p-5 rounded-2xl shadow-sm border border-aura-gold/10 inline-block whitespace-normal flex-shrink-0">
+            {/* 🚀 1. Real Reviews for this specific product (if any) */}
+            {reviews.length > 0 && (
+                <div className="flex gap-4 overflow-x-auto pb-4 px-4 custom-scrollbar mb-6 snap-x">
+                    {reviews.map((review, idx) => (
+                        <div key={idx} className="w-[280px] md:w-[320px] bg-white p-5 rounded-2xl shadow-sm border border-aura-gold/30 flex-shrink-0 snap-center flex flex-col">
                             <div className="flex justify-between items-start mb-3">
                                 <div>
-                                    <p className="font-bold text-aura-brown text-sm">{review.name}</p>
+                                    <p className="font-bold text-aura-brown text-sm flex items-center gap-1">
+                                        {review.customer_name} <Check size={12} className="text-green-500 bg-green-50 rounded-full p-0.5"/>
+                                    </p>
                                     <p className="text-[9px] text-gray-400 uppercase tracking-wider">{review.city}, PK</p>
+                                </div>
+                                <div className="flex gap-0.5">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star key={i} size={12} className={i < review.rating ? "text-aura-gold" : "text-gray-200"} fill={i < review.rating ? "currentColor" : "none"} />
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-600 leading-relaxed italic relative mb-3 flex-1">
+                                <Quote size={12} className="inline text-aura-gold/40 mr-1 -mt-1" />
+                                {review.comment}
+                            </p>
+                            {review.image_url && (
+                                <div className="relative w-full h-32 rounded-xl overflow-hidden mt-auto border border-gray-100">
+                                    <Image src={optimizeCloudinaryUrl(review.image_url)} alt="Review" fill className="object-cover hover:scale-105 transition-transform duration-500" unoptimized={true} />
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* 🚀 2. Generic Scrolling Reviews (Fetched from DB randomly) */}
+            <div className="relative w-full flex overflow-hidden group">
+                <div className="flex gap-4 md:gap-6 px-4 animate-scroll whitespace-nowrap min-w-max opacity-80">
+                    {/* Double the array for seamless infinite scrolling */}
+                    {[...genericReviews, ...genericReviews].map((review, idx) => (
+                        <div key={`generic-${idx}`} className="w-[280px] md:w-[320px] bg-white/60 p-5 rounded-2xl shadow-sm border border-aura-gold/10 inline-block whitespace-normal flex-shrink-0">
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <p className="font-bold text-aura-brown text-sm">{review.customer_name}</p>
+                                    <p className="text-[9px] text-gray-400 uppercase tracking-wider">{review.city || "Pakistan"}</p>
                                 </div>
                                 <div className="flex gap-0.5">
                                     {[...Array(5)].map((_, i) => (
@@ -925,12 +1195,11 @@ export default function ProductClient() {
                             </div>
                             <p className="text-xs text-gray-600 leading-relaxed italic relative">
                                 <Quote size={12} className="inline text-aura-gold/40 mr-1 -mt-1" />
-                                {review.text}
+                                {review.comment}
                             </p>
                         </div>
                     ))}
                 </div>
-                {/* Gradient Masks for smooth fade-out edges */}
                 <div className="absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
                 <div className="absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
             </div>
@@ -959,10 +1228,17 @@ export default function ProductClient() {
         </div>
       </div>
       
+      {/* 🚀 MOBILE BOTTOM BAR (With Out of Stock Logic) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-aura-gold/30 p-2.5 z-[60] flex justify-center pb-safe shadow-[0_-5px_15px_rgba(212,175,55,0.15)]">
-         <button onClick={handleAddToCart} className="w-full max-w-[320px] h-12 bg-gradient-to-r from-aura-brown to-yellow-800 text-white rounded-full font-bold text-xs tracking-widest flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(212,175,55,0.3)] active:scale-95 transition-all border border-aura-gold/40">
-            <span className="bg-white/20 p-1 rounded-full"><ShoppingBag size={14}/></span> ADD TO BAG
-         </button>
+         {isOutOfStock ? (
+             <button onClick={handleNotifyMe} className="w-full max-w-[320px] h-12 bg-gray-200 text-gray-500 rounded-full font-bold text-[10px] tracking-widest flex items-center justify-center gap-2 border border-gray-300">
+                <BellRing size={14}/> NOTIFY ME
+             </button>
+         ) : (
+             <button onClick={handleAddToCart} className="w-full max-w-[320px] h-12 bg-gradient-to-r from-aura-brown to-yellow-800 text-white rounded-full font-bold text-xs tracking-widest flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(212,175,55,0.3)] active:scale-95 transition-all border border-aura-gold/40">
+                <span className="bg-white/20 p-1 rounded-full"><ShoppingBag size={14}/></span> ADD TO BAG
+             </button>
+         )}
       </div>
     </main>
   );
