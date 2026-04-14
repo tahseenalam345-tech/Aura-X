@@ -42,14 +42,14 @@ const optimizeCloudinaryUrl = (url: string) => {
     return url;
 };
 
-// 🚀 REVIEWS DATA FOR TICKER
-const customerReviews = [
-  { name: "Ali R.", city: "Lahore", text: "Quality is just outstanding. Totally worth the price! The packaging felt very premium.", rating: 5 },
-  { name: "Usman K.", city: "Karachi", text: "Fast delivery and the product looks exactly like the pictures. Highly recommended.", rating: 5 },
-  { name: "Sara A.", city: "Islamabad", text: "Bought this as a gift for my husband, he absolutely loved it. Excellent customer service.", rating: 5 },
-  { name: "Faizan M.", city: "Multan", text: "I was skeptical at first, but the finish and weight of the product scream luxury. 10/10.", rating: 5 },
-  { name: "Hassan T.", city: "Rawalpindi", text: "Very smooth checkout process and received my order within 2 days. Will buy again.", rating: 4 },
-  { name: "Zainab S.", city: "Faisalabad", text: "The detail on this piece is amazing. Found my new favorite store for accessories.", rating: 5 }
+// 🚀 BULLETPROOF FALLBACK REVIEWS (Matches DB Column Names)
+const fallbackReviews = [
+  { customer_name: "Ali R.", city: "Lahore", comment: "Quality is just outstanding. Totally worth the price! The packaging felt very premium.", rating: 5 },
+  { customer_name: "Usman K.", city: "Karachi", comment: "Fast delivery and the product looks exactly like the pictures. Highly recommended.", rating: 5 },
+  { customer_name: "Sara A.", city: "Islamabad", comment: "Bought this as a gift for my husband, he absolutely loved it. Excellent customer service.", rating: 5 },
+  { customer_name: "Faizan M.", city: "Multan", comment: "I was skeptical at first, but the finish and weight of the product scream luxury. 10/10.", rating: 5 },
+  { customer_name: "Hassan T.", city: "Rawalpindi", comment: "Very smooth checkout process and received my order within 2 days. Will buy again.", rating: 4 },
+  { customer_name: "Zainab S.", city: "Faisalabad", comment: "The detail on this piece is amazing. Found my new favorite store for accessories.", rating: 5 }
 ];
 
 // 🚀 Image Compression Helper
@@ -146,7 +146,9 @@ export default function ProductClient() {
   const [loading, setLoading] = useState(true);
 
   const [reviews, setReviews] = useState<any[]>([]);
-  const [genericReviews, setGenericReviews] = useState<any[]>([]);
+  // 🚀 INITIALIZE GENERIC REVIEWS WITH FALLBACK TO PREVENT BLANK SCREEN
+  const [genericReviews, setGenericReviews] = useState<any[]>(fallbackReviews);
+  
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({ name: "", city: "", comment: "", rating: 5 });
   const [reviewImage, setReviewImage] = useState<File | null>(null);
@@ -243,23 +245,24 @@ export default function ProductClient() {
            }
            setRelatedProducts(finalRelated);
 
-           // 🚀 FIXED TYPESCRIPT ERROR HERE: Added "as string"
+           // 🚀 FETCH SPECIFIC PRODUCT REVIEWS
            const { data: productReviews } = await supabase
                .from('product_reviews')
                .select('*')
                .eq('product_id', id as string)
                .order('created_at', { ascending: false });
            
-           if (productReviews) {
-               setReviews(productReviews);
-           }
+           if (productReviews) setReviews(productReviews);
 
+           // 🚀 FETCH GENERIC REVIEWS SAFELY
            const { data: randomReviews } = await supabase
                .from('product_reviews')
                .select('*')
-               .limit(8);
+               .limit(10);
+               
            if (randomReviews && randomReviews.length > 0) {
-               setGenericReviews(randomReviews);
+               // Mix DB reviews with fallback to make it look rich
+               setGenericReviews([...randomReviews, ...fallbackReviews].slice(0, 12));
            }
        }
        setLoading(false);
@@ -293,7 +296,7 @@ export default function ProductClient() {
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!id) return; // Prevent any undefined ID errors
+      if (!id) return; 
       
       if (!reviewForm.name || !reviewForm.comment) {
           toast.error("Please provide your name and a comment.");
@@ -323,7 +326,6 @@ export default function ProductClient() {
               }
           }
 
-          // 🚀 FIXED TYPESCRIPT ERROR HERE: Added "as string"
           const newReview = {
               product_id: id as string,
               customer_name: reviewForm.name,
@@ -359,7 +361,7 @@ export default function ProductClient() {
   const categoryName = product?.category?.toLowerCase() || '';
   const isWatch = ['men', 'women', 'couple', 'watches'].includes(categoryName);
   const sizesAvailable = product?.variants?.sizes || [];
-  const isOutOfStock = product?.specs?.stock <= 0; 
+  const isOutOfStock = product?.specs?.stock !== undefined && Number(product.specs.stock) <= 0; // 🚀 BULLETPROOF STOCK CHECK
 
   const unifiedMedia = useMemo(() => {
       if (!product) return [];
@@ -538,6 +540,7 @@ export default function ProductClient() {
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30">
       <Navbar />
 
+      {/* 🚀 CSS for Reviews Marquee */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -562,6 +565,7 @@ export default function ProductClient() {
         }
       `}} />
 
+      {/* 🚀 REVIEW MODAL */}
       <AnimatePresence>
         {showReviewModal && (
             <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -689,6 +693,7 @@ export default function ProductClient() {
 
       <div className="max-w-6xl mx-auto px-3 md:px-6 pt-20 md:pt-28">
         
+        {/* 🚀 HIGH-CONVERSION PROMO BANNER 🚀 */}
         <div className="w-full bg-gradient-to-r from-[#D4AF37] via-[#F9E596] to-[#D4AF37] py-3 rounded-xl mb-6 z-40 relative shadow-[0_5px_15px_rgba(212,175,55,0.3)] border border-[#8B7355]/30">
             <div className="flex justify-center items-center gap-2 md:gap-4 px-2">
                 <Truck size={18} className="text-[#1E1B18] animate-bounce" />
@@ -1189,7 +1194,7 @@ export default function ProductClient() {
                                 </div>
                                 <div className="flex gap-0.5">
                                     {[...Array(5)].map((_, i) => (
-                                        <Star key={i} size={12} className={i < review.rating ? "text-aura-gold" : "text-gray-200"} fill={i < review.rating ? "currentColor" : "none"} />
+                                        <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-200"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
                                     ))}
                                 </div>
                             </div>
