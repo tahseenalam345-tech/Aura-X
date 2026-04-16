@@ -84,8 +84,16 @@ export default function CategoryPage() {
       globalSortBy = sortBy;
   }, [categorySlug, visibleCount, priceRange, selectedMovements, selectedStraps, sortBy]);
 
+  // 🚀 FIXED: AUTO-SELECT PILL BASED ON URL
   useEffect(() => {
-      if (typeof window !== 'undefined') {
+      if (!categorySlug) return;
+      
+      const slugLower = categorySlug.toLowerCase();
+      // Agar route direct /men, /women, ya /couple hai toh auto select karo
+      if (['men', 'women', 'couple'].includes(slugLower)) {
+          setGlobalGender(slugLower);
+          if (typeof window !== 'undefined') localStorage.setItem('aura_gender', slugLower);
+      } else if (typeof window !== 'undefined') {
           const urlParams = new URLSearchParams(window.location.search);
           const genderFromUrl = urlParams.get('gender');
           if (genderFromUrl) {
@@ -95,7 +103,7 @@ export default function CategoryPage() {
               if (savedGender) setGlobalGender(savedGender);
           }
       }
-  }, []);
+  }, [categorySlug]);
 
   const handleGenderSelect = (gender: string) => {
       setGlobalGender(gender);
@@ -118,15 +126,12 @@ export default function CategoryPage() {
       let query = supabase.from('products').select('*');
       const slug = categorySlug.toLowerCase();
 
-      // 🚀 THE FIX: Smart Routing for Databases Mismatches
       if (slug === 'watches') {
           query = query.in('category', ['men', 'women', 'couple', 'watches']);
       } 
-      // 🚀 BRACELETS FIX: Database mein 'jewelry' naam se bhi search karega!
       else if (slug === 'bracelets') {
           query = query.or('category.ilike.%bracelet%,sub_category.ilike.%bracelet%,sub_category.ilike.%jewelry%');
       } 
-      // 🚀 WALLETS FIX: Wallets & Belts dono nikal kar layega
       else if (slug === 'wallets') {
           query = query.or('category.ilike.%wallet%,sub_category.ilike.%wallet%,sub_category.ilike.%belt%');
       } 
@@ -156,19 +161,20 @@ export default function CategoryPage() {
 
   const filteredProducts = products.filter((product) => {
     
-    // 🚀 FIXED: GENDER FILTER (Ab men ke liye jewelry block nahi hogi)
+    // 🚀 FIXED: GENDER FILTER (Blocks "women" from showing up in "men")
     if (globalGender !== "all") {
-        const cat = product.category?.toLowerCase() || '';
-        const subCat = product.sub_category?.toLowerCase() || '';
+        const cat = (product.category || '').toLowerCase();
+        const subCat = (product.sub_category || '').toLowerCase();
+        const nameStr = (product.name || '').toLowerCase();
 
         if (globalGender === 'men') {
-            if (cat === 'women' || subCat.includes('women')) return false;
+            if (cat.includes('women') || subCat.includes('women') || nameStr.includes('women')) return false;
         }
         if (globalGender === 'women') {
-            if (cat === 'men' || subCat.includes('men') || subCat === 'wallets' || subCat === 'wallet' || subCat === 'belts') return false;
+            if (cat === 'men' || subCat === 'men' || subCat === 'wallets' || subCat === 'wallet' || subCat === 'belts') return false;
         }
         if (globalGender === 'couple') {
-            if (cat !== 'couple') return false;
+            if (cat !== 'couple' && !subCat.includes('couple')) return false;
         }
     }
 
@@ -189,6 +195,18 @@ export default function CategoryPage() {
 
     return true;
   }).sort((a, b) => {
+    // 🚀 FIXED: OUT OF STOCK TO BOTTOM LOGIC
+    const aStock = a.specs?.stock !== undefined ? Number(a.specs.stock) : 1;
+    const bStock = b.specs?.stock !== undefined ? Number(b.specs.stock) : 1;
+    
+    const aInStock = aStock > 0;
+    const bInStock = bStock > 0;
+
+    // Send Out of stock to bottom FIRST
+    if (aInStock && !bInStock) return -1;
+    if (!aInStock && bInStock) return 1;
+
+    // Then apply user sorting
     if (sortBy === "featured") return (b.priority || 0) - (a.priority || 0);
     if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     if (sortBy === "low-high") return a.price - b.price;

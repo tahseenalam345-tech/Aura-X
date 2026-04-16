@@ -1,0 +1,231 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { Navbar } from "@/components/Navbar";
+import { ProductCard } from "@/components/ProductCard";
+import { ShoppingBag, Sparkles, Filter, ChevronDown, Check } from "lucide-react";
+
+export default function MensAccessoriesPage() {
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [sortOrder, setSortOrder] = useState("mixed"); 
+  const [showSortMenu, setShowSortMenu] = useState(false);
+
+  useEffect(() => {
+    const fetchAccessories = async () => {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        const validProducts = data.filter((p) => {
+            const catStr = (String(p.category || "") + " " + String(p.sub_category || "") + " " + String(p.name || "")).toLowerCase();
+            
+            if (catStr.includes("women") || catStr.includes("ladies") || catStr.includes("girl")) {
+                 if (!catStr.includes("smart") && !catStr.includes("earbud") && !catStr.includes("bud") && !catStr.includes("pod") && !catStr.includes("audio")) {
+                     return false; 
+                 }
+            }
+
+            // 🚀 Added "tech" and "gadget" just in case they are saved under different names
+            return catStr.includes("men") || 
+                   catStr.includes("watch") || 
+                   catStr.includes("smart") || 
+                   catStr.includes("wallet") || 
+                   catStr.includes("bracelet") || 
+                   catStr.includes("jewelry") || 
+                   catStr.includes("earbud") || 
+                   catStr.includes("bud") || 
+                   catStr.includes("pod") || 
+                   catStr.includes("tech") ||
+                   catStr.includes("gadget") ||
+                   catStr.includes("audio");
+        });
+        
+        setAllProducts(validProducts);
+      }
+      setLoading(false);
+    };
+
+    fetchAccessories();
+  }, []);
+
+  const displayProducts = useMemo(() => {
+    let filtered = [...allProducts];
+
+    // 1. 🚀 SMART MAPPING FOR CATEGORY PILLS
+    if (activeCategory !== "all") {
+        filtered = filtered.filter(p => {
+            const catStr = (String(p.category || "") + " " + String(p.sub_category || "") + " " + String(p.name || "")).toLowerCase();
+            
+            // 🔥 Separated Normal Watches and Smart Watches
+            if (activeCategory === "smartwatches") return catStr.includes("smart") || catStr.includes("tech") || catStr.includes("gadget");
+            if (activeCategory === "watches") return catStr.includes("watch") && !catStr.includes("smart"); 
+            if (activeCategory === "wallets") return catStr.includes("wallet");
+            if (activeCategory === "bracelets") return catStr.includes("bracelet") || catStr.includes("jewelry");
+            if (activeCategory === "audio") return catStr.includes("earbud") || catStr.includes("bud") || catStr.includes("pod") || catStr.includes("audio");
+            return true;
+        });
+    }
+
+    // 2. 🚀 SORTING LOGIC
+    if (sortOrder === "price-asc") {
+        filtered.sort((a, b) => a.price - b.price);
+    } else if (sortOrder === "price-desc") {
+        filtered.sort((a, b) => b.price - a.price);
+    } else if (sortOrder === "newest") {
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (sortOrder === "mixed" && activeCategory === "all") {
+        
+        // 🚀 ROUND-ROBIN MIXER (Now includes smartwatches as a separate group)
+        const groups: Record<string, any[]> = { watches: [], smartwatches: [], wallets: [], bracelets: [], audio: [], other: [] };
+        
+        filtered.forEach(p => {
+            const catStr = (String(p.category || "") + " " + String(p.sub_category || "") + " " + String(p.name || "")).toLowerCase();
+            
+            if (catStr.includes("smart") || catStr.includes("tech") || catStr.includes("gadget")) groups.smartwatches.push(p);
+            else if (catStr.includes("watch")) groups.watches.push(p);
+            else if (catStr.includes("wallet")) groups.wallets.push(p);
+            else if (catStr.includes("bracelet") || catStr.includes("jewelry")) groups.bracelets.push(p);
+            else if (catStr.includes("earbud") || catStr.includes("bud") || catStr.includes("pod") || catStr.includes("audio")) groups.audio.push(p);
+            else groups.other.push(p);
+        });
+
+        const mixedArray = [];
+        let i = 0;
+        let itemsAdded = true;
+        const keys = Object.keys(groups);
+        
+        while(itemsAdded) {
+            itemsAdded = false;
+            for(const key of keys) {
+                if (groups[key][i]) {
+                    mixedArray.push(groups[key][i]);
+                    itemsAdded = true;
+                }
+            }
+            i++;
+        }
+        filtered = mixedArray;
+    }
+
+    // 3. 🚀 OUT OF STOCK TO BOTTOM LOGIC
+    filtered.sort((a, b) => {
+        const aStock = a.specs?.stock !== undefined ? Number(a.specs.stock) : 1;
+        const bStock = b.specs?.stock !== undefined ? Number(b.specs.stock) : 1;
+        
+        const aInStock = aStock > 0;
+        const bInStock = bStock > 0;
+
+        if (aInStock && !bInStock) return -1;
+        if (!aInStock && bInStock) return 1;  
+        return 0; 
+    });
+
+    return filtered;
+  }, [allProducts, activeCategory, sortOrder]);
+
+  // 🚀 ADDED NEW SMART WATCHES PILL
+  const categories = [
+      { id: "all", label: "All Items" },
+      { id: "watches", label: "Watches" },
+      { id: "smartwatches", label: "Smart Watches" },
+      { id: "bracelets", label: "Bracelets" },
+      { id: "wallets", label: "Wallets" },
+      { id: "audio", label: "Audio/Buds" }
+  ];
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] font-serif">
+      <Navbar />
+
+      <div className="pt-16 md:pt-20 pb-4 px-4 text-center relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-aura-gold/5 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <span className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-aura-gold/30 rounded-full text-[8px] md:text-[9px] font-bold text-aura-gold uppercase tracking-[0.2em] mb-2 shadow-sm">
+          <Sparkles size={10} /> The Gentleman's Edit
+        </span>
+        
+        <h1 className="text-3xl md:text-5xl font-bold text-aura-brown mb-1 drop-shadow-sm capitalize">
+          Men's Accessories
+        </h1>
+        <p className="max-w-xl mx-auto text-[11px] md:text-xs text-gray-500 italic px-4">
+          Premium collection of watches, smart gear, wallets, and handcrafted jewelry.
+        </p>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-3 md:px-8 pb-20">
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 sticky top-[60px] md:top-[75px] z-30 bg-[#FDFBF7]/90 backdrop-blur-sm pt-2 pb-3">
+            
+            <div className="flex overflow-x-auto scrollbar-hide gap-1.5 pb-1 -mx-3 px-3 md:mx-0 md:px-0">
+                {categories.map(cat => (
+                    <button 
+                        key={cat.id}
+                        onClick={() => { setActiveCategory(cat.id); setSortOrder(cat.id === 'all' ? 'mixed' : 'newest'); setShowSortMenu(false); }}
+                        className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all duration-300 border ${
+                            activeCategory === cat.id 
+                            ? 'bg-aura-gold border-aura-gold text-white shadow-md' 
+                            : 'bg-white border-aura-gold/20 text-aura-brown hover:border-aura-gold/50'
+                        }`}
+                    >
+                        {cat.label}
+                    </button>
+                ))}
+            </div>
+
+            <div className="relative self-end md:self-auto">
+                <button 
+                    onClick={() => setShowSortMenu(!showSortMenu)}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-white border border-aura-gold/30 rounded-full text-aura-brown text-[10px] font-bold tracking-wider uppercase shadow-sm"
+                >
+                    <Filter size={12} className="text-aura-gold"/> Sort By 
+                    <ChevronDown size={12} className={`transition-transform duration-300 ${showSortMenu ? 'rotate-180' : ''}`}/>
+                </button>
+
+                {showSortMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-aura-gold/20 rounded-xl shadow-xl overflow-hidden z-40">
+                        {[
+                          {id: 'mixed', label: 'Mixed Variety'},
+                          {id: 'newest', label: 'New Arrivals'},
+                          {id: 'price-asc', label: 'Price: Low to High'},
+                          {id: 'price-desc', label: 'Price: High to Low'}
+                        ].map((opt) => (
+                          <button key={opt.id} onClick={() => { setSortOrder(opt.id); setShowSortMenu(false); }} className="w-full text-left px-4 py-2.5 text-[10px] font-bold text-aura-brown hover:bg-aura-gold/10 border-b border-gray-50 flex justify-between items-center last:border-0">
+                              {opt.label} {sortOrder === opt.id && <Check size={12} className="text-aura-gold"/>}
+                          </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="w-10 h-10 border-3 border-aura-gold border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-aura-brown font-bold animate-pulse uppercase tracking-widest text-[10px]">Updating Gallery...</p>
+          </div>
+        ) : displayProducts.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8">
+            {displayProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-aura-gold/30">
+            <ShoppingBag size={40} className="mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-bold text-aura-brown">No Items Found</h3>
+            <button onClick={() => { setActiveCategory('all'); setSortOrder('mixed'); }} className="mt-4 text-[10px] font-bold text-aura-gold underline tracking-widest uppercase">Reset Filters</button>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
