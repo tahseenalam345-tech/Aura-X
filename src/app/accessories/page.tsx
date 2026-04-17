@@ -1,20 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard";
 import { ShoppingBag, Sparkles, Filter, ChevronDown, Check, Zap, LayoutGrid, Watch, Activity, Gem, Wallet, Headphones } from "lucide-react";
-
-// 🚀 SKELETON LOADER COMPONENT
-const ProductSkeleton = () => (
-  <div className="flex flex-col gap-3 w-full">
-    <div className="bg-gray-200/60 animate-pulse rounded-2xl w-full aspect-[4/5]"></div>
-    <div className="bg-gray-200/60 animate-pulse h-4 w-3/4 rounded-md"></div>
-    <div className="bg-gray-200/60 animate-pulse h-3 w-1/2 rounded-md"></div>
-  </div>
-);
 
 export default function MensAccessoriesPage() {
   const [allProducts, setAllProducts] = useState<any[]>([]);
@@ -24,31 +15,12 @@ export default function MensAccessoriesPage() {
   const [sortOrder, setSortOrder] = useState("mixed"); 
   const [showSortMenu, setShowSortMenu] = useState(false);
 
-  // 🚀 SUPERFAST SCROLL STATES
+  // 🚀 STABLE LOAD MORE STATE (Removed Auto-Scroll Observer)
   const [visibleCount, setVisibleCount] = useState(8);
-  const observerTarget = useRef(null);
 
   useEffect(() => {
       setVisibleCount(8);
   }, [activeCategory, sortOrder]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-        entries => {
-            if (entries[0].isIntersecting) {
-                // 🚀 Added slight delay to make skeleton loading feel natural
-                setTimeout(() => setVisibleCount(prev => prev + 8), 400);
-            }
-        },
-        { threshold: 0.1 }
-    );
-
-    if (observerTarget.current) {
-        observer.observe(observerTarget.current);
-    }
-
-    return () => observer.disconnect();
-  }, [observerTarget]);
 
   useEffect(() => {
     const fetchAccessories = async () => {
@@ -121,7 +93,6 @@ export default function MensAccessoriesPage() {
         let w_idx = 0, wa_idx = 0, b_idx = 0, s_idx = 0, a_idx = 0, o_idx = 0;
         let itemsAdded = true;
         
-        // 🚀 NEW LOGIC: 2 Watches, 1 Wallet, 1 Bracelet, 1 Smartwatch, 1 Audio
         while(itemsAdded) {
             itemsAdded = false;
             
@@ -153,6 +124,9 @@ export default function MensAccessoriesPage() {
   }, [allProducts, activeCategory, sortOrder]);
 
   const visibleProducts = displayProducts.slice(0, visibleCount);
+  
+  // Load More Handler
+  const loadMore = () => setVisibleCount((prev) => prev + 8);
 
   const categories = [
       { id: "all", label: "All", icon: LayoutGrid },
@@ -167,7 +141,6 @@ export default function MensAccessoriesPage() {
     <main className="min-h-screen bg-[#FDFBF7] font-serif">
       <Navbar />
 
-      {/* 🚀 1st UPDATE: FULL WIDTH PROMO BANNER */}
       <div className="w-full bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-[9px] md:text-xs font-black uppercase tracking-widest py-2.5 flex justify-center items-center gap-2 shadow-md relative z-30 mt-[56px] md:mt-[80px]">
           <Zap size={14} className="fill-white animate-pulse"/> 
           <span>100% Free Delivery & Up To 30% OFF</span>
@@ -185,10 +158,8 @@ export default function MensAccessoriesPage() {
 
       <div className="max-w-[1600px] mx-auto px-3 md:px-8 pb-20">
         
-        {/* 🚀 2nd UPDATE: COMPACT STICKY BAR (Circles & Sort Inline) */}
         <div className="flex items-center justify-between gap-2 mb-6 sticky top-[56px] md:top-[80px] z-40 bg-[#FDFBF7]/95 backdrop-blur-md pt-3 pb-2 px-1 md:px-4 border-b border-aura-gold/10 shadow-sm">
             
-            {/* Left: Scrollable Circles */}
             <div className="flex-1 flex overflow-x-auto scrollbar-hide gap-3 md:gap-5 items-start pr-4">
                 {categories.map(cat => {
                     const Icon = cat.icon;
@@ -216,7 +187,6 @@ export default function MensAccessoriesPage() {
                 })}
             </div>
 
-            {/* Right: Compact Sort Button */}
             <div className="relative flex-shrink-0 border-l border-aura-gold/20 pl-3 md:pl-4 self-center pb-4 md:pb-5">
                 <button 
                     onClick={() => setShowSortMenu(!showSortMenu)}
@@ -243,25 +213,29 @@ export default function MensAccessoriesPage() {
             </div>
         </div>
 
-        {/* 🚀 3rd UPDATE: GRID WITH SKELETON LOADING */}
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8 pt-4">
-             {/* Show 8 skeletons initially */}
-             {[...Array(8)].map((_, i) => <ProductSkeleton key={i} />)}
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="w-10 h-10 border-3 border-aura-gold border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-aura-brown font-bold animate-pulse uppercase tracking-widest text-[10px]">Updating Gallery...</p>
           </div>
         ) : displayProducts.length > 0 ? (
           <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8 pt-2">
                 {visibleProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
 
-              {/* Infinite Scroll Trigger with Skeletons */}
+              {/* 🚀 STABLE MANUAL LOAD MORE BUTTON */}
               {visibleCount < displayProducts.length && (
-                  <div ref={observerTarget} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8 mt-6 md:mt-8">
-                      {/* Show 4 skeletons while loading next batch */}
-                      {[...Array(4)].map((_, i) => <ProductSkeleton key={`scroll-skel-${i}`} />)}
+                  <div className="flex justify-center pt-8 mt-4">
+                      <button 
+                          onClick={loadMore}
+                          className="flex items-center gap-3 px-8 py-3 bg-white border border-aura-gold/30 rounded-full shadow-sm hover:shadow-lg hover:bg-aura-gold/5 transition-all"
+                      >
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-aura-brown">Load More</span>
+                          <ChevronDown size={14} className="text-aura-gold" />
+                      </button>
                   </div>
               )}
           </>

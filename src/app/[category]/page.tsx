@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ProductCard } from "@/components/ProductCard"; 
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { ChevronDown, Filter, X, Loader2 } from "lucide-react"; 
+import { ChevronDown, Filter, X, Loader2, Zap, LayoutGrid, User, Sparkles, Users } from "lucide-react"; 
 import { useParams } from "next/navigation"; 
 import { supabase } from "@/lib/supabase"; 
 
@@ -84,12 +84,11 @@ export default function CategoryPage() {
       globalSortBy = sortBy;
   }, [categorySlug, visibleCount, priceRange, selectedMovements, selectedStraps, sortBy]);
 
-  // 🚀 FIXED: AUTO-SELECT PILL BASED ON URL
+  // 🚀 AUTO-SELECT PILL BASED ON URL
   useEffect(() => {
       if (!categorySlug) return;
       
       const slugLower = categorySlug.toLowerCase();
-      // Agar route direct /men, /women, ya /couple hai toh auto select karo
       if (['men', 'women', 'couple'].includes(slugLower)) {
           setGlobalGender(slugLower);
           if (typeof window !== 'undefined') localStorage.setItem('aura_gender', slugLower);
@@ -161,7 +160,6 @@ export default function CategoryPage() {
 
   const filteredProducts = products.filter((product) => {
     
-    // 🚀 FIXED: GENDER FILTER (Blocks "women" from showing up in "men")
     if (globalGender !== "all") {
         const cat = (product.category || '').toLowerCase();
         const subCat = (product.sub_category || '').toLowerCase();
@@ -195,18 +193,15 @@ export default function CategoryPage() {
 
     return true;
   }).sort((a, b) => {
-    // 🚀 FIXED: OUT OF STOCK TO BOTTOM LOGIC
     const aStock = a.specs?.stock !== undefined ? Number(a.specs.stock) : 1;
     const bStock = b.specs?.stock !== undefined ? Number(b.specs.stock) : 1;
     
     const aInStock = aStock > 0;
     const bInStock = bStock > 0;
 
-    // Send Out of stock to bottom FIRST
     if (aInStock && !bInStock) return -1;
     if (!aInStock && bInStock) return 1;
 
-    // Then apply user sorting
     if (sortBy === "featured") return (b.priority || 0) - (a.priority || 0);
     if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     if (sortBy === "low-high") return a.price - b.price;
@@ -224,6 +219,14 @@ export default function CategoryPage() {
   };
 
   if (reservedRoutes.includes(categorySlug)) return null;
+
+  // 🚀 CIRCULAR CATEGORIES WITH ICONS FOR GENDERS
+  const genderCategories = [
+    { id: "all", label: "All", icon: LayoutGrid },
+    { id: "men", label: "Men", icon: User },
+    { id: "women", label: "Women", icon: Sparkles },
+    { id: "couple", label: "Couple", icon: Users }
+  ];
 
   const FilterContent = () => (
     <div className="space-y-10">
@@ -276,7 +279,7 @@ export default function CategoryPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#FDFBF7] text-aura-brown">
+    <main className="min-h-screen bg-[#FDFBF7] text-aura-brown font-serif">
       <Navbar />
 
       <AnimatePresence>
@@ -301,33 +304,54 @@ export default function CategoryPage() {
         )}
       </AnimatePresence>
 
-      <div className="pt-32 md:pt-40 pb-8 text-center bg-gradient-to-b from-white to-[#FDFBF7]">
+      {/* 🚀 1. FULL WIDTH PROMO BANNER */}
+      <div className="w-full bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-[9px] md:text-xs font-black uppercase tracking-widest py-2.5 flex justify-center items-center gap-2 shadow-md relative z-30 mt-[56px] md:mt-[80px]">
+          <Zap size={14} className="fill-white animate-pulse"/> 
+          <span>100% Free Delivery & Up To 30% OFF</span>
+          <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
+      </div>
+
+      {/* 🚀 2. SPACE REDUCED & PUSHED UP */}
+      <div className="pt-6 md:pt-8 pb-4 text-center bg-gradient-to-b from-white to-[#FDFBF7]">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <span className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase block mb-3">
+          <span className="text-aura-gold text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase block mb-1.5">
             {globalGender !== 'all' ? `For ${globalGender}` : 'Collection'}
           </span>
-          <h1 className="text-4xl md:text-6xl font-serif font-bold text-aura-brown capitalize px-4">
+          <h1 className="text-3xl md:text-5xl font-serif font-bold text-aura-brown capitalize px-4">
             {getCategoryTitle(categorySlug)}
           </h1>
         </motion.div>
       </div>
 
       {!loading && products.length > 0 && (
-          <div className="max-w-[1600px] mx-auto px-4 md:px-12 mb-8">
-              <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide items-center justify-start md:justify-center">
-                  {['all', 'men', 'women', 'couple'].map(gender => (
-                      <button
-                          key={gender}
-                          onClick={() => handleGenderSelect(gender)}
-                          className={`px-5 py-2 md:px-6 md:py-2.5 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all border shadow-sm ${
-                              globalGender === gender
-                              ? 'bg-aura-brown text-white border-aura-brown shadow-md scale-105'
-                              : 'bg-white text-gray-500 border-gray-200 hover:border-aura-gold hover:text-aura-brown'
-                          }`}
-                      >
-                          {gender}
-                      </button>
-                  ))}
+          <div className="max-w-[1600px] mx-auto px-4 md:px-12 mb-6">
+              
+              {/* 🚀 3. CIRCULAR ICONS FOR ALL, MEN, WOMEN, COUPLE */}
+              <div className="flex gap-4 md:gap-8 overflow-x-auto pb-2 scrollbar-hide items-start justify-start md:justify-center px-2">
+                  {genderCategories.map(gender => {
+                      const Icon = gender.icon;
+                      const isActive = globalGender === gender.id;
+                      return (
+                          <button
+                              key={gender.id}
+                              onClick={() => handleGenderSelect(gender.id)}
+                              className="flex flex-col items-center gap-1.5 group flex-shrink-0 min-w-[56px]"
+                          >
+                              <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-300 border shadow-sm ${
+                                  isActive 
+                                  ? 'bg-gradient-to-br from-aura-gold to-[#8B7355] border-transparent text-white shadow-md scale-105' 
+                                  : 'bg-white border-aura-gold/20 text-aura-brown group-hover:border-aura-gold/50 group-hover:bg-aura-gold/5 group-hover:scale-105'
+                              }`}>
+                                  <Icon size={isActive ? 22 : 20} strokeWidth={isActive ? 2.5 : 1.5} />
+                              </div>
+                              <span className={`whitespace-nowrap text-[9px] md:text-[10px] font-bold tracking-widest uppercase transition-all duration-300 ${
+                                  isActive ? 'text-aura-brown drop-shadow-sm' : 'text-gray-400 group-hover:text-aura-brown'
+                              }`}>
+                                  {gender.label}
+                              </span>
+                          </button>
+                      )
+                  })}
               </div>
           </div>
       )}
@@ -343,12 +367,12 @@ export default function CategoryPage() {
         </aside>
 
         <div className="flex-1">
-            <div className="flex justify-between items-center mb-8 pb-4 border-b border-aura-brown/10">
+            <div className="flex justify-between items-center mb-6 pb-3 border-b border-aura-brown/10">
                 <button 
                   onClick={() => setMobileFilterOpen(true)}
-                  className="lg:hidden flex items-center gap-2 text-xs font-bold uppercase bg-aura-brown text-white px-4 py-2 rounded-full"
+                  className="lg:hidden flex items-center gap-2 text-xs font-bold uppercase bg-white border border-aura-gold/30 text-aura-brown px-4 py-2 rounded-full shadow-sm hover:bg-aura-gold/5 transition-colors"
                 >
-                  <Filter size={14} /> Filter
+                  <Filter size={14} className="text-aura-gold" /> Filter
                 </button>
 
                 <p className="hidden md:block text-sm text-gray-500 italic">Showing {filteredProducts.length} masterpieces</p>
@@ -356,10 +380,10 @@ export default function CategoryPage() {
                 <div className="relative z-20">
                     <button 
                         onClick={() => setSortOpen(!sortOpen)} 
-                        className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase text-aura-brown hover:text-aura-gold transition"
+                        className="flex items-center gap-2 text-[10px] md:text-sm font-bold uppercase text-aura-brown hover:text-aura-gold transition border border-aura-gold/30 bg-white px-4 py-2 rounded-full shadow-sm"
                     >
                         Sort By: {sortBy.replace('-', ' ')} 
-                        <ChevronDown size={16} className={`${sortOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={14} className={`${sortOpen ? 'rotate-180' : ''} text-aura-gold`} />
                     </button>
 
                     {sortOpen && <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} />}
@@ -373,14 +397,14 @@ export default function CategoryPage() {
                                 <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
                                     {[
                                         { val: "featured", label: "Featured" },
-                                        { val: "newest", label: "Newest" },
+                                        { val: "newest", label: "New Arrivals" },
                                         { val: "low-high", label: "Price: Low to High" },
                                         { val: "high-low", label: "Price: High to Low" }
                                     ].map((option) => (
                                       <button 
                                         key={option.val} 
                                         onClick={() => { setSortBy(option.val); setSortOpen(false); }} 
-                                        className={`block w-full text-left px-4 py-3 text-sm ${sortBy === option.val ? 'bg-aura-gold/10 text-aura-gold font-bold' : 'hover:bg-gray-50'}`}
+                                        className={`block w-full text-left px-4 py-3 text-xs font-bold ${sortBy === option.val ? 'bg-aura-gold/10 text-aura-gold' : 'hover:bg-gray-50 text-aura-brown'}`}
                                       >
                                         {option.label}
                                       </button>
@@ -395,10 +419,10 @@ export default function CategoryPage() {
             {loading ? (
                 <div className="h-64 flex flex-col items-center justify-center text-aura-brown/60">
                     <Loader2 className="animate-spin mb-4 text-aura-gold" size={32} /> 
-                    <p className="text-sm font-serif italic tracking-wider">Accessing Vault...</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-aura-brown">Accessing Vault...</p>
                 </div>
             ) : (
-                <div className="flex flex-col gap-12">
+                <div className="flex flex-col gap-8">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                         <AnimatePresence mode="popLayout">
                             {visibleProducts.map((product, index) => (
@@ -414,13 +438,13 @@ export default function CategoryPage() {
                     </div>
 
                     {visibleCount < filteredProducts.length && (
-                        <div className="flex justify-center pt-8">
+                        <div className="flex justify-center pt-6">
                             <button 
                                 onClick={loadMore}
-                                className="flex items-center gap-3 px-8 py-4 bg-white border border-aura-gold/30 rounded-full shadow-sm hover:shadow-lg transition-all"
+                                className="flex items-center gap-3 px-8 py-3 bg-white border border-aura-gold/30 rounded-full shadow-sm hover:shadow-lg hover:bg-aura-gold/5 transition-all"
                             >
-                                <span className="text-xs font-bold uppercase text-aura-brown">Load More</span>
-                                <ChevronDown size={16} />
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-aura-brown">Load More</span>
+                                <ChevronDown size={14} className="text-aura-gold" />
                             </button>
                         </div>
                     )}
