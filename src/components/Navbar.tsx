@@ -19,15 +19,20 @@ const categoryStructure = [
       { name: "Couple Bonds", href: "/couple" },
     ]
   },
+  // 🚀 UPDATED: Removed belts & sunglasses, kept Bracelets/Wallets
   {
     name: "Accessories",
     href: "/accessories",
     subItems: [
       { name: "Premium Wallets", href: "/wallets" },
-      { name: "Leather Belts", href: "/belts" },
-      { name: "Sunglasses", href: "/sunglasses" },
       { name: "Bracelets & Rings", href: "/jewelry" },
     ]
+  },
+  // 🚀 NEW: Standalone Men's Collection Highlight Link
+  {
+    name: "Men's Edit",
+    href: "/accessories",
+    isHighlight: true, // Special styling added below
   },
   {
     name: "Smart Tech",
@@ -37,19 +42,11 @@ const categoryStructure = [
       { name: "Wireless Earbuds", href: "/earbuds" },
     ]
   },
-  {
-    name: "Fragrances",
-    href: "/fragrances",
-    subItems: [
-      { name: "Men's Perfume", href: "/perfume-men" },
-      { name: "Women's Perfume", href: "/perfume-women" },
-    ]
-  },
+  // Fragrances removed temporarily as requested
   {
     name: "Combos",
-    href: "/combos", // This goes to the page showing pre-made combos
+    href: "/combos",
     isSpecial: true,
-    // 🚀 ADDED: Custom Combo link directly in the Navbar dropdown
     subItems: [
       { name: "Pre-Made Combos", href: "/combos" },
       { name: "Craft Custom Combo ✨", href: "/custom-combo" },
@@ -118,12 +115,23 @@ export function Navbar() {
                 <Menu className="w-5 h-5 text-[#2A241D] group-hover:text-[#D4AF37] transition-colors" />
              </button>
              <div className="h-6 w-[1px] bg-gradient-to-b from-transparent via-[#8B7355]/30 to-transparent"></div>
+             
              {categoryStructure.map((cat) => (
                <div key={cat.name} className="relative group h-full flex items-center">
-                 <Link href={cat.href} className={`flex items-center gap-1 text-[11px] font-black tracking-[0.2em] uppercase transition-all duration-300 py-2 ${cat.isSpecial ? 'text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#F9E596] animate-pulse drop-shadow-sm' : 'text-[#3A2A18] hover:text-[#D4AF37]'}`}>
+                 <Link 
+                    href={cat.href} 
+                    // 🚀 ADDED: Special glowing style for the new Men's Edit button
+                    className={`flex items-center gap-1 text-[11px] font-black tracking-[0.2em] uppercase transition-all duration-300 py-2 
+                        ${cat.isSpecial ? 'text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#F9E596] animate-pulse drop-shadow-sm' : ''}
+                        ${cat.isHighlight ? 'bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-white px-3 py-1.5 rounded-full shadow-[0_4px_15px_rgba(212,175,55,0.3)] hover:shadow-[0_6px_20px_rgba(212,175,55,0.5)] hover:-translate-y-0.5' : ''}
+                        ${!cat.isSpecial && !cat.isHighlight ? 'text-[#3A2A18] hover:text-[#D4AF37]' : ''}
+                    `}
+                  >
+                    {cat.isHighlight && <Sparkles size={12} className="text-white mr-1" />}
                     {cat.name}
-                    {cat.subItems && <ChevronDown size={12} className="opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-300" />}
+                    {cat.subItems && <ChevronDown size={12} className="opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-300 ml-1" />}
                  </Link>
+
                  {cat.subItems && (
                    <div className="absolute top-[80%] left-0 w-[240px] pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-4 group-hover:translate-y-0">
                       <div className="bg-white/90 backdrop-blur-2xl border border-white/60 shadow-[0_20px_40px_rgba(0,0,0,0.08)] rounded-2xl overflow-hidden flex flex-col py-2">
@@ -205,7 +213,7 @@ export function Navbar() {
                       <div className="mb-10">
                           <h3 className="text-[10px] font-bold text-[#8B7355]/70 uppercase tracking-[0.3em] mb-6 flex items-center gap-2"><Star size={12} className="text-[#D4AF37]"/> Trending Now</h3>
                           <div className="flex flex-wrap gap-3">
-                             {["Rolex", "Wallets", "Smartwatches", "Perfumes", "Bracelets", "Sunglasses"].map(tag => (
+                             {["Rolex", "Wallets", "Smartwatches", "Bracelets"].map(tag => (
                                 <button key={tag} onClick={() => handleTagClick(tag)} className="px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-full border border-[#D4AF37]/20 text-[#3A2A18] text-xs font-bold tracking-widest uppercase hover:bg-gradient-to-r hover:from-[#D4AF37] hover:to-[#8B7355] hover:text-white hover:border-transparent hover:shadow-[0_5px_15px_rgba(212,175,55,0.3)] transition-all duration-300 transform hover:-translate-y-1">{tag}</button>
                              ))}
                           </div>
@@ -237,7 +245,17 @@ export function Navbar() {
                    {categoryStructure.map((cat) => (
                      <div key={cat.name} className="flex flex-col border-b border-[#D4AF37]/10 pb-4">
                        <div className="flex items-center justify-between cursor-pointer group" onClick={() => cat.subItems ? toggleCategory(cat.name) : handleCloseAll()}>
-                         <Link href={cat.href} onClick={(e) => cat.subItems && e.preventDefault()} className={`text-2xl font-serif transition-all duration-300 ${cat.isSpecial ? 'text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#8B7355] font-black animate-pulse' : 'text-[#1E1B18] group-hover:text-[#D4AF37]'}`}>{cat.name}</Link>
+                         <Link 
+                            href={cat.href} 
+                            onClick={(e) => cat.subItems && e.preventDefault()} 
+                            className={`text-2xl font-serif transition-all duration-300 
+                                ${cat.isSpecial ? 'text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#8B7355] font-black animate-pulse' : ''}
+                                ${cat.isHighlight ? 'inline-block bg-gradient-to-r from-[#D4AF37] to-[#8B7355] text-white px-4 py-1.5 rounded-full text-lg shadow-md' : ''}
+                                ${!cat.isSpecial && !cat.isHighlight ? 'text-[#1E1B18] group-hover:text-[#D4AF37]' : ''}
+                            `}
+                         >
+                            {cat.name}
+                         </Link>
                          {cat.subItems && <button className="p-2 rounded-full hover:bg-white/50 transition-colors"><ChevronDown className={`w-5 h-5 text-[#D4AF37] transition-transform duration-300 ${expandedCategory === cat.name ? '-rotate-180' : ''}`} /></button>}
                        </div>
                        <AnimatePresence>
