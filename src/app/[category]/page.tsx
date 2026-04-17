@@ -67,7 +67,6 @@ export default function CategoryPage() {
 
   const initialRender = useRef(true);
 
-  // 🚀 DYNAMIC CATEGORY CHECKS
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(categorySlug.toLowerCase());
   
   const movements = ["Automatic", "Mechanical", "Quartz"];
@@ -220,7 +219,7 @@ export default function CategoryPage() {
 
   if (reservedRoutes.includes(categorySlug)) return null;
 
-  // 🚀 CIRCULAR CATEGORIES WITH ICONS FOR GENDERS
+  // 🚀 GENDER CATEGORIES WITH ICONS
   const genderCategories = [
     { id: "all", label: "All", icon: LayoutGrid },
     { id: "men", label: "Men", icon: User },
@@ -304,10 +303,14 @@ export default function CategoryPage() {
         )}
       </AnimatePresence>
 
-      {/* 🚀 1. FULL WIDTH PROMO BANNER */}
-      <div className="w-full bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-[9px] md:text-xs font-black uppercase tracking-widest py-2.5 flex justify-center items-center gap-2 shadow-md relative z-30 mt-[56px] md:mt-[80px]">
-          <Zap size={14} className="fill-white animate-pulse"/> 
-          <span>100% Free Delivery & Up To 30% OFF</span>
+      {/* 🚀 1. FULL WIDTH PROMO BANNER WITH 'OPEN PARCEL ALLOWED' */}
+      <div className="w-full bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-[8px] md:text-xs font-black uppercase tracking-widest py-2.5 flex justify-center items-center gap-1 md:gap-2 shadow-md relative z-30 mt-[56px] md:mt-[80px]">
+          <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
+          <span className="text-center flex flex-wrap justify-center gap-x-1 gap-y-0.5">
+             <span>100% Free Delivery & Up To 30% OFF</span> 
+             <span className="opacity-70 hidden md:inline">|</span>
+             <span className="text-aura-gold underline decoration-aura-gold/50 decoration-wavy">OPEN PARCEL ALLOWED</span>
+          </span>
           <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
       </div>
 
@@ -451,6 +454,7 @@ export default function CategoryPage() {
                 </div>
             )}
             
+            {/* 🚀 FIXED TRUNCATION FROM YOUR OLD CODE HERE */}
             {!loading && products.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 bg-white/40 rounded-[2rem] border border-dashed border-aura-gold/40">
                     <p className="text-xl md:text-2xl font-serif text-gray-400 mb-2">No masterpieces found.</p>

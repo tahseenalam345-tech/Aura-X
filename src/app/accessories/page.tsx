@@ -15,22 +15,19 @@ export default function MensAccessoriesPage() {
   const [sortOrder, setSortOrder] = useState("mixed"); 
   const [showSortMenu, setShowSortMenu] = useState(false);
 
-  // 🚀 1. INITIAL LOAD SET TO 10
   const [visibleCount, setVisibleCount] = useState(10);
 
-  // Reset count jab filter change ho
   useEffect(() => {
       setVisibleCount(10);
   }, [activeCategory, sortOrder]);
 
-  // 🚀 2. AUTO-LOAD TIMER LOGIC (Har 2.5 sec baad 10 aur load honge)
   useEffect(() => {
       if (!loading && visibleCount < allProducts.length) {
           const timer = setTimeout(() => {
               setVisibleCount((prev) => prev + 10);
-          }, 2500); // 2500 milliseconds = 2.5 seconds
+          }, 2500); 
           
-          return () => clearTimeout(timer); // Cleanup memory
+          return () => clearTimeout(timer); 
       }
   }, [visibleCount, allProducts.length, loading]);
 
@@ -137,7 +134,6 @@ export default function MensAccessoriesPage() {
 
   const visibleProducts = displayProducts.slice(0, visibleCount);
   
-  // Manual Load More Handler (10 aur load karega)
   const loadMore = () => setVisibleCount((prev) => prev + 10);
 
   const categories = [
@@ -153,9 +149,14 @@ export default function MensAccessoriesPage() {
     <main className="min-h-screen bg-[#FDFBF7] font-serif">
       <Navbar />
 
-      <div className="w-full bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-[9px] md:text-xs font-black uppercase tracking-widest py-2.5 flex justify-center items-center gap-2 shadow-md relative z-30 mt-[56px] md:mt-[80px]">
-          <Zap size={14} className="fill-white animate-pulse"/> 
-          <span>100% Free Delivery & Up To 30% OFF</span>
+      {/* 🚀 UPDATED BANNER WITH 'OPEN PARCEL ALLOWED' */}
+      <div className="w-full bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-[8px] md:text-xs font-black uppercase tracking-widest py-2.5 flex justify-center items-center gap-1 md:gap-2 shadow-md relative z-30 mt-[56px] md:mt-[80px]">
+          <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
+          <span className="text-center flex flex-wrap justify-center gap-x-1 gap-y-0.5">
+             <span>100% Free Delivery & Up To 30% OFF</span> 
+             <span className="opacity-70 hidden md:inline">|</span>
+             <span className="text-aura-gold underline decoration-aura-gold/50 decoration-wavy">OPEN PARCEL ALLOWED</span>
+          </span>
           <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
       </div>
 
@@ -238,7 +239,6 @@ export default function MensAccessoriesPage() {
                 ))}
               </div>
 
-              {/* 🚀 3. VIP LOAD MORE BUTTON (For Fast Scrollers) */}
               {visibleCount < displayProducts.length && (
                   <div className="flex justify-center pt-10 mt-4 mb-8">
                       <button 
