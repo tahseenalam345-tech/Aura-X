@@ -304,12 +304,16 @@ export default function CategoryPage() {
       </AnimatePresence>
 
       {/* 🚀 1. FULL WIDTH PROMO BANNER WITH 'OPEN PARCEL ALLOWED' */}
+      {/* 🚀 1. FULL WIDTH PROMO BANNER WITH HIGH CONTRAST BADGE */}
       <div className="w-full bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-[8px] md:text-xs font-black uppercase tracking-widest py-2.5 flex justify-center items-center gap-1 md:gap-2 shadow-md relative z-30 mt-[56px] md:mt-[80px]">
           <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
-          <span className="text-center flex flex-wrap justify-center gap-x-1 gap-y-0.5">
+          <span className="text-center flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
              <span>100% Free Delivery & Up To 30% OFF</span> 
-             <span className="opacity-70 hidden md:inline">|</span>
-             <span className="text-aura-gold underline decoration-aura-gold/50 decoration-wavy">OPEN PARCEL ALLOWED</span>
+             
+             {/* 🚀 NEW HIGH-CONTRAST BADGE: Solid Black Text on Bright Gold Background */}
+             <span className="text-[#1E1B18] bg-gradient-to-r from-[#F9E596] to-[#D4AF37] px-2 py-0.5 rounded-md shadow-lg font-black tracking-widest border border-[#1E1B18]/20">
+                 OPEN PARCEL ALLOWED
+             </span>
           </span>
           <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
       </div>
