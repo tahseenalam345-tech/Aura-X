@@ -15,12 +15,24 @@ export default function MensAccessoriesPage() {
   const [sortOrder, setSortOrder] = useState("mixed"); 
   const [showSortMenu, setShowSortMenu] = useState(false);
 
-  // 🚀 STABLE LOAD MORE STATE (Removed Auto-Scroll Observer)
-  const [visibleCount, setVisibleCount] = useState(8);
+  // 🚀 1. INITIAL LOAD SET TO 10
+  const [visibleCount, setVisibleCount] = useState(10);
 
+  // Reset count jab filter change ho
   useEffect(() => {
-      setVisibleCount(8);
+      setVisibleCount(10);
   }, [activeCategory, sortOrder]);
+
+  // 🚀 2. AUTO-LOAD TIMER LOGIC (Har 2.5 sec baad 10 aur load honge)
+  useEffect(() => {
+      if (!loading && visibleCount < allProducts.length) {
+          const timer = setTimeout(() => {
+              setVisibleCount((prev) => prev + 10);
+          }, 2500); // 2500 milliseconds = 2.5 seconds
+          
+          return () => clearTimeout(timer); // Cleanup memory
+      }
+  }, [visibleCount, allProducts.length, loading]);
 
   useEffect(() => {
     const fetchAccessories = async () => {
@@ -125,8 +137,8 @@ export default function MensAccessoriesPage() {
 
   const visibleProducts = displayProducts.slice(0, visibleCount);
   
-  // Load More Handler
-  const loadMore = () => setVisibleCount((prev) => prev + 8);
+  // Manual Load More Handler (10 aur load karega)
+  const loadMore = () => setVisibleCount((prev) => prev + 10);
 
   const categories = [
       { id: "all", label: "All", icon: LayoutGrid },
@@ -226,15 +238,17 @@ export default function MensAccessoriesPage() {
                 ))}
               </div>
 
-              {/* 🚀 STABLE MANUAL LOAD MORE BUTTON */}
+              {/* 🚀 3. VIP LOAD MORE BUTTON (For Fast Scrollers) */}
               {visibleCount < displayProducts.length && (
-                  <div className="flex justify-center pt-8 mt-4">
+                  <div className="flex justify-center pt-10 mt-4 mb-8">
                       <button 
                           onClick={loadMore}
-                          className="flex items-center gap-3 px-8 py-3 bg-white border border-aura-gold/30 rounded-full shadow-sm hover:shadow-lg hover:bg-aura-gold/5 transition-all"
+                          className="flex items-center justify-center gap-3 px-10 py-4 w-[90%] md:w-auto min-w-[280px] bg-gradient-to-r from-[#3A2A18] to-[#1E1B18] border border-aura-gold/50 rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transform transition-all duration-300 group"
                       >
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-aura-brown">Load More</span>
-                          <ChevronDown size={14} className="text-aura-gold" />
+                          <span className="text-xs font-black uppercase tracking-[0.2em] text-aura-gold group-hover:text-white transition-colors">
+                              Discover More
+                          </span>
+                          <ChevronDown size={18} className="text-aura-gold group-hover:translate-y-1 transition-transform" />
                       </button>
                   </div>
               )}
