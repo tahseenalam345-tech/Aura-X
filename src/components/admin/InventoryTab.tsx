@@ -45,7 +45,6 @@ const isVideoFile = (url: string) => {
     return lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('/video/upload/');
 };
 
-// 🚀 NAYA HELPER: URL se file ka original naam nikalne ke liye
 const extractFilenameFromUrl = (url: string) => {
     if (!url) return "";
     try {
@@ -72,7 +71,6 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        // 🚀 THE FIX: Max width increased to 1200 for HD sharp dials. 
         const MAX_WIDTH = isReview ? 600 : 1200; 
         let width = img.width;
         let height = img.height;
@@ -92,7 +90,6 @@ const compressImage = (file: File, isReview: boolean = false): Promise<Blob> => 
             ctx.drawImage(img, 0, 0, width, height);
         }
         
-        // 🚀 THE FIX: Export as WEBP at 90% quality. (Ensures HD crisp text but low file size ~150kb)
         const quality = isReview ? 0.8 : 0.90;
         canvas.toBlob((blob) => { 
             if (blob) resolve(blob); 
@@ -113,16 +110,9 @@ const processFileUpload = async (file: File, isReview: boolean = false, onProgre
         catch (e) { console.error("Compression failed:", e); return null; } 
     }
 
-    // 🚀 NAYA LOGIC: Original file name mein se ( ) - _ ko retain karega
     const ext = isVideo ? 'mp4' : 'webp';
     const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9()_-]/g, '').toLowerCase().slice(0, 20);
     const fileName = `v4-${Date.now()}-${cleanName}.${ext}`;
-
-    // 👇 YAHAN HUMNE SIZE CHECK LAGAYA HAI 👇
-    console.log(`📸 Image Name: ${file.name}`);
-    console.log(`🔴 Original Size: ${(file.size / 1024).toFixed(2)} KB`);
-    console.log(`🟢 Compressed Size: ${(fileToUpload.size / 1024).toFixed(2)} KB`);
-    // 👆 YAHAN TAK 👆
 
     const targetBucket = 'product-images';
 
@@ -151,7 +141,6 @@ const processFileUpload = async (file: File, isReview: boolean = false, onProgre
     return publicUrl;
 };
 
-// 🚀 BRAND NEW CUSTOM COLOR DROPDOWN COMPONENT
 const CustomColorSelect = ({ value, onChange, placeholder, className }: { value: string, onChange: (name: string, hex: string) => void, placeholder: string, className?: string }) => {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState(value || "");
@@ -253,6 +242,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
     name: "", brand: "AURA-X", sku: "", stock: 5, category: "", sub_category: "", 
     price: 0, originalPrice: 0, discount: 0, costPrice: 0, deliveryCharge: 250,
     tags: "" as string, priority: 100, viewCount: 0, 
+    ratingStars: 4.5, totalReviews: 24, // 🚀 NEW: Manual Rating & Reviews Fields
     isEidExclusive: false, isPinned: false, 
     movement: "Quartz (Battery)", waterResistance: "0ATM (No Resistance)", 
     glass: "", caseMaterial: "", caseColor: "Silver", caseShape: "Round", 
@@ -508,6 +498,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         baseColorName: safeColors[0]?.name || "Silver",
         tags: singleTag,
         priority: item.priority ?? 100,
+        viewCount: specs.view_count ?? 0,
+        ratingStars: item.rating ?? 4.5,          // 🚀 Load existing manual rating from DB
+        totalReviews: item.review_count ?? 24,    // 🚀 Load existing manual review count from DB
         isEidExclusive: item.is_eid_exclusive ?? false,
         isPinned: item.is_pinned ?? false, 
         colors: editHasColors ? safeColors.slice(1) : [], 
@@ -519,7 +512,6 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
         stock: specs.stock ?? 5, 
         costPrice: specs.cost_price ?? 0,
         deliveryCharge: specs.delivery_charge ?? (item.is_eid_exclusive ? 0 : 250),
-        viewCount: specs.view_count ?? 0,
         movement: specs.movement || "Quartz (Battery)",
         waterResistance: specs.water_resistance || "0ATM (No Resistance)",
         glass: specs.glass || "",
@@ -633,7 +625,9 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
           main_image: formData.mainImage, 
           image: formData.hoverImage || formData.mainImage,
           tags: tagsArray, 
-          rating: formData.priority, is_sale: formData.discount > 0, 
+          rating: formData.ratingStars, // 🚀 SAVE MANUAL RATING
+          review_count: formData.totalReviews, // 🚀 SAVE MANUAL REVIEW COUNT
+          is_sale: formData.discount > 0, 
           priority: formData.priority, 
           is_eid_exclusive: formData.isEidExclusive, 
           is_pinned: formData.isPinned, 
@@ -897,6 +891,8 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                             </div>
                             <div className="flex items-center gap-1 text-[9px] text-gray-400 border-t pt-1.5 mt-1 truncate">
                                 <span className="font-bold uppercase">{item.sub_category || item.category || ""}</span>
+                                {/* 🚀 SHOW RATING ON CARD IN ADMIN */}
+                                {item.rating > 0 && <span className="ml-auto text-aura-gold font-bold flex items-center gap-0.5"><Star size={8} fill="currentColor"/> {item.rating} ({item.review_count})</span>}
                             </div>
                         </div>
                     </div>
@@ -920,7 +916,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                 {item.name || "Unnamed"} 
                                 {item.is_pinned && <Star size={12} className="text-aura-gold" fill="currentColor"/>}
                             </h3>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mt-0.5">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mt-0.5 items-center">
                                 <span>{item.sub_category || item.category || ""}</span>
                                 <span>SKU: {item.specs?.sku || ""}</span>
                                 <span className={(item.specs?.stock || 0) > 0 ? "text-green-600 font-bold" : "text-red-600 font-bold"}>Stock: {item.specs?.stock || 0}</span>
@@ -1377,6 +1373,20 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <div><label className="text-xs font-bold text-gray-500">Fake Views</label><input type="number" className="w-full p-3 border rounded-xl bg-white outline-none focus:border-aura-gold" value={formData.viewCount || 0} onChange={e => setFormData({...formData, viewCount: Number(e.target.value)})} /></div>
                                     </div>
 
+                                    {/* 🚀 NEW MANUAL RATING & REVIEWS BOX */}
+                                    <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                                        <div>
+                                            <label className="text-xs font-bold text-yellow-800 flex items-center gap-1"><Star size={14} fill="currentColor"/> Manual Rating (Stars)</label>
+                                            <input type="number" step="0.1" min="1" max="5" className="w-full p-3 border border-yellow-300 rounded-xl bg-white outline-none focus:border-aura-gold mt-1" value={formData.ratingStars || 4.5} onChange={e => setFormData({...formData, ratingStars: Number(e.target.value)})} />
+                                            <p className="text-[10px] text-yellow-700 mt-1">Between 1.0 and 5.0</p>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-yellow-800 flex items-center gap-1"><List size={14} /> Total Reviews Count</label>
+                                            <input type="number" className="w-full p-3 border border-yellow-300 rounded-xl bg-white outline-none focus:border-aura-gold mt-1" value={formData.totalReviews || 24} onChange={e => setFormData({...formData, totalReviews: Number(e.target.value)})} />
+                                            <p className="text-[10px] text-yellow-700 mt-1">Number shown next to stars</p>
+                                        </div>
+                                    </div>
+
                                     <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.isEidExclusive ? 'bg-black border-aura-gold' : 'bg-white border-gray-200'}`}>
                                             <input 
@@ -1658,7 +1668,7 @@ export default function InventoryTab({ products, fetchProducts }: { products: an
                                         <div className="flex flex-wrap gap-2">
                                             {(Array.isArray(newReview.images) ? newReview.images : []).map((img: string, idx: number) => (
                                                 <div key={idx} className="w-16 h-16 rounded-lg relative overflow-hidden border border-gray-200 group">
-                                                    <Image src={img} alt="" fill className="object-cover" unoptimized={true} />
+                                                    <Image src={img} fill className="object-cover" alt="" unoptimized={true} />
                                                     <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] text-center truncate py-1 px-1 z-10 font-medium backdrop-blur-sm">
                                                         {extractFilenameFromUrl(img)}
                                                     </div>
