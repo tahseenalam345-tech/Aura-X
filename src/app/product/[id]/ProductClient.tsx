@@ -131,7 +131,6 @@ export default function ProductClient() {
 
   const [reviews, setReviews] = useState<any[]>([]);
   const [genericReviews, setGenericReviews] = useState<any[]>(fallbackReviews);
-  const [reviewData, setReviewData] = useState({ rating: 0, count: 0 }); // 🚀 DB Reviews Data
   
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({ name: "", city: "", comment: "", rating: 5 });
@@ -187,7 +186,6 @@ export default function ProductClient() {
        if (currentProduct) {
            setProduct(currentProduct);
            
-           // Setup Live Viewers
            const dbViewCount = currentProduct.specs?.view_count || currentProduct.view_count;
            if (dbViewCount) {
                setActiveViewers(dbViewCount);
@@ -195,29 +193,6 @@ export default function ProductClient() {
                setActiveViewers(Math.floor(Math.random() * (56 - 12 + 1) + 12));
            }
 
-           // 🚀 DB Reviews Stars Logic (Same as ProductCard)
-           const idStr = String(currentProduct.id || "");
-           let seed = 0;
-           for (let i = 0; i < idStr.length; i++) { seed += idStr.charCodeAt(i); }
-           const prodPriority = Number(currentProduct.priority || 0);
-           
-           let calculatedRating = 4.0;
-           let minCount = 10;
-           let maxCount = 50;
-
-           if (prodPriority >= 5) {
-               calculatedRating = 4.6 + ((seed % 10) / 20); 
-               minCount = 40; maxCount = 95;
-           } else if (prodPriority > 0 && prodPriority < 5) {
-               calculatedRating = 4.0 + ((seed % 10) / 20);
-               minCount = 20; maxCount = 50;
-           } else {
-               calculatedRating = 3.3 + ((seed % 10) / 15);
-               minCount = 5; maxCount = 25;
-           }
-           const calculatedCount = minCount + (seed % (maxCount - minCount));
-           setReviewData({ rating: Number(calculatedRating.toFixed(1)), count: calculatedCount });
-           
            if (currentProduct.variants?.sizes?.length > 0) setSelectedSize(null);
            
            if (currentProduct.colors?.length === 1) {
@@ -266,7 +241,7 @@ export default function ProductClient() {
       }
   }, [quantity]);
 
-  // 🚀 FIXED: Improved Review Image Handling
+  // 🚀 FIXED: Drag & Drop Logic for Review Images
   const handleReviewImageDrop = (e: React.DragEvent) => {
       e.preventDefault();
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -286,6 +261,7 @@ export default function ProductClient() {
       }
   };
 
+  // 🚀 FIXED: Review Submission Logic
   const handleReviewSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!id) return; 
@@ -298,25 +274,42 @@ export default function ProductClient() {
       try {
           if (reviewImage) {
               const compressedFile = await compressImage(reviewImage);
-              const fileExt = compressedFile.name.split('.').pop();
-              const filePath = `reviews/${Math.random()}.${fileExt}`;
+              // 🚀 Saved in 'product-images' bucket under 'reviews' folder to avoid 400 Error
+              const fileName = `reviews/v4-${Date.now()}-${Math.floor(Math.random() * 10000)}.webp`;
 
-              const { error: uploadError } = await supabase.storage.from('review-images').upload(filePath, compressedFile);
+              const { error: uploadError } = await supabase.storage
+                  .from('product-images') 
+                  .upload(fileName, compressedFile, {
+                      contentType: 'image/webp',
+                      cacheControl: '3600',
+                      upsert: false
+                  });
 
               if (uploadError) {
-                  toast.error("Failed to upload image, but saving review...");
+                  console.error("Storage Error:", uploadError);
+                  toast.error("Image upload blocked by server. Saving text only...");
               } else {
-                  uploadedImageUrl = supabase.storage.from('review-images').getPublicUrl(filePath).data.publicUrl;
+                  const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+                  uploadedImageUrl = data.publicUrl;
               }
           }
 
+          // 🚀 Type-safe ID for the database
           const newReview = {
-              product_id: id as string, customer_name: reviewForm.name, rating: reviewForm.rating,
-              comment: reviewForm.comment, city: reviewForm.city || "Pakistan", image_url: uploadedImageUrl
+              product_id: isNaN(Number(id)) ? id : Number(id),
+              customer_name: reviewForm.name,
+              rating: reviewForm.rating,
+              comment: reviewForm.comment,
+              city: reviewForm.city || "Pakistan",
+              image_url: uploadedImageUrl
           };
 
           const { error } = await supabase.from('product_reviews').insert([newReview]);
-          if (error) throw error;
+          
+          if (error) {
+              console.error("Database Insert Error:", error);
+              throw new Error(error.message);
+          }
 
           toast.success("Thank you for your review!");
           setReviews([newReview, ...reviews]);
@@ -324,8 +317,10 @@ export default function ProductClient() {
           setReviewForm({ name: "", city: "", comment: "", rating: 5 });
           setReviewImage(null);
           setReviewImagePreview(null);
-      } catch (err) {
-          toast.error("Could not post review. Please try again later.");
+
+      } catch (err: any) {
+          console.error("Catch Block Error:", err);
+          toast.error(`Could not save review: ${err.message || "Please check your network."}`);
       } finally {
           setIsSubmittingReview(false);
       }
@@ -391,6 +386,35 @@ export default function ProductClient() {
           return Math.round(((product.original_price - product.price) / product.original_price) * 100);
       }
       return 0;
+  }, [product]);
+
+  // 🚀 100% MATCHING REVIEWS LOGIC (Synchronous calculation to match ProductCard)
+  const reviewData = useMemo(() => {
+      if (!product?.id) return { rating: 0, count: 0 };
+      const idStr = String(product.id);
+      let seed = 0;
+      for (let i = 0; i < idStr.length; i++) { seed += idStr.charCodeAt(i); }
+      
+      const prodPriority = Number(product.priority || 0);
+      let calculatedRating = 4.0;
+      let minCount = 10;
+      let maxCount = 50;
+
+      if (prodPriority >= 5) {
+          calculatedRating = 4.6 + ((seed % 10) / 20); 
+          minCount = 40; maxCount = 95;
+      } else if (prodPriority > 0 && prodPriority < 5) {
+          calculatedRating = 4.0 + ((seed % 10) / 20);
+          minCount = 20; maxCount = 50;
+      } else {
+          calculatedRating = 3.3 + ((seed % 10) / 15);
+          minCount = 5; maxCount = 25;
+      }
+      
+      const finalRating = product.rating ? Number(product.rating) : Number(calculatedRating.toFixed(1));
+      const finalCount = product.review_count ? Number(product.review_count) : (minCount + (seed % (maxCount - minCount)));
+      
+      return { rating: finalRating, count: finalCount };
   }, [product]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown font-serif text-xl font-bold animate-pulse">Accessing Masterpiece...</div>;
@@ -564,7 +588,6 @@ export default function ProductClient() {
 
                         <div>
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Upload Photo (Optional)</label>
-                            {/* 🚀 FIXED: Review Image Drag and Drop Area */}
                             <div className="flex items-center justify-center w-full">
                                 <label 
                                     htmlFor="dropzone-file" 
