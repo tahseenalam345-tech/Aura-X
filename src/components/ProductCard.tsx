@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react"; 
+import React, { useState } from "react"; 
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingBag, Star } from "lucide-react";
@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import * as fbq from "@/lib/fpixel";
 
 interface Product {
-  id: string | number; // 🚀 Fixed to accept both string and numbers
+  id: string | number; 
   name: string;
   brand?: string; 
   price: number;
@@ -24,7 +24,8 @@ interface Product {
   specs?: any; 
   variants?: any; 
   is_eid_exclusive?: boolean; 
-  priority?: number; // 🚀 Added priority field
+  rating?: number;       // 🚀 DB se aayega
+  review_count?: number; // 🚀 DB se aayega
 }
 
 const optimizeCloudinaryUrl = (url: string) => {
@@ -45,7 +46,6 @@ const optimizeCloudinaryUrl = (url: string) => {
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const { addToCart } = useCart();
   const [isHovered, setIsHovered] = useState(false);
-  const [reviewData, setReviewData] = useState({ rating: 0, count: 0 }); // Default 0
   
   const mainImg = product.main_image || "/placeholder.jpg";
   const hoverImg = product.image || mainImg; 
@@ -67,43 +67,9 @@ export function ProductCard({ product, priority = false }: { product: Product; p
   else if (categoryStr.includes("women")) displayCategory = "WOMEN";
   else if (categoryStr.includes("couple")) displayCategory = "COUPLE";
 
-  // 🚀 FIXED SMART RANDOM REVIEWS LOGIC (Based on Priority)
-  useEffect(() => {
-      // 1. Safe String Conversion for Seed
-      const idStr = String(product.id || "");
-      let seed = 0;
-      for (let i = 0; i < idStr.length; i++) {
-          seed += idStr.charCodeAt(i);
-      }
-      
-      const prodPriority = Number(product.priority || 0);
-      
-      let calculatedRating = 4.0;
-      let minCount = 10;
-      let maxCount = 50;
-
-      // 2. Logic based on Priority
-      if (prodPriority >= 5) {
-          // High Priority: 4.6 to 5.0 Stars
-          calculatedRating = 4.6 + ((seed % 10) / 20); 
-          minCount = 40; maxCount = 95;
-      } else if (prodPriority > 0 && prodPriority < 5) {
-          // Medium Priority: 4.0 to 4.5 Stars
-          calculatedRating = 4.0 + ((seed % 10) / 20);
-          minCount = 20; maxCount = 50;
-      } else {
-          // Low/No Priority: 3.3 to 3.9 Stars
-          calculatedRating = 3.3 + ((seed % 10) / 15);
-          minCount = 5; maxCount = 25;
-      }
-
-      const calculatedCount = minCount + (seed % (maxCount - minCount));
-
-      setReviewData({
-          rating: Number(calculatedRating.toFixed(1)),
-          count: calculatedCount
-      });
-  }, [product.id, product.priority]);
+  // 🚀 DIRECT DB VALUES (No more fake frontend math)
+  const rating = product.rating ? Number(product.rating) : 0;
+  const reviewCount = product.review_count ? Number(product.review_count) : 0;
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); 
@@ -190,20 +156,20 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   </h3>
                 </Link>
 
-                {/* 🚀 REALISTIC REVIEWS STARS SECTION */}
-                {reviewData.count > 0 && (
+                {/* 🚀 REAL REVIEWS FROM DB RENDERED HERE */}
+                {reviewCount > 0 && (
                     <div className="flex items-center gap-1 mt-1.5 mb-1">
                         <div className="flex">
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <Star 
                                     key={star} 
                                     size={10} 
-                                    className={`${star <= Math.round(reviewData.rating) ? 'text-aura-gold' : 'text-gray-300'}`} 
-                                    fill={star <= Math.round(reviewData.rating) ? 'currentColor' : 'none'} 
+                                    className={`${star <= Math.round(rating) ? 'text-aura-gold' : 'text-gray-300'}`} 
+                                    fill={star <= Math.round(rating) ? 'currentColor' : 'none'} 
                                 />
                             ))}
                         </div>
-                        <span className="text-[9px] text-gray-400 font-medium">({reviewData.count})</span>
+                        <span className="text-[9px] text-gray-400 font-medium">({reviewCount})</span>
                     </div>
                 )}
 
