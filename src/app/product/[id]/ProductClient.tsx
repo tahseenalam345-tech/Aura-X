@@ -118,42 +118,41 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number, s
   );
 }
 
-// 🚀 NAYA COMPONENT: JS-Based Smooth Marquee
+// 🚀 FIXED COMPONENT: JS-Based Smooth Marquee (No CSS Animation Clash)
 const SmoothMarquee = ({ items }: { items: any[] }) => {
     const [isPaused, setIsPaused] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const requestRef = useRef<number>(0);
+    const scrollPos = useRef(0);
 
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
 
-        let animationFrameId: number;
-        let scrollPos = 0;
-        
-        // Use a consistent speed, adjustable here. Lower is slower.
-        const speed = 1;
+        const speed = 1.2; // Adjust scrolling speed here
 
         const animate = () => {
             if (!isPaused && container) {
-                scrollPos += speed;
+                scrollPos.current += speed;
                 
-                // Agar aadhi scroll length tak pohoch gaya hai, toh shuru se shuru karo
-                if (scrollPos >= container.scrollWidth / 2) {
-                    scrollPos = 0;
+                // When we scroll halfway (past the first set of items), jump back to start seamlessly
+                if (scrollPos.current >= container.scrollWidth / 2) {
+                    scrollPos.current = 0;
                 }
-                
-                container.scrollLeft = scrollPos;
+                container.scrollLeft = scrollPos.current;
             }
-            animationFrameId = requestAnimationFrame(animate);
+            requestRef.current = requestAnimationFrame(animate);
         };
 
-        animationFrameId = requestAnimationFrame(animate);
+        requestRef.current = requestAnimationFrame(animate);
 
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [isPaused]);
+        return () => {
+            if (requestRef.current) cancelAnimationFrame(requestRef.current);
+        };
+    }, [isPaused, items]);
 
-    // Hum items ko 3 dafa duplicate kar rahe hain taake infinite loop completely seamless ho
-    const duplicatedItems = [...items, ...items, ...items];
+    // Duplicate array exactly once to ensure seamless 50% loop math
+    const duplicatedItems = [...items, ...items];
 
     return (
         <div 
@@ -165,8 +164,8 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
         >
             <div 
                 ref={containerRef}
-                className="flex gap-4 px-4 whitespace-nowrap min-w-max overflow-x-hidden"
-                style={{ willChange: 'transform' }} // Browser optimization
+                className="flex gap-4 px-4 whitespace-nowrap min-w-max overflow-x-hidden py-2" // Removed 'animate-scroll'
+                style={{ willChange: 'transform' }} 
             >
                 {duplicatedItems.map((review, idx) => (
                     <div key={`review-${idx}`} className="w-[280px] md:w-[320px] bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-aura-gold/30 inline-flex flex-col whitespace-normal flex-shrink-0">
@@ -276,7 +275,7 @@ export default function ProductClient() {
            } else {
                setActiveViewers(Math.floor(Math.random() * (56 - 12 + 1) + 12));
            }
-           
+
            if (currentProduct.variants?.sizes?.length > 0) setSelectedSize(null);
            
            if (currentProduct.colors?.length === 1) {
@@ -302,11 +301,13 @@ export default function ProductClient() {
            }
            setRelatedProducts(finalRelated);
 
+           // 🚀 SPECIFIC REVIEWS FIRST
            const { data: productReviews } = await supabase.from('product_reviews').select('*').eq('product_id', id as string).order('created_at', { ascending: false });
            if (productReviews) setReviews(productReviews);
 
-           const { data: randomReviews } = await supabase.from('product_reviews').select('*').limit(10);
-           if (randomReviews && randomReviews.length > 0) setGenericReviews([...randomReviews, ...fallbackReviews].slice(0, 12));
+           // 🚀 GENERIC REVIEWS SECOND
+           const { data: randomReviews } = await supabase.from('product_reviews').select('*').limit(15);
+           if (randomReviews && randomReviews.length > 0) setGenericReviews([...randomReviews, ...fallbackReviews].slice(0, 20));
        }
        setLoading(false);
     };
@@ -496,9 +497,10 @@ export default function ProductClient() {
       return { rating: finalRating, count: finalCount };
   }, [product]);
 
-  // 🚀 Logic for ALL REVIEWS COMBINED
+  // 🚀 FIXED: Specific watch reviews will always show FIRST, then generic fallbacks loop continuously behind them.
   const allCombinedReviews = useMemo(() => {
       const dbReviews = reviews.length > 0 ? reviews : [];
+      // Combine them logically: Specific ones lead the line.
       return [...dbReviews, ...genericReviews];
   }, [reviews, genericReviews]);
 
@@ -620,6 +622,12 @@ export default function ProductClient() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30 overflow-x-hidden">
       <Navbar />
+
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 4px; }
+      `}} />
 
       <AnimatePresence>
         {showReviewModal && (
@@ -1193,6 +1201,7 @@ export default function ProductClient() {
             </div>
         </div>
 
+        {/* 🚀 7. REVIEWS MOVED ABOVE JOURNEY */}
         <div className="mb-10 max-w-6xl mx-auto overflow-hidden border-t border-b border-aura-gold/20 py-8 bg-[#FAF8F1] rounded-2xl">
             <div className="flex flex-col items-center text-center mb-6 px-4">
                 <h2 className="text-xl md:text-2xl font-serif font-bold text-aura-brown drop-shadow-sm flex items-center justify-center gap-2">
