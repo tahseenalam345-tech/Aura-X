@@ -407,6 +407,12 @@ export default function ProductClient() {
       return 0;
   }, [product]);
 
+  // 🚀 LOGIC FOR REVIEWS MERGING: Put real reviews first, then generic fallback reviews
+  const allCombinedReviews = useMemo(() => {
+      const dbReviews = reviews.length > 0 ? reviews : [];
+      return [...dbReviews, ...genericReviews];
+  }, [reviews, genericReviews]);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown font-serif text-xl font-bold animate-pulse">Accessing Masterpiece...</div>;
   if (!product) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] font-serif text-xl font-bold text-aura-brown">Product Not Found</div>;
 
@@ -521,12 +527,6 @@ export default function ProductClient() {
       categoryHiddenKeys = ['premium_black_box', 'weight', 'movement', 'case_size', 'adjustable', 'case_color', 'case_shape', 'strap_width', 'case_thickness'];
   }
   const allHiddenKeys = [...globalHiddenKeys, ...categoryHiddenKeys];
-
-  // 🚀 LOGIC FOR REVIEWS MERGING: Put real reviews first, then generic fallback reviews
-  const allCombinedReviews = useMemo(() => {
-      const dbReviews = reviews.length > 0 ? reviews : [];
-      return [...dbReviews, ...genericReviews];
-  }, [reviews, genericReviews]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30 overflow-x-hidden">
