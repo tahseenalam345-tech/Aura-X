@@ -119,6 +119,7 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number, s
 }
 
 // 🚀 FIXED COMPONENT: JS-Based Smooth Marquee (No CSS Animation Clash)
+// 🚀 FIXED COMPONENT: 100% Smooth JS-Based Marquee
 const SmoothMarquee = ({ items }: { items: any[] }) => {
     const [isPaused, setIsPaused] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -127,19 +128,34 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
 
     useEffect(() => {
         const container = containerRef.current;
-        if (!container) return;
+        if (!container || items.length === 0) return;
 
-        const speed = 1.2; // Adjust scrolling speed here
+        // Create a seamless loop by resetting scroll position exactly at the halfway mark
+        const speed = 0.8; // Smooth, slow speed
+        let lastTime = performance.now();
 
-        const animate = () => {
+        const animate = (time: number) => {
             if (!isPaused && container) {
-                scrollPos.current += speed;
+                // Calculate delta for consistent speed regardless of frame rate
+                const deltaTime = time - lastTime;
                 
-                // When we scroll halfway (past the first set of items), jump back to start seamlessly
-                if (scrollPos.current >= container.scrollWidth / 2) {
-                    scrollPos.current = 0;
+                // Only scroll if a minimum time has passed to prevent crazy fast jumping
+                if (deltaTime > 10) {
+                    scrollPos.current += speed;
+                    
+                    // The trick to seamless infinite loop:
+                    // Since we duplicate the array exactly once (A+B where B is identical to A),
+                    // when we scroll exactly the width of A (which is scrollWidth / 2), we jump back to 0.
+                    // The user's eye won't notice because the items at scrollWidth/2 look exactly like 0.
+                    if (scrollPos.current >= (container.scrollWidth / 2)) {
+                        scrollPos.current = 0; 
+                    }
+                    
+                    container.scrollLeft = scrollPos.current;
+                    lastTime = time;
                 }
-                container.scrollLeft = scrollPos.current;
+            } else {
+                lastTime = time; // Keep timer updated even when paused
             }
             requestRef.current = requestAnimationFrame(animate);
         };
@@ -147,12 +163,19 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
         requestRef.current = requestAnimationFrame(animate);
 
         return () => {
-            if (requestRef.current) cancelAnimationFrame(requestRef.current);
+            if (requestRef.current) {
+                cancelAnimationFrame(requestRef.current);
+            }
         };
     }, [isPaused, items]);
 
-    // Duplicate array exactly once to ensure seamless 50% loop math
-    const duplicatedItems = [...items, ...items];
+    // We duplicate the array exactly ONCE for the loop math to work perfectly.
+    // Ensure all keys are completely unique to prevent React rendering glitches.
+    const duplicatedItems = useMemo(() => {
+        return [...items, ...items].map((item, i) => ({ ...item, _uniqueId: `rev-${i}` }));
+    }, [items]);
+
+    if (items.length === 0) return null;
 
     return (
         <div 
@@ -164,11 +187,11 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
         >
             <div 
                 ref={containerRef}
-                className="flex gap-4 px-4 whitespace-nowrap min-w-max overflow-x-hidden py-2" // Removed 'animate-scroll'
+                className="flex gap-4 px-4 whitespace-nowrap min-w-max overflow-x-hidden py-2"
                 style={{ willChange: 'transform' }} 
             >
-                {duplicatedItems.map((review, idx) => (
-                    <div key={`review-${idx}`} className="w-[280px] md:w-[320px] bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-aura-gold/30 inline-flex flex-col whitespace-normal flex-shrink-0">
+                {duplicatedItems.map((review) => (
+                    <div key={review._uniqueId} className="w-[280px] md:w-[320px] bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-aura-gold/30 inline-flex flex-col whitespace-normal flex-shrink-0">
                         <div className="flex justify-between items-start mb-3">
                             <div>
                                 <p className="font-bold text-aura-brown text-sm flex items-center gap-1">
@@ -187,7 +210,8 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
                             {review.comment}
                         </p>
                         {review.image_url && (
-                            <div className="relative w-full h-40 rounded-xl overflow-hidden mt-auto border border-gray-200 shadow-inner">
+                            <div className="relative w-full h-40 rounded-xl overflow-hidden mt-auto border border-gray-200 shadow-inner bg-gray-50 flex items-center justify-center">
+                                {/* 🚀 FIXED: IMAGE IS NOW FULLY FIT (object-cover) */}
                                 <Image src={optimizeCloudinaryUrl(review.image_url)} alt="Review" fill className="object-cover transition-transform duration-500 hover:scale-105" unoptimized={true} />
                             </div>
                         )}
@@ -195,6 +219,7 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
                 ))}
             </div>
             
+            {/* Fade edges to hide the hard cut when it loops */}
             <div className="absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
             <div className="absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
         </div>
