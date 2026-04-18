@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react"; 
+import React, { useState, useEffect } from "react"; 
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingBag, Star } from "lucide-react";
@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import * as fbq from "@/lib/fpixel";
 
 interface Product {
-  id: string;
+  id: string | number; // 🚀 Fixed to accept both string and numbers
   name: string;
   brand?: string; 
   price: number;
@@ -24,6 +24,7 @@ interface Product {
   specs?: any; 
   variants?: any; 
   is_eid_exclusive?: boolean; 
+  priority?: number; // 🚀 Added priority field
 }
 
 const optimizeCloudinaryUrl = (url: string) => {
@@ -44,7 +45,7 @@ const optimizeCloudinaryUrl = (url: string) => {
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const { addToCart } = useCart();
   const [isHovered, setIsHovered] = useState(false);
-  const [reviewData, setReviewData] = useState({ rating: 5, count: 0 });
+  const [reviewData, setReviewData] = useState({ rating: 0, count: 0 }); // Default 0
   
   const mainImg = product.main_image || "/placeholder.jpg";
   const hoverImg = product.image || mainImg; 
@@ -66,24 +67,43 @@ export function ProductCard({ product, priority = false }: { product: Product; p
   else if (categoryStr.includes("women")) displayCategory = "WOMEN";
   else if (categoryStr.includes("couple")) displayCategory = "COUPLE";
 
-  // 🚀 GENERATE RANDOM REVIEWS ONCE PER PRODUCT ON CLIENT SIDE
+  // 🚀 FIXED SMART RANDOM REVIEWS LOGIC (Based on Priority)
   useEffect(() => {
-      // Use product.id to create a pseudo-random seed so the same product always gets the same fake reviews
+      // 1. Safe String Conversion for Seed
+      const idStr = String(product.id || "");
       let seed = 0;
-      for (let i = 0; i < product.id.length; i++) {
-          seed += product.id.charCodeAt(i);
+      for (let i = 0; i < idStr.length; i++) {
+          seed += idStr.charCodeAt(i);
       }
       
-      // Random rating between 4.5 and 5.0
-      const fakeRating = 4.5 + ((seed % 10) / 20); 
-      // Random count between 12 and 56
-      const fakeCount = 12 + (seed % 45); 
+      const prodPriority = Number(product.priority || 0);
+      
+      let calculatedRating = 4.0;
+      let minCount = 10;
+      let maxCount = 50;
+
+      // 2. Logic based on Priority
+      if (prodPriority >= 5) {
+          // High Priority: 4.6 to 5.0 Stars
+          calculatedRating = 4.6 + ((seed % 10) / 20); 
+          minCount = 40; maxCount = 95;
+      } else if (prodPriority > 0 && prodPriority < 5) {
+          // Medium Priority: 4.0 to 4.5 Stars
+          calculatedRating = 4.0 + ((seed % 10) / 20);
+          minCount = 20; maxCount = 50;
+      } else {
+          // Low/No Priority: 3.3 to 3.9 Stars
+          calculatedRating = 3.3 + ((seed % 10) / 15);
+          minCount = 5; maxCount = 25;
+      }
+
+      const calculatedCount = minCount + (seed % (maxCount - minCount));
 
       setReviewData({
-          rating: Number(fakeRating.toFixed(1)),
-          count: fakeCount
+          rating: Number(calculatedRating.toFixed(1)),
+          count: calculatedCount
       });
-  }, [product.id]);
+  }, [product.id, product.priority]);
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); 
@@ -95,7 +115,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
     }
 
     addToCart({
-        id: product.id,
+        id: String(product.id),
         name: displayShortName,
         price: product.price,
         image: mainImg, 
@@ -108,7 +128,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
     fbq.event('AddToCart', {
         content_name: displayShortName,
-        content_ids: [product.id],
+        content_ids: [String(product.id)],
         content_type: 'product',
         value: product.price,
         currency: 'PKR',
@@ -170,7 +190,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
                   </h3>
                 </Link>
 
-                {/* 🚀 NEW REVIEWS STARS SECTION */}
+                {/* 🚀 REALISTIC REVIEWS STARS SECTION */}
                 {reviewData.count > 0 && (
                     <div className="flex items-center gap-1 mt-1.5 mb-1">
                         <div className="flex">
