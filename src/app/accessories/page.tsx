@@ -15,22 +15,19 @@ export default function MensAccessoriesPage() {
   const [sortOrder, setSortOrder] = useState("mixed"); 
   const [showSortMenu, setShowSortMenu] = useState(false);
 
-  // 🚀 1. INITIAL LOAD SET TO 10
   const [visibleCount, setVisibleCount] = useState(10);
 
-  // Reset count jab filter change ho
   useEffect(() => {
       setVisibleCount(10);
   }, [activeCategory, sortOrder]);
 
-  // 🚀 2. AUTO-LOAD TIMER LOGIC (Har 2.5 sec baad 10 aur load honge)
   useEffect(() => {
       if (!loading && visibleCount < allProducts.length) {
           const timer = setTimeout(() => {
               setVisibleCount((prev) => prev + 10);
           }, 2500); 
           
-          return () => clearTimeout(timer); // Cleanup memory
+          return () => clearTimeout(timer); 
       }
   }, [visibleCount, allProducts.length, loading]);
 
@@ -88,6 +85,15 @@ export default function MensAccessoriesPage() {
         filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (sortOrder === "mixed" && activeCategory === "all") {
         
+        // 🚀 LOGIC ADDED: Sort by Priority first BEFORE grouping them for the 2-1-1-1 sequence
+        filtered.sort((a, b) => {
+            const priorityA = a.priority || 0;
+            const priorityB = b.priority || 0;
+            if (priorityA !== priorityB) return priorityB - priorityA;
+            // Agar priority same ho, toh newest wali pehle aaye
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+
         const groups: Record<string, any[]> = { watches: [], smartwatches: [], wallets: [], bracelets: [], audio: [], other: [] };
         
         filtered.forEach(p => {
@@ -152,14 +158,14 @@ export default function MensAccessoriesPage() {
     <main className="min-h-screen bg-[#FDFBF7] font-serif">
       <Navbar />
 
-      {/* 🚀 UPDATED BANNER WITH HIGH CONTRAST DARK TEXT FOR 'OPEN PARCEL ALLOWED' */}
       <div className="w-full bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-[8px] md:text-xs font-black uppercase tracking-widest py-2.5 flex justify-center items-center gap-1 md:gap-2 shadow-md relative z-30 mt-[56px] md:mt-[80px]">
           <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
           <span className="text-center flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
              <span>100% Free Delivery & Up To 30% OFF</span> 
              <span className="opacity-70 hidden md:inline">|</span>
-             {/* 🚀 Changed text to dark Aura-brown with a tiny white background to act like a Trust Badge */}
-             <span className="text-[#1E1B18] bg-[#FDFBF7] px-1.5 md:px-2 py-0.5 rounded shadow-sm font-black tracking-widest">OPEN PARCEL ALLOWED</span>
+             <span className="text-[#1E1B18] bg-gradient-to-r from-[#F9E596] to-[#D4AF37] px-2 py-0.5 rounded-md shadow-lg font-black tracking-widest border border-[#1E1B18]/20">
+                 OPEN PARCEL ALLOWED
+             </span>
           </span>
           <Zap size={14} className="fill-white animate-pulse hidden md:block"/> 
       </div>
