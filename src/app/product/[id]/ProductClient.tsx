@@ -118,6 +118,90 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number, s
   );
 }
 
+// 🚀 NAYA COMPONENT: JS-Based Smooth Marquee
+const SmoothMarquee = ({ items }: { items: any[] }) => {
+    const [isPaused, setIsPaused] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        let animationFrameId: number;
+        let scrollPos = 0;
+        
+        // Use a consistent speed, adjustable here. Lower is slower.
+        const speed = 1;
+
+        const animate = () => {
+            if (!isPaused && container) {
+                scrollPos += speed;
+                
+                // Agar aadhi scroll length tak pohoch gaya hai, toh shuru se shuru karo
+                if (scrollPos >= container.scrollWidth / 2) {
+                    scrollPos = 0;
+                }
+                
+                container.scrollLeft = scrollPos;
+            }
+            animationFrameId = requestAnimationFrame(animate);
+        };
+
+        animationFrameId = requestAnimationFrame(animate);
+
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [isPaused]);
+
+    // Hum items ko 3 dafa duplicate kar rahe hain taake infinite loop completely seamless ho
+    const duplicatedItems = [...items, ...items, ...items];
+
+    return (
+        <div 
+            className="relative w-full flex overflow-hidden group mb-6"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onTouchStart={() => setIsPaused(true)}
+            onTouchEnd={() => setIsPaused(false)}
+        >
+            <div 
+                ref={containerRef}
+                className="flex gap-4 px-4 whitespace-nowrap min-w-max overflow-x-hidden"
+                style={{ willChange: 'transform' }} // Browser optimization
+            >
+                {duplicatedItems.map((review, idx) => (
+                    <div key={`review-${idx}`} className="w-[280px] md:w-[320px] bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-aura-gold/30 inline-flex flex-col whitespace-normal flex-shrink-0">
+                        <div className="flex justify-between items-start mb-3">
+                            <div>
+                                <p className="font-bold text-aura-brown text-sm flex items-center gap-1">
+                                    {review.customer_name} <Check size={12} className="text-green-500 bg-green-50 rounded-full p-0.5"/>
+                                </p>
+                                <p className="text-[9px] text-gray-400 uppercase tracking-wider">{review.city || "Pakistan"}, PK</p>
+                            </div>
+                            <div className="flex gap-0.5">
+                                {[...Array(5)].map((_, i) => (
+                                    <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-200"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
+                                ))}
+                            </div>
+                        </div>
+                        <p className="text-xs text-aura-brown leading-relaxed italic relative mb-3 flex-1 bg-[#FFFBF2] p-3 rounded-lg border border-aura-gold/20 font-medium">
+                            <Quote size={12} className="inline text-aura-gold/40 mr-1 -mt-1" />
+                            {review.comment}
+                        </p>
+                        {review.image_url && (
+                            <div className="relative w-full h-40 rounded-xl overflow-hidden mt-auto border border-gray-200 shadow-inner">
+                                <Image src={optimizeCloudinaryUrl(review.image_url)} alt="Review" fill className="object-cover transition-transform duration-500 hover:scale-105" unoptimized={true} />
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+            
+            <div className="absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
+            <div className="absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
+        </div>
+    );
+};
+
 export default function ProductClient() {
   const { id } = useParams();
   const router = useRouter(); 
@@ -131,7 +215,6 @@ export default function ProductClient() {
 
   const [reviews, setReviews] = useState<any[]>([]);
   const [genericReviews, setGenericReviews] = useState<any[]>(fallbackReviews);
-  const [reviewData, setReviewData] = useState({ rating: 0, count: 0 }); 
   
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({ name: "", city: "", comment: "", rating: 5 });
@@ -193,28 +276,6 @@ export default function ProductClient() {
            } else {
                setActiveViewers(Math.floor(Math.random() * (56 - 12 + 1) + 12));
            }
-
-           const idStr = String(currentProduct.id || "");
-           let seed = 0;
-           for (let i = 0; i < idStr.length; i++) { seed += idStr.charCodeAt(i); }
-           const prodPriority = Number(currentProduct.priority || 0);
-           
-           let calculatedRating = 4.0;
-           let minCount = 10;
-           let maxCount = 50;
-
-           if (prodPriority >= 5) {
-               calculatedRating = 4.6 + ((seed % 10) / 20); 
-               minCount = 40; maxCount = 95;
-           } else if (prodPriority > 0 && prodPriority < 5) {
-               calculatedRating = 4.0 + ((seed % 10) / 20);
-               minCount = 20; maxCount = 50;
-           } else {
-               calculatedRating = 3.3 + ((seed % 10) / 15);
-               minCount = 5; maxCount = 25;
-           }
-           const calculatedCount = minCount + (seed % (maxCount - minCount));
-           setReviewData({ rating: Number(calculatedRating.toFixed(1)), count: calculatedCount });
            
            if (currentProduct.variants?.sizes?.length > 0) setSelectedSize(null);
            
@@ -407,7 +468,35 @@ export default function ProductClient() {
       return 0;
   }, [product]);
 
-  // 🚀 LOGIC FOR REVIEWS MERGING: Put real reviews first, then generic fallback reviews
+  const reviewData = useMemo(() => {
+      if (!product?.id) return { rating: 0, count: 0 };
+      const idStr = String(product.id);
+      let seed = 0;
+      for (let i = 0; i < idStr.length; i++) { seed += idStr.charCodeAt(i); }
+      
+      const prodPriority = Number(product.priority || 0);
+      let calculatedRating = 4.0;
+      let minCount = 10;
+      let maxCount = 50;
+
+      if (prodPriority >= 5) {
+          calculatedRating = 4.6 + ((seed % 10) / 20); 
+          minCount = 40; maxCount = 95;
+      } else if (prodPriority > 0 && prodPriority < 5) {
+          calculatedRating = 4.0 + ((seed % 10) / 20);
+          minCount = 20; maxCount = 50;
+      } else {
+          calculatedRating = 3.3 + ((seed % 10) / 15);
+          minCount = 5; maxCount = 25;
+      }
+      
+      const finalRating = product.rating ? Number(product.rating) : Number(calculatedRating.toFixed(1));
+      const finalCount = product.review_count ? Number(product.review_count) : (minCount + (seed % (maxCount - minCount)));
+      
+      return { rating: finalRating, count: finalCount };
+  }, [product]);
+
+  // 🚀 Logic for ALL REVIEWS COMBINED
   const allCombinedReviews = useMemo(() => {
       const dbReviews = reviews.length > 0 ? reviews : [];
       return [...dbReviews, ...genericReviews];
@@ -531,18 +620,6 @@ export default function ProductClient() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#FDFBF7] to-[#F5EEDC] text-aura-brown pb-24 md:pb-10 font-serif selection:bg-aura-gold/30 overflow-x-hidden">
       <Navbar />
-
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(calc(-300px * 10 - 1rem * 10)); }
-        }
-        .animate-scroll { animation: scroll 45s linear infinite; }
-        .animate-scroll:hover { animation-play-state: paused; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 4px; }
-      `}} />
 
       <AnimatePresence>
         {showReviewModal && (
@@ -1116,7 +1193,6 @@ export default function ProductClient() {
             </div>
         </div>
 
-        {/* 🚀 7. REVIEWS MOVED ABOVE JOURNEY */}
         <div className="mb-10 max-w-6xl mx-auto overflow-hidden border-t border-b border-aura-gold/20 py-8 bg-[#FAF8F1] rounded-2xl">
             <div className="flex flex-col items-center text-center mb-6 px-4">
                 <h2 className="text-xl md:text-2xl font-serif font-bold text-aura-brown drop-shadow-sm flex items-center justify-center gap-2">
@@ -1130,43 +1206,9 @@ export default function ProductClient() {
                 </div>
             </div>
             
-            {/* 🚀 FIXED: ALL REVIEWS IN ONE AUTO-SCROLLING ROW */}
+            {/* 🚀 FIXED REVIEWS: Smooth Marquee Integration */}
             {allCombinedReviews.length > 0 && (
-                <div className="relative w-full flex overflow-hidden group mb-6">
-                    <div className="flex gap-4 px-4 animate-scroll whitespace-nowrap min-w-max hover:animation-pause">
-                        {/* Duplicate for infinite scroll loop */}
-                        {[...allCombinedReviews, ...allCombinedReviews].map((review, idx) => (
-                            <div key={`review-${idx}`} className="w-[280px] md:w-[320px] bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-aura-gold/30 inline-flex flex-col whitespace-normal flex-shrink-0">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <p className="font-bold text-aura-brown text-sm flex items-center gap-1">
-                                            {review.customer_name} <Check size={12} className="text-green-500 bg-green-50 rounded-full p-0.5"/>
-                                        </p>
-                                        <p className="text-[9px] text-gray-400 uppercase tracking-wider">{review.city || "Pakistan"}, PK</p>
-                                    </div>
-                                    <div className="flex gap-0.5">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-200"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
-                                        ))}
-                                    </div>
-                                </div>
-                                <p className="text-xs text-aura-brown leading-relaxed italic relative mb-3 flex-1 bg-[#FFFBF2] p-3 rounded-lg border border-aura-gold/20 font-medium">
-                                    <Quote size={12} className="inline text-aura-gold/40 mr-1 -mt-1" />
-                                    {review.comment}
-                                </p>
-                                {review.image_url && (
-                                    <div className="relative w-full h-40 rounded-xl overflow-hidden mt-auto border border-gray-200 shadow-inner">
-                                        {/* 🚀 FIXED: IMAGE IS NOW FULLY FIT (object-cover) */}
-                                        <Image src={optimizeCloudinaryUrl(review.image_url)} alt="Review" fill className="object-cover transition-transform duration-500 hover:scale-105" unoptimized={true} />
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                    {/* Fade edges */}
-                    <div className="absolute top-0 bottom-0 left-0 w-8 bg-gradient-to-r from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
-                    <div className="absolute top-0 bottom-0 right-0 w-8 bg-gradient-to-l from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
-                </div>
+                <SmoothMarquee items={allCombinedReviews} />
             )}
         </div>
 
