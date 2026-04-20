@@ -118,20 +118,19 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number, s
   );
 }
 
-// 🚀 FIXED COMPONENT: 100% Smooth JS Marquee + Lazy Load + Overlay Cards + Manual Drag
+// 🚀 FIXED COMPONENT: 100% Smooth JS Marquee + Auto-Scroll after 2s + Full Images
 const SmoothMarquee = ({ items }: { items: any[] }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const requestRef = useRef<number | null>(null);
+    const requestRef = useRef<number>(0);
     const [isPaused, setIsPaused] = useState(false);
     const [shouldAnimate, setShouldAnimate] = useState(false);
-    const [isVisible, setIsVisible] = useState(false);
 
     // Manual Drag States
     const isDragging = useRef(false);
     const startX = useRef(0);
     const scrollLeft = useRef(0);
 
-    // Remove duplicates to prevent A, A, B, B issue
+    // 1. Remove duplicates so we don't have the same reviews repeating immediately
     const uniqueItems = useMemo(() => {
         const unique = [];
         const seen = new Set();
@@ -144,40 +143,42 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
         return unique;
     }, [items]);
 
-    // Duplicate exactly once for seamless infinite loop math
+    // 2. Duplicate EXACTLY ONCE for infinite seamless loop math
     const displayItems = useMemo(() => {
         return [...uniqueItems, ...uniqueItems].map((item, i) => ({...item, _key: `rev-${i}`}));
     }, [uniqueItems]);
 
-    // 1. LAZY LOADING & 2-SECOND DELAY
+    // 3. START MOVING AFTER 2 SECONDS
     useEffect(() => {
-        const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting) {
-                setIsVisible(true); // Load UI
-                setTimeout(() => setShouldAnimate(true), 2000); // Start moving after 2 seconds
-                observer.disconnect();
-            }
-        }, { threshold: 0.1 });
-
-        if (containerRef.current) observer.observe(containerRef.current);
-        return () => observer.disconnect();
+        const timer = setTimeout(() => {
+            setShouldAnimate(true);
+        }, 2000);
+        return () => clearTimeout(timer);
     }, []);
 
-    // 2. SMOOTH SCROLLING LOGIC
+    // 4. ANIMATION LOGIC
     useEffect(() => {
         const container = containerRef.current;
         if (!container || !shouldAnimate) return;
 
-        const speed = 1; // Adjust speed here
+        const speed = 0.8; // Smooth speed
+        let lastTime = performance.now();
 
-        const animate = () => {
+        const animate = (time: number) => {
             if (!isPaused && !isDragging.current && container) {
-                container.scrollLeft += speed;
+                const deltaTime = time - lastTime;
                 
-                // Seamless loop jump
-                if (container.scrollLeft >= container.scrollWidth / 2) {
-                    container.scrollLeft = 0;
+                if (deltaTime > 10) {
+                    container.scrollLeft += speed;
+                    
+                    // Seamless loop: Jump back to 0 exactly when half the width is scrolled
+                    if (container.scrollLeft >= container.scrollWidth / 2) {
+                        container.scrollLeft = 0;
+                    }
+                    lastTime = time;
                 }
+            } else {
+                lastTime = time;
             }
             requestRef.current = requestAnimationFrame(animate);
         };
@@ -187,9 +188,9 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [isPaused, shouldAnimate]);
+    }, [isPaused, shouldAnimate, displayItems.length]);
 
-    // 3. MANUAL DRAG & SWIPE
+    // --- Manual Drag & Swipe Handlers ---
     const handleMouseDown = (e: React.MouseEvent) => {
         isDragging.current = true;
         setIsPaused(true);
@@ -210,7 +211,7 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
         if (!isDragging.current || !containerRef.current) return;
         e.preventDefault();
         const x = e.pageX - containerRef.current.offsetLeft;
-        const walk = (x - startX.current) * 2;
+        const walk = (x - startX.current) * 2; // Scrolling speed multiplier
         containerRef.current.scrollLeft = scrollLeft.current - walk;
     };
 
@@ -218,91 +219,63 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
 
     return (
         <div className="relative w-full flex overflow-hidden group mb-6">
-            
-            {isVisible && (
-                <div 
-                    ref={containerRef}
-                    className="flex gap-4 px-4 overflow-x-auto py-2 select-none cursor-grab active:cursor-grabbing"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} // Hide scrollbar
-                    onMouseEnter={() => setIsPaused(true)}
-                    onMouseLeave={handleMouseLeave}
-                    onTouchStart={() => setIsPaused(true)}
-                    onTouchEnd={() => setIsPaused(false)}
-                    onMouseDown={handleMouseDown}
-                    onMouseUp={handleMouseUp}
-                    onMouseMove={handleMouseMove}
-                >
-                    <style dangerouslySetInnerHTML={{__html: `div::-webkit-scrollbar { display: none; }`}} />
-                    
-                    {displayItems.map((review) => (
-                        <div key={review._key} className={`w-[280px] md:w-[320px] h-[350px] relative rounded-2xl shadow-sm border border-aura-gold/30 flex-shrink-0 overflow-hidden ${review.image_url ? 'bg-black' : 'bg-gradient-to-br from-[#FDFBF7] to-[#F5EEDC]'}`}>
-                            
-                            {/* 🟢 IF IMAGE EXISTS: FULL IMAGE WITH TEXT OVERLAY */}
-                            {review.image_url ? (
-                                <>
-                                    {/* Blurred background for wide/short images */}
-                                    <Image src={optimizeCloudinaryUrl(review.image_url)} alt="bg" fill className="object-cover blur-xl opacity-40 scale-110 pointer-events-none" unoptimized={true} />
-                                    {/* Main uncropped full image */}
-                                    <Image src={optimizeCloudinaryUrl(review.image_url)} alt="Review" fill className="object-contain pointer-events-none" unoptimized={true} />
-                                    {/* Dark Gradient so text is clear */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 pointer-events-none" />
-                                    
-                                    {/* Text Overlay */}
-                                    <div className="relative z-10 flex flex-col h-full justify-between p-5 text-white pointer-events-none">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="font-bold text-sm flex items-center gap-1 drop-shadow-md">
-                                                    {review.customer_name} <Check size={12} className="text-white bg-green-500 rounded-full p-0.5"/>
-                                                </p>
-                                                <p className="text-[9px] text-gray-300 uppercase tracking-wider drop-shadow">{review.city || "Pakistan"}, PK</p>
-                                            </div>
-                                            <div className="flex gap-0.5 drop-shadow-md">
-                                                {[...Array(5)].map((_, i) => (
-                                                    <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-400"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
-                                                ))}
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Description text acting like a caption */}
-                                        <div className="mt-auto">
-                                            <p className="text-[13px] font-medium leading-relaxed italic drop-shadow-lg text-white/95">
-                                                <Quote size={14} className="inline text-aura-gold mr-1 -mt-1" />
-                                                {review.comment}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                /* 🟡 IF NO IMAGE: BEAUTIFUL TEXT BOX */
-                                <div className="flex flex-col h-full p-5 pointer-events-none">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <p className="font-bold text-aura-brown text-sm flex items-center gap-1">
-                                                {review.customer_name} <Check size={12} className="text-green-600 bg-green-100 rounded-full p-0.5"/>
-                                            </p>
-                                            <p className="text-[9px] text-gray-500 uppercase tracking-wider">{review.city || "Pakistan"}, PK</p>
-                                        </div>
-                                        <div className="flex gap-0.5">
-                                            {[...Array(5)].map((_, i) => (
-                                                <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-300"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 flex items-center justify-center">
-                                        <p className="text-[15px] text-aura-brown leading-relaxed italic font-medium text-center">
-                                            <Quote size={16} className="inline text-aura-gold/40 mr-1 -mt-1" />
-                                            {review.comment}
-                                            <Quote size={16} className="inline text-aura-gold/40 ml-1 -mt-1" />
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
+            <div 
+                ref={containerRef}
+                className="flex gap-4 px-4 overflow-x-auto py-2 select-none cursor-grab active:cursor-grabbing"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} // Hide default scrollbar
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={handleMouseLeave}
+                onTouchStart={() => setIsPaused(true)}
+                onTouchEnd={() => setIsPaused(false)}
+                onMouseDown={handleMouseDown}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+            >
+                <style dangerouslySetInnerHTML={{__html: `div::-webkit-scrollbar { display: none; }`}} />
+                
+                {displayItems.map((review) => (
+                    <div key={review._key} className="w-[280px] md:w-[320px] bg-white p-5 rounded-2xl shadow-sm border border-aura-gold/30 flex flex-col whitespace-normal flex-shrink-0 pointer-events-none">
+                        
+                        {/* Header: Name, City, Stars */}
+                        <div className="flex justify-between items-start mb-3">
+                            <div>
+                                <p className="font-bold text-aura-brown text-sm flex items-center gap-1">
+                                    {review.customer_name} <Check size={12} className="text-green-500 bg-green-50 rounded-full p-0.5"/>
+                                </p>
+                                <p className="text-[9px] text-gray-400 uppercase tracking-wider">{review.city || "Pakistan"}, PK</p>
+                            </div>
+                            <div className="flex gap-0.5">
+                                {[...Array(5)].map((_, i) => (
+                                    <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-200"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
+                                ))}
+                            </div>
                         </div>
-                    ))}
-                </div>
-            )}
+
+                        {/* Review Text - Beautiful Cream Box */}
+                        <div className="flex-1 p-4 rounded-xl border border-aura-gold/20 font-medium text-xs leading-relaxed italic bg-[#FFFBF2] mb-3 text-aura-brown min-h-[100px] flex items-center">
+                            <p className="w-full">
+                                <Quote size={14} className="inline text-aura-gold/40 mr-1 -mt-1" />
+                                {review.comment}
+                            </p>
+                        </div>
+
+                        {/* Review Image - Full Picture (object-contain) */}
+                        {review.image_url && (
+                            <div className="relative w-full h-48 rounded-xl overflow-hidden mt-auto border border-gray-100 bg-[#F9F9F9] flex items-center justify-center p-1">
+                                <Image 
+                                    src={optimizeCloudinaryUrl(review.image_url)} 
+                                    alt="Customer Review" 
+                                    fill 
+                                    className="object-contain" 
+                                    unoptimized={true} 
+                                />
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
             
-            {/* Fade edges to hide the cutoff */}
+            {/* Fade edges to smooth the left/right cutoffs */}
             <div className="absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
             <div className="absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
         </div>
