@@ -118,44 +118,66 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number, s
   );
 }
 
-// 🚀 FIXED COMPONENT: JS-Based Smooth Marquee (No CSS Animation Clash)
-// 🚀 FIXED COMPONENT: 100% Smooth JS-Based Marquee
+// 🚀 FIXED COMPONENT: 100% Smooth JS Marquee + Lazy Load + Overlay Cards + Manual Drag
 const SmoothMarquee = ({ items }: { items: any[] }) => {
-    const [isPaused, setIsPaused] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
-    const requestRef = useRef<number>(0);
-    const scrollPos = useRef(0);
+    const requestRef = useRef<number | null>(null);
+    const [isPaused, setIsPaused] = useState(false);
+    const [shouldAnimate, setShouldAnimate] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
 
+    // Manual Drag States
+    const isDragging = useRef(false);
+    const startX = useRef(0);
+    const scrollLeft = useRef(0);
+
+    // Remove duplicates to prevent A, A, B, B issue
+    const uniqueItems = useMemo(() => {
+        const unique = [];
+        const seen = new Set();
+        for (const item of items) {
+            if (!seen.has(item.comment)) {
+                seen.add(item.comment);
+                unique.push(item);
+            }
+        }
+        return unique;
+    }, [items]);
+
+    // Duplicate exactly once for seamless infinite loop math
+    const displayItems = useMemo(() => {
+        return [...uniqueItems, ...uniqueItems].map((item, i) => ({...item, _key: `rev-${i}`}));
+    }, [uniqueItems]);
+
+    // 1. LAZY LOADING & 2-SECOND DELAY
+    useEffect(() => {
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) {
+                setIsVisible(true); // Load UI
+                setTimeout(() => setShouldAnimate(true), 2000); // Start moving after 2 seconds
+                observer.disconnect();
+            }
+        }, { threshold: 0.1 });
+
+        if (containerRef.current) observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, []);
+
+    // 2. SMOOTH SCROLLING LOGIC
     useEffect(() => {
         const container = containerRef.current;
-        if (!container || items.length === 0) return;
+        if (!container || !shouldAnimate) return;
 
-        // Create a seamless loop by resetting scroll position exactly at the halfway mark
-        const speed = 0.8; // Smooth, slow speed
-        let lastTime = performance.now();
+        const speed = 1; // Adjust speed here
 
-        const animate = (time: number) => {
-            if (!isPaused && container) {
-                // Calculate delta for consistent speed regardless of frame rate
-                const deltaTime = time - lastTime;
+        const animate = () => {
+            if (!isPaused && !isDragging.current && container) {
+                container.scrollLeft += speed;
                 
-                // Only scroll if a minimum time has passed to prevent crazy fast jumping
-                if (deltaTime > 10) {
-                    scrollPos.current += speed;
-                    
-                    // The trick to seamless infinite loop:
-                    // Since we duplicate the array exactly once (A+B where B is identical to A),
-                    // when we scroll exactly the width of A (which is scrollWidth / 2), we jump back to 0.
-                    // The user's eye won't notice because the items at scrollWidth/2 look exactly like 0.
-                    if (scrollPos.current >= (container.scrollWidth / 2)) {
-                        scrollPos.current = 0; 
-                    }
-                    
-                    container.scrollLeft = scrollPos.current;
-                    lastTime = time;
+                // Seamless loop jump
+                if (container.scrollLeft >= container.scrollWidth / 2) {
+                    container.scrollLeft = 0;
                 }
-            } else {
-                lastTime = time; // Keep timer updated even when paused
             }
             requestRef.current = requestAnimationFrame(animate);
         };
@@ -163,63 +185,124 @@ const SmoothMarquee = ({ items }: { items: any[] }) => {
         requestRef.current = requestAnimationFrame(animate);
 
         return () => {
-            if (requestRef.current) {
-                cancelAnimationFrame(requestRef.current);
-            }
+            if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [isPaused, items]);
+    }, [isPaused, shouldAnimate]);
 
-    // We duplicate the array exactly ONCE for the loop math to work perfectly.
-    // Ensure all keys are completely unique to prevent React rendering glitches.
-    const duplicatedItems = useMemo(() => {
-        return [...items, ...items].map((item, i) => ({ ...item, _uniqueId: `rev-${i}` }));
-    }, [items]);
+    // 3. MANUAL DRAG & SWIPE
+    const handleMouseDown = (e: React.MouseEvent) => {
+        isDragging.current = true;
+        setIsPaused(true);
+        if (containerRef.current) {
+            startX.current = e.pageX - containerRef.current.offsetLeft;
+            scrollLeft.current = containerRef.current.scrollLeft;
+        }
+    };
+    const handleMouseLeave = () => {
+        isDragging.current = false;
+        setIsPaused(false);
+    };
+    const handleMouseUp = () => {
+        isDragging.current = false;
+        setIsPaused(false);
+    };
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging.current || !containerRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - containerRef.current.offsetLeft;
+        const walk = (x - startX.current) * 2;
+        containerRef.current.scrollLeft = scrollLeft.current - walk;
+    };
 
-    if (items.length === 0) return null;
+    if (uniqueItems.length === 0) return null;
 
     return (
-        <div 
-            className="relative w-full flex overflow-hidden group mb-6"
-            onMouseEnter={() => setIsPaused(true)}
-            onMouseLeave={() => setIsPaused(false)}
-            onTouchStart={() => setIsPaused(true)}
-            onTouchEnd={() => setIsPaused(false)}
-        >
-            <div 
-                ref={containerRef}
-                className="flex gap-4 px-4 whitespace-nowrap min-w-max overflow-x-hidden py-2"
-                style={{ willChange: 'transform' }} 
-            >
-                {duplicatedItems.map((review) => (
-                    <div key={review._uniqueId} className="w-[280px] md:w-[320px] bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-aura-gold/30 inline-flex flex-col whitespace-normal flex-shrink-0">
-                        <div className="flex justify-between items-start mb-3">
-                            <div>
-                                <p className="font-bold text-aura-brown text-sm flex items-center gap-1">
-                                    {review.customer_name} <Check size={12} className="text-green-500 bg-green-50 rounded-full p-0.5"/>
-                                </p>
-                                <p className="text-[9px] text-gray-400 uppercase tracking-wider">{review.city || "Pakistan"}, PK</p>
-                            </div>
-                            <div className="flex gap-0.5">
-                                {[...Array(5)].map((_, i) => (
-                                    <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-200"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
-                                ))}
-                            </div>
-                        </div>
-                        <p className="text-xs text-aura-brown leading-relaxed italic relative mb-3 flex-1 bg-[#FFFBF2] p-3 rounded-lg border border-aura-gold/20 font-medium">
-                            <Quote size={12} className="inline text-aura-gold/40 mr-1 -mt-1" />
-                            {review.comment}
-                        </p>
-                        {review.image_url && (
-                            <div className="relative w-full h-40 rounded-xl overflow-hidden mt-auto border border-gray-200 shadow-inner bg-gray-50 flex items-center justify-center">
-                                {/* 🚀 FIXED: IMAGE IS NOW FULLY FIT (object-cover) */}
-                                <Image src={optimizeCloudinaryUrl(review.image_url)} alt="Review" fill className="object-cover transition-transform duration-500 hover:scale-105" unoptimized={true} />
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
+        <div className="relative w-full flex overflow-hidden group mb-6">
             
-            {/* Fade edges to hide the hard cut when it loops */}
+            {isVisible && (
+                <div 
+                    ref={containerRef}
+                    className="flex gap-4 px-4 overflow-x-auto py-2 select-none cursor-grab active:cursor-grabbing"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} // Hide scrollbar
+                    onMouseEnter={() => setIsPaused(true)}
+                    onMouseLeave={handleMouseLeave}
+                    onTouchStart={() => setIsPaused(true)}
+                    onTouchEnd={() => setIsPaused(false)}
+                    onMouseDown={handleMouseDown}
+                    onMouseUp={handleMouseUp}
+                    onMouseMove={handleMouseMove}
+                >
+                    <style dangerouslySetInnerHTML={{__html: `div::-webkit-scrollbar { display: none; }`}} />
+                    
+                    {displayItems.map((review) => (
+                        <div key={review._key} className={`w-[280px] md:w-[320px] h-[350px] relative rounded-2xl shadow-sm border border-aura-gold/30 flex-shrink-0 overflow-hidden ${review.image_url ? 'bg-black' : 'bg-gradient-to-br from-[#FDFBF7] to-[#F5EEDC]'}`}>
+                            
+                            {/* 🟢 IF IMAGE EXISTS: FULL IMAGE WITH TEXT OVERLAY */}
+                            {review.image_url ? (
+                                <>
+                                    {/* Blurred background for wide/short images */}
+                                    <Image src={optimizeCloudinaryUrl(review.image_url)} alt="bg" fill className="object-cover blur-xl opacity-40 scale-110 pointer-events-none" unoptimized={true} />
+                                    {/* Main uncropped full image */}
+                                    <Image src={optimizeCloudinaryUrl(review.image_url)} alt="Review" fill className="object-contain pointer-events-none" unoptimized={true} />
+                                    {/* Dark Gradient so text is clear */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 pointer-events-none" />
+                                    
+                                    {/* Text Overlay */}
+                                    <div className="relative z-10 flex flex-col h-full justify-between p-5 text-white pointer-events-none">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-bold text-sm flex items-center gap-1 drop-shadow-md">
+                                                    {review.customer_name} <Check size={12} className="text-white bg-green-500 rounded-full p-0.5"/>
+                                                </p>
+                                                <p className="text-[9px] text-gray-300 uppercase tracking-wider drop-shadow">{review.city || "Pakistan"}, PK</p>
+                                            </div>
+                                            <div className="flex gap-0.5 drop-shadow-md">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-400"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Description text acting like a caption */}
+                                        <div className="mt-auto">
+                                            <p className="text-[13px] font-medium leading-relaxed italic drop-shadow-lg text-white/95">
+                                                <Quote size={14} className="inline text-aura-gold mr-1 -mt-1" />
+                                                {review.comment}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                /* 🟡 IF NO IMAGE: BEAUTIFUL TEXT BOX */
+                                <div className="flex flex-col h-full p-5 pointer-events-none">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <p className="font-bold text-aura-brown text-sm flex items-center gap-1">
+                                                {review.customer_name} <Check size={12} className="text-green-600 bg-green-100 rounded-full p-0.5"/>
+                                            </p>
+                                            <p className="text-[9px] text-gray-500 uppercase tracking-wider">{review.city || "Pakistan"}, PK</p>
+                                        </div>
+                                        <div className="flex gap-0.5">
+                                            {[...Array(5)].map((_, i) => (
+                                                <Star key={i} size={12} className={i < (review.rating || 5) ? "text-aura-gold" : "text-gray-300"} fill={i < (review.rating || 5) ? "currentColor" : "none"} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 flex items-center justify-center">
+                                        <p className="text-[15px] text-aura-brown leading-relaxed italic font-medium text-center">
+                                            <Quote size={16} className="inline text-aura-gold/40 mr-1 -mt-1" />
+                                            {review.comment}
+                                            <Quote size={16} className="inline text-aura-gold/40 ml-1 -mt-1" />
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+            
+            {/* Fade edges to hide the cutoff */}
             <div className="absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
             <div className="absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-[#FAF8F1] to-transparent z-10 pointer-events-none"></div>
         </div>
