@@ -1,18 +1,18 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { 
-  Search, Plus, Filter, Download, ArrowUpDown, CheckCircle2, XCircle, 
-  Clock, RotateCcw, Truck, DollarSign, TrendingUp, Package, AlertCircle, PlusCircle, MapPin, Calendar, Megaphone
+  Search, Plus, CheckCircle2, RotateCcw, Truck, DollarSign, 
+  TrendingUp, Package, AlertCircle, PlusCircle, MapPin, 
+  Calendar, Megaphone, Trash2, X 
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-// Types
 interface Order {
   id: string;
   order_id: string;
   date: string;
-  status_date: string; // Auto updates when status changes
+  status_date: string; 
   customer_name: string;
   city: string;
   product_name: string;
@@ -31,7 +31,6 @@ interface Order {
 
 const COURIERS = ["None", "Leopard", "TCS", "BlueEx", "Trax", "M&P", "Postex"];
 
-// Utility to get today's date in YYYY-MM-DD
 const getToday = () => new Date().toISOString().split('T')[0];
 const getYesterday = () => {
     const d = new Date();
@@ -46,12 +45,10 @@ export default function OrderManagement() {
   const [customColumns, setCustomColumns] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("date-desc");
   
-  // New States for Advanced Logic
   const [globalAdsBudget, setGlobalAdsBudget] = useState<number>(0);
   const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "all" | "custom">("today");
   const [customDate, setCustomDate] = useState({ start: getToday(), end: getToday() });
 
-  // Calculations for a single order
   const calculateOrderFinances = (order: Order) => {
     const taxAmount = order.sold_price * 0.04;
     const afterTax = order.sold_price - taxAmount;
@@ -59,12 +56,10 @@ export default function OrderManagement() {
     return { taxAmount, afterTax, profit };
   };
 
-  // Handle Inline Edits & Auto Date Update
   const handleEdit = (id: string, field: string, value: any) => {
     setOrders(prev => prev.map(o => {
       if (o.id === id) {
         let updatedOrder = { ...o, [field]: value };
-        // Auto update status date if status changes
         if (field === 'status') {
             updatedOrder.status_date = getToday();
         }
@@ -74,7 +69,13 @@ export default function OrderManagement() {
     }));
   };
 
-  // Add New Order
+  const handleDelete = (id: string) => {
+    if(window.confirm("Are you sure you want to permanently delete this order?")) {
+        setOrders(prev => prev.filter(o => o.id !== id));
+        toast.success("Order deleted successfully.");
+    }
+  };
+
   const handleAddOrder = () => {
     const newOrder: Order = {
       id: Date.now().toString(),
@@ -89,7 +90,6 @@ export default function OrderManagement() {
     toast.success("New empty row added!");
   };
 
-  // Add Custom Column
   const handleAddColumn = () => {
     const colName = prompt("Enter new column name:");
     if (colName && !customColumns.includes(colName)) {
@@ -98,7 +98,6 @@ export default function OrderManagement() {
     }
   };
 
-  // Filter & Sort Logic
   const filteredOrders = useMemo(() => {
     let filtered = orders.filter(o => 
       o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -107,7 +106,6 @@ export default function OrderManagement() {
       o.product_name.toLowerCase().includes(search.toLowerCase())
     );
 
-    // Apply Date Filter based on Order Date
     if (dateFilter === "today") {
         filtered = filtered.filter(o => o.date === getToday());
     } else if (dateFilter === "yesterday") {
@@ -116,7 +114,6 @@ export default function OrderManagement() {
         filtered = filtered.filter(o => o.date >= customDate.start && o.date <= customDate.end);
     }
 
-    // Apply Status Filter
     if (activeTab !== "All") {
       filtered = filtered.filter(o => o.status === activeTab);
     }
@@ -128,7 +125,6 @@ export default function OrderManagement() {
     });
   }, [orders, search, activeTab, sortBy, dateFilter, customDate]);
 
-  // Dashboard Stats Calculations
   const stats = useMemo(() => {
     let totalRevenue = 0;
     let grossProfit = 0;
@@ -143,18 +139,16 @@ export default function OrderManagement() {
         deliveredCount++;
       }
       if (o.status === "Return") {
-        returnLoss += (o.dc + o.extras); // Loss calculation
+        returnLoss += (o.dc + o.extras); 
       }
     });
 
-    // Final Net Profit minus global ads and returns
     const finalNetProfit = grossProfit - returnLoss - globalAdsBudget;
     const successRate = filteredOrders.length > 0 ? Math.round((deliveredCount / filteredOrders.length) * 100) : 0;
 
     return { totalRevenue, grossProfit, returnLoss, finalNetProfit, successRate, deliveredCount, totalOrders: filteredOrders.length };
   }, [filteredOrders, globalAdsBudget]);
 
-  // Courier Analytics Calculations
   const courierStats = useMemo(() => {
       const stats: Record<string, { total: number, delivered: number, returned: number, totalDays: number }> = {};
       
@@ -183,355 +177,325 @@ export default function OrderManagement() {
       });
   }, [filteredOrders]);
 
-  // Status Colors
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Delivered": return "bg-green-100 text-green-700 border-green-200";
-      case "Return": return "bg-red-100 text-red-700 border-red-200";
-      case "Cancel": return "bg-gray-100 text-gray-700 border-gray-200";
-      case "Dispatched": return "bg-blue-100 text-blue-700 border-blue-200";
-      case "In Process": return "bg-purple-100 text-purple-700 border-purple-200";
-      default: return "bg-yellow-100 text-yellow-700 border-yellow-200"; // Pending
+      case "Delivered": return "bg-green-900 text-green-400 border-green-800";
+      case "Return": return "bg-red-900 text-red-400 border-red-800";
+      case "Cancel": return "bg-gray-800 text-gray-400 border-gray-700";
+      case "Dispatched": return "bg-blue-900 text-blue-400 border-blue-800";
+      case "In Process": return "bg-purple-900 text-purple-400 border-purple-800";
+      default: return "bg-yellow-900 text-yellow-500 border-yellow-800"; 
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 font-serif text-aura-brown pb-24">
+    <div className="min-h-screen bg-[#121212] p-2 md:p-6 font-sans text-gray-200 pb-24 w-full">
       
       {/* 🚀 GLOBAL ADS BUDGET WIDGET */}
-      <div className="mb-6 bg-gradient-to-r from-[#1A1612] to-[#2A241D] rounded-2xl p-6 shadow-xl text-white flex flex-col md:flex-row justify-between items-center gap-6">
+      <div className="mb-6 bg-gradient-to-r from-[#1A1612] to-[#2A241D] rounded-xl p-4 md:p-6 shadow-xl text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-aura-gold/20">
           <div>
-              <h2 className="text-xl font-bold flex items-center gap-2"><Megaphone className="text-aura-gold"/> Global Ads Budget</h2>
-              <p className="text-xs text-gray-400 mt-1">Total ad spend for the selected time period. Deducted from overall profit.</p>
+              <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 text-aura-gold"><Megaphone size={20}/> Global Ads Budget</h2>
+              <p className="text-[10px] md:text-xs text-gray-400 mt-1">Total ad spend for the selected time period. Deducted from overall profit.</p>
           </div>
-          <div className="flex items-center gap-3 bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/20">
-              <span className="text-aura-gold font-bold pl-3">Rs</span>
+          <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl backdrop-blur-sm border border-white/10 w-full md:w-auto">
+              <span className="text-aura-gold font-bold pl-3 text-sm md:text-base">Rs</span>
               <input 
                   type="number" 
                   value={globalAdsBudget} 
                   onChange={(e) => setGlobalAdsBudget(Number(e.target.value))}
-                  className="bg-transparent text-white font-black text-2xl outline-none w-32 md:w-48 placeholder-white/30"
+                  className="bg-transparent text-white font-black text-xl md:text-2xl outline-none w-full md:w-32 placeholder-white/30"
                   placeholder="0"
               />
           </div>
       </div>
 
       {/* Header & Date Filters */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
-            <Package className="text-aura-gold" size={28}/> Order Management
+          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2 text-white">
+            <Package className="text-aura-gold" size={24}/> Order Management
           </h1>
         </div>
 
         {/* 🚀 DATE FILTERS */}
-        <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
-            <button onClick={() => setDateFilter("today")} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${dateFilter === 'today' ? 'bg-aura-brown text-white' : 'hover:bg-gray-100 text-gray-600'}`}>Today</button>
-            <button onClick={() => setDateFilter("yesterday")} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${dateFilter === 'yesterday' ? 'bg-aura-brown text-white' : 'hover:bg-gray-100 text-gray-600'}`}>Yesterday</button>
-            <button onClick={() => setDateFilter("all")} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${dateFilter === 'all' ? 'bg-aura-brown text-white' : 'hover:bg-gray-100 text-gray-600'}`}>All Time</button>
-            <div className="flex items-center gap-2 px-2 border-l border-gray-200">
-                <input type="date" value={customDate.start} onChange={(e) => {setCustomDate({...customDate, start: e.target.value}); setDateFilter("custom");}} className="text-xs font-bold text-gray-600 outline-none" />
-                <span className="text-gray-400 text-[10px]">to</span>
-                <input type="date" value={customDate.end} onChange={(e) => {setCustomDate({...customDate, end: e.target.value}); setDateFilter("custom");}} className="text-xs font-bold text-gray-600 outline-none" />
-            </div>
+        <div className="flex items-center gap-1.5 px-2 border-l border-gray-700 w-full md:w-auto mt-2 md:mt-0 justify-center">
+            <input type="date" value={customDate.start} onChange={(e) => {setCustomDate({...customDate, start: e.target.value}); setDateFilter("custom");}} className="text-[10px] font-bold bg-transparent text-gray-300 outline-none" />
+            <span className="text-gray-500 text-[10px]">to</span>
+            <input type="date" value={customDate.end} onChange={(e) => {setCustomDate({...customDate, end: e.target.value}); setDateFilter("custom");}} className="text-[10px] font-bold bg-transparent text-gray-300 outline-none" />
+            {dateFilter === "custom" && (
+                <button onClick={() => { setDateFilter("today"); setCustomDate({ start: getToday(), end: getToday() }); }} className="ml-1 text-red-500 hover:text-red-400" title="Clear Date Filter">
+                    <X size={14}/>
+                </button>
+            )}
         </div>
       </div>
 
       {/* Top Controls: Search & Add */}
-      <div className="flex justify-between items-center mb-6">
-          <div className="relative flex-1 md:w-96 max-w-md">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-6 gap-3">
+          <div className="relative w-full md:flex-1 md:max-w-md">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
             <input 
               type="text" placeholder="Search customer, SKU, Order ID..." value={search} onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-aura-gold shadow-sm"
+              className="w-full pl-9 pr-4 py-2.5 bg-[#1E1E1E] border border-gray-800 rounded-xl text-sm font-medium text-white focus:outline-none focus:border-aura-gold"
             />
           </div>
-          <button onClick={handleAddOrder} className="bg-[#4F46E5] hover:bg-[#4338CA] text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md transition-all">
+          <button onClick={handleAddOrder} className="bg-aura-gold hover:bg-yellow-600 text-black px-5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-all w-full md:w-auto">
             <Plus size={18}/> Add Order
           </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+      {/* Stats Cards - Now completely Dark Mode */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="bg-[#1E1E1E] p-4 rounded-xl border border-gray-800">
           <div className="flex justify-between items-start mb-2">
-            <div className="p-2 bg-green-50 text-green-600 rounded-lg"><DollarSign size={20}/></div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Revenue</span>
+            <div className="p-1.5 bg-green-900/50 text-green-500 rounded-lg"><DollarSign size={16}/></div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Revenue</span>
           </div>
-          <h3 className="text-2xl font-black">Rs {stats.totalRevenue.toLocaleString()}</h3>
+          <h3 className="text-xl md:text-2xl font-black text-white">Rs {stats.totalRevenue.toLocaleString()}</h3>
         </div>
         
-        <div className={`bg-white p-5 rounded-xl border ${stats.finalNetProfit >= 0 ? 'border-aura-gold/50 shadow-md' : 'border-red-300'} relative overflow-hidden`}>
-          <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-xl ${stats.finalNetProfit >= 0 ? 'bg-aura-gold/10' : 'bg-red-500/10'}`}></div>
+        <div className={`bg-[#1E1E1E] p-4 rounded-xl border ${stats.finalNetProfit >= 0 ? 'border-aura-gold/50 shadow-[0_0_15px_rgba(212,175,55,0.1)]' : 'border-red-900/50'} relative overflow-hidden`}>
+          <div className={`absolute top-0 right-0 w-20 h-20 rounded-full blur-xl ${stats.finalNetProfit >= 0 ? 'bg-aura-gold/10' : 'bg-red-500/10'}`}></div>
           <div className="flex justify-between items-start mb-2 relative z-10">
-            <div className="p-2 bg-gray-50 text-gray-700 rounded-lg"><TrendingUp size={20}/></div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Final Net Profit</span>
+            <div className="p-1.5 bg-gray-800 text-gray-300 rounded-lg"><TrendingUp size={16}/></div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Net Profit</span>
           </div>
-          <h3 className={`text-2xl font-black drop-shadow-sm relative z-10 ${stats.finalNetProfit >= 0 ? 'text-aura-gold' : 'text-red-600'}`}>Rs {stats.finalNetProfit.toLocaleString()}</h3>
-          <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold relative z-10">After Returns & Ads</p>
+          <h3 className={`text-xl md:text-2xl font-black relative z-10 ${stats.finalNetProfit >= 0 ? 'text-aura-gold drop-shadow-sm' : 'text-red-500'}`}>Rs {stats.finalNetProfit.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+        <div className="bg-[#1E1E1E] p-4 rounded-xl border border-gray-800">
           <div className="flex justify-between items-start mb-2">
-            <div className="p-2 bg-red-50 text-red-500 rounded-lg"><RotateCcw size={20}/></div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Return Loss</span>
+            <div className="p-1.5 bg-red-900/50 text-red-500 rounded-lg"><RotateCcw size={16}/></div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Return Loss</span>
           </div>
-          <h3 className="text-2xl font-black text-red-500">Rs {stats.returnLoss.toLocaleString()}</h3>
-          <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold">DC + Extras wasted</p>
+          <h3 className="text-xl md:text-2xl font-black text-red-500">Rs {stats.returnLoss.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+        <div className="bg-[#1E1E1E] p-4 rounded-xl border border-gray-800">
           <div className="flex justify-between items-start mb-2">
-            <div className="p-2 bg-blue-50 text-blue-500 rounded-lg"><Package size={20}/></div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Orders Handled</span>
+            <div className="p-1.5 bg-blue-900/50 text-blue-500 rounded-lg"><Package size={16}/></div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Handled</span>
           </div>
-          <h3 className="text-2xl font-black">{stats.totalOrders}</h3>
-          <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold">Filtered Period</p>
+          <h3 className="text-xl md:text-2xl font-black text-white">{stats.totalOrders}</h3>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+        <div className="bg-[#1E1E1E] p-4 rounded-xl border border-gray-800">
           <div className="flex justify-between items-start mb-2">
-            <div className="p-2 bg-purple-50 text-purple-500 rounded-lg"><CheckCircle2 size={20}/></div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Success Rate</span>
+            <div className="p-1.5 bg-purple-900/50 text-purple-500 rounded-lg"><CheckCircle2 size={16}/></div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Success</span>
           </div>
-          <h3 className="text-2xl font-black">{stats.successRate}%</h3>
-          <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold">{stats.deliveredCount} Delivered</p>
+          <h3 className="text-xl md:text-2xl font-black text-white">{stats.successRate}%</h3>
         </div>
       </div>
 
-      {/* 🚀 COURIER ANALYTICS DASHBOARD */}
-      {courierStats.length > 0 && (
-          <div className="mb-8 bg-white border border-gray-100 shadow-sm rounded-2xl p-6">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-aura-brown mb-4 flex items-center gap-2"><Truck size={16} className="text-aura-gold"/> Courier Analytics (Selected Date Range)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {courierStats.map((cs, i) => (
-                      <div key={i} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                          <h4 className="font-bold text-lg text-blue-800 mb-3">{cs.name}</h4>
-                          <div className="space-y-4">
-                              <div>
-                                  <div className="flex justify-between text-xs font-bold text-gray-500 mb-1">
-                                      <span>Avg Delivery Time</span>
-                                      <span>{cs.avgDays} Days</span>
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                                      <div className={`h-1.5 rounded-full ${Number(cs.avgDays) > 4 ? 'bg-red-400' : 'bg-green-400'}`} style={{ width: `${Math.min(Number(cs.avgDays) * 10, 100)}%` }}></div>
-                                  </div>
-                              </div>
-                              <div>
-                                  <div className="flex justify-between text-xs font-bold text-gray-500 mb-1">
-                                      <span>Return Rate</span>
-                                      <span className={cs.returnRate > 20 ? 'text-red-500' : 'text-green-500'}>{cs.returnRate}%</span>
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                                      <div className={`h-1.5 rounded-full ${cs.returnRate > 20 ? 'bg-red-500' : 'bg-yellow-400'}`} style={{ width: `${cs.returnRate}%` }}></div>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      )}
-
       {/* Tabs & Table Tools */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm overflow-x-auto">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-4">
+        <div className="flex bg-[#1E1E1E] border border-gray-800 rounded-lg p-1 overflow-x-auto w-full md:w-auto">
           {["All", "Pending", "In Process", "Dispatched", "Delivered", "Return", "Cancel"].map(tab => (
             <button 
               key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md whitespace-nowrap transition-all ${activeTab === tab ? 'bg-gray-100 text-aura-brown shadow-sm' : 'text-gray-500 hover:text-aura-brown'}`}
+              className={`px-3 md:px-4 py-1.5 text-[10px] md:text-xs font-bold rounded-md whitespace-nowrap transition-all ${activeTab === tab ? 'bg-gray-800 text-aura-gold' : 'text-gray-400 hover:text-white'}`}
             >
               {tab}
             </button>
           ))}
         </div>
         
-        <div className="flex items-center gap-2">
-           <button onClick={handleAddColumn} className="flex items-center gap-2 text-xs font-bold bg-white border border-gray-200 px-3 py-2 rounded-lg hover:border-aura-gold transition-colors shadow-sm">
+        <div className="flex items-center gap-2 w-full md:w-auto">
+           <button onClick={handleAddColumn} className="flex-1 md:flex-none flex items-center justify-center gap-2 text-xs font-bold bg-[#1E1E1E] border border-gray-800 px-3 py-2 rounded-lg text-white hover:border-aura-gold transition-colors">
               <PlusCircle size={14} className="text-aura-gold"/> Add Column
            </button>
-           <select className="bg-white border border-gray-200 text-xs font-bold px-3 py-2 rounded-lg outline-none shadow-sm cursor-pointer" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+           <select className="flex-1 md:flex-none bg-[#1E1E1E] border border-gray-800 text-white text-xs font-bold px-3 py-2 rounded-lg outline-none cursor-pointer" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
               <option value="date-desc">Sort by Newest</option>
               <option value="profit-desc">Sort by Highest Profit</option>
            </select>
         </div>
       </div>
 
-      {/* The Master Table */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[2200px]">
-            <thead className="bg-gray-50 border-b border-gray-200">
+      {/* THE MASTER TABLE - MOBILE RESPONSIVE SCROLL */}
+      <div className="bg-[#1E1E1E] border border-gray-800 rounded-xl overflow-hidden mb-8 shadow-lg">
+        <div className="overflow-x-auto custom-scrollbar w-full">
+          <table className="w-full text-left border-collapse min-w-[2000px]">
+            <thead className="bg-[#252525] border-b border-gray-800">
               <tr>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-32">Order Date</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-32">Status Date</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-24">Order ID</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-48">Customer & City</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-48">Product & SKU</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-32">Courier</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-36">Status</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-32">Pymt Status</th>
-                <th className="p-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest bg-red-50/50 border-r border-red-100 w-32">Actual Cost</th>
-                <th className="p-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest bg-yellow-50/50 border-r border-yellow-100 w-40">DC + Extras</th>
-                <th className="p-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest bg-green-50/50 border-r border-green-100 w-32">Sold Price</th>
-                <th className="p-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest bg-gray-100 border-r border-gray-200 w-32">4% Tax Calc</th>
-                <th className="p-4 text-[10px] font-bold text-aura-gold uppercase tracking-widest bg-aura-gold/10 border-r border-aura-gold/20 w-36">Net Profit</th>
-                <th className="p-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-r border-gray-100 w-40">Notes</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-32">Order Date</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-32">Status Date</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-24">Order ID</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-48">Customer & City</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-48">Product & SKU</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-32">Courier</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-36">Status</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-32">Pymt Status</th>
+                <th className="p-3 text-[10px] font-bold text-gray-300 uppercase tracking-widest bg-red-900/20 border-r border-red-900/30 w-32">Actual Cost</th>
+                <th className="p-3 text-[10px] font-bold text-gray-300 uppercase tracking-widest bg-yellow-900/20 border-r border-yellow-900/30 w-40">DC + Extras</th>
+                <th className="p-3 text-[10px] font-bold text-gray-300 uppercase tracking-widest bg-green-900/20 border-r border-green-900/30 w-32">Sold Price</th>
+                <th className="p-3 text-[10px] font-bold text-gray-300 uppercase tracking-widest bg-gray-800 border-r border-gray-700 w-32">4% Tax Calc</th>
+                <th className="p-3 text-[10px] font-bold text-aura-gold uppercase tracking-widest bg-aura-gold/5 border-r border-aura-gold/10 w-36">Net Profit</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-40">Notes</th>
+                <th className="p-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-800 w-16 text-center">DEL</th>
                 {customColumns.map(col => (
-                  <th key={col} className="p-4 text-[10px] font-bold text-blue-500 uppercase tracking-widest border-r border-gray-100 w-32">{col}</th>
+                  <th key={col} className="p-3 text-[10px] font-bold text-blue-400 uppercase tracking-widest border-r border-gray-800 w-32">{col}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-800">
               {filteredOrders.map(order => {
                 const { taxAmount, afterTax, profit } = calculateOrderFinances(order);
                 const isDelivered = order.status === "Delivered";
 
                 return (
-                  <tr key={order.id} className="hover:bg-blue-50/20 transition-colors group">
+                  <tr key={order.id} className="hover:bg-gray-800/50 transition-colors group">
+                    
                     {/* Order Date */}
-                    <td className="p-4 border-r border-gray-50">
-                      <input type="date" value={order.date} onChange={(e) => handleEdit(order.id, 'date', e.target.value)} className="bg-transparent text-xs font-bold text-gray-700 outline-none w-full border-b border-transparent hover:border-gray-300 focus:border-aura-gold" />
+                    <td className="p-3 border-r border-gray-800">
+                      <input type="date" value={order.date} onChange={(e) => handleEdit(order.id, 'date', e.target.value)} className="bg-transparent text-[11px] font-bold text-gray-300 outline-none w-full border-b border-transparent focus:border-aura-gold color-scheme-dark" />
                     </td>
 
-                    {/* Auto Status Update Date */}
-                    <td className="p-4 border-r border-gray-50 bg-gray-50/50">
-                      <input type="date" value={order.status_date} onChange={(e) => handleEdit(order.id, 'status_date', e.target.value)} className="bg-transparent text-xs font-bold text-blue-600 outline-none w-full border-b border-transparent hover:border-blue-300 focus:border-blue-500" />
+                    {/* Status Date */}
+                    <td className="p-3 border-r border-gray-800 bg-gray-800/30">
+                      <input type="date" value={order.status_date} onChange={(e) => handleEdit(order.id, 'status_date', e.target.value)} className="bg-transparent text-[11px] font-bold text-blue-400 outline-none w-full border-b border-transparent focus:border-blue-500 color-scheme-dark" />
                     </td>
                     
                     {/* Order ID */}
-                    <td className="p-4 border-r border-gray-50">
-                      <input type="text" value={order.order_id} onChange={(e) => handleEdit(order.id, 'order_id', e.target.value)} className="bg-transparent text-xs font-bold text-gray-800 outline-none w-full border-b border-transparent hover:border-gray-300 focus:border-aura-gold uppercase" />
+                    <td className="p-3 border-r border-gray-800">
+                      <input type="text" value={order.order_id} onChange={(e) => handleEdit(order.id, 'order_id', e.target.value)} className="bg-transparent text-xs font-bold text-gray-200 outline-none w-full border-b border-transparent focus:border-aura-gold uppercase" />
                     </td>
 
                     {/* Customer & City */}
-                    <td className="p-4 border-r border-gray-50">
-                      <input type="text" placeholder="Name" value={order.customer_name} onChange={(e) => handleEdit(order.id, 'customer_name', e.target.value)} className="bg-transparent text-sm font-bold text-gray-800 outline-none w-full mb-1 border-b border-dashed border-gray-300 hover:border-solid hover:border-gray-400 focus:border-solid focus:border-aura-gold transition-colors" />
+                    <td className="p-3 border-r border-gray-800">
+                      <input type="text" placeholder="Name" value={order.customer_name} onChange={(e) => handleEdit(order.id, 'customer_name', e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-full mb-1 border-b border-dashed border-gray-700 focus:border-solid focus:border-aura-gold transition-colors" />
                       <div className="flex items-center gap-1 text-[10px] text-gray-500">
                         <MapPin size={10} />
-                        <input type="text" placeholder="City" value={order.city} onChange={(e) => handleEdit(order.id, 'city', e.target.value)} className="bg-transparent outline-none w-full border-b border-transparent hover:border-gray-300 focus:border-aura-gold" />
+                        <input type="text" placeholder="City" value={order.city} onChange={(e) => handleEdit(order.id, 'city', e.target.value)} className="bg-transparent outline-none w-full border-b border-transparent focus:border-aura-gold" />
                       </div>
                     </td>
 
                     {/* Product & SKU */}
-                    <td className="p-4 border-r border-gray-50">
-                       <input type="text" placeholder="Product" value={order.product_name} onChange={(e) => handleEdit(order.id, 'product_name', e.target.value)} className="bg-transparent text-sm font-bold text-gray-800 outline-none w-full mb-1 border-b border-dashed border-gray-300 hover:border-solid hover:border-gray-400 focus:border-solid focus:border-aura-gold transition-colors" />
-                       <div className="flex items-center gap-1 text-[10px] text-gray-500 font-mono bg-gray-100 px-1.5 py-0.5 rounded w-fit">
-                          <input type="text" placeholder="SKU" value={order.sku} onChange={(e) => handleEdit(order.id, 'sku', e.target.value)} className="bg-transparent outline-none w-16 uppercase border-b border-transparent hover:border-gray-400 focus:border-aura-gold" />
+                    <td className="p-3 border-r border-gray-800">
+                       <input type="text" placeholder="Product" value={order.product_name} onChange={(e) => handleEdit(order.id, 'product_name', e.target.value)} className="bg-transparent text-xs font-bold text-gray-200 outline-none w-full mb-1 border-b border-dashed border-gray-700 focus:border-solid focus:border-aura-gold transition-colors" />
+                       <div className="flex items-center gap-1 text-[10px] text-gray-400 font-mono bg-gray-800 px-1.5 py-0.5 rounded w-fit">
+                          <input type="text" placeholder="SKU" value={order.sku} onChange={(e) => handleEdit(order.id, 'sku', e.target.value)} className="bg-transparent outline-none w-16 uppercase border-b border-transparent focus:border-aura-gold" />
                        </div>
                     </td>
 
                     {/* Courier Dropdown */}
-                    <td className="p-4 border-r border-gray-50">
+                    <td className="p-3 border-r border-gray-800">
                       <select 
                         value={order.courier} onChange={(e) => handleEdit(order.id, 'courier', e.target.value)}
-                        className={`text-xs font-bold px-2 py-1.5 w-full rounded border outline-none cursor-pointer ${order.courier !== 'None' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                        className={`text-[10px] font-bold px-1.5 py-1.5 w-full rounded border outline-none cursor-pointer ${order.courier !== 'None' ? 'bg-blue-900/50 border-blue-800 text-blue-300' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
                       >
-                        {COURIERS.map(c => <option key={c} value={c}>{c}</option>)}
+                        {COURIERS.map(c => <option key={c} value={c} className="bg-[#1E1E1E]">{c}</option>)}
                       </select>
                     </td>
 
                     {/* Status */}
-                    <td className="p-4 border-r border-gray-50">
+                    <td className="p-3 border-r border-gray-800">
                       <select 
                         value={order.status} onChange={(e) => handleEdit(order.id, 'status', e.target.value)}
-                        className={`text-xs font-bold px-3 w-full py-1.5 rounded-full border outline-none cursor-pointer appearance-none text-center shadow-sm ${getStatusColor(order.status)}`}
+                        className={`text-[10px] font-bold px-2 w-full py-1.5 rounded-lg border outline-none cursor-pointer text-center shadow-sm ${getStatusColor(order.status)}`}
                       >
-                        <option value="Pending">Pending</option>
-                        <option value="In Process">In Process</option>
-                        <option value="Dispatched">Dispatched</option>
-                        <option value="Delivered">Delivered</option>
-                        <option value="Return">Return</option>
-                        <option value="Cancel">Cancel</option>
+                        <option value="Pending" className="bg-[#1E1E1E]">Pending</option>
+                        <option value="In Process" className="bg-[#1E1E1E]">In Process</option>
+                        <option value="Dispatched" className="bg-[#1E1E1E]">Dispatched</option>
+                        <option value="Delivered" className="bg-[#1E1E1E]">Delivered</option>
+                        <option value="Return" className="bg-[#1E1E1E]">Return</option>
+                        <option value="Cancel" className="bg-[#1E1E1E]">Cancel</option>
                       </select>
                     </td>
 
                     {/* Payment Status */}
-                    <td className="p-4 border-r border-gray-50">
+                    <td className="p-3 border-r border-gray-800">
                       <select 
                         value={order.payment_status} onChange={(e) => handleEdit(order.id, 'payment_status', e.target.value)}
-                        className={`text-[10px] font-bold px-2 w-full py-1 rounded border outline-none cursor-pointer uppercase tracking-wider text-center ${order.payment_status === 'Received' ? 'bg-green-50 border-green-300 text-green-700' : 'bg-orange-50 border-orange-300 text-orange-700'}`}
+                        className={`text-[9px] font-bold px-1.5 w-full py-1.5 rounded border outline-none cursor-pointer uppercase tracking-wider text-center ${order.payment_status === 'Received' ? 'bg-green-900/50 border-green-800 text-green-400' : 'bg-orange-900/50 border-orange-800 text-orange-400'}`}
                       >
-                        <option value="Pending">Pending</option>
-                        <option value="Received">Received</option>
+                        <option value="Pending" className="bg-[#1E1E1E]">Pending</option>
+                        <option value="Received" className="bg-[#1E1E1E]">Received</option>
                       </select>
                     </td>
 
                     {/* Actual Cost */}
-                    <td className="p-4 bg-red-50/30 border-r border-red-50 hover:bg-red-50/50 transition-colors">
-                      <div className="flex items-center gap-1 text-sm font-bold text-gray-700">
-                        <span className="text-[10px] text-gray-400">Rs</span>
-                        <input type="number" value={order.actual_price || ""} onChange={(e) => handleEdit(order.id, 'actual_price', Number(e.target.value))} className="bg-transparent outline-none w-full border-b border-dashed border-gray-300 hover:border-solid hover:border-gray-500 focus:border-solid focus:border-red-500" />
+                    <td className="p-3 bg-red-900/10 border-r border-red-900/20">
+                      <div className="flex items-center gap-1 text-xs font-bold text-gray-300">
+                        <span className="text-[9px] text-gray-500">Rs</span>
+                        <input type="number" value={order.actual_price || ""} onChange={(e) => handleEdit(order.id, 'actual_price', Number(e.target.value))} className="bg-transparent outline-none w-full border-b border-dashed border-gray-700 focus:border-solid focus:border-red-500" />
                       </div>
                     </td>
 
                     {/* DC & Extras */}
-                    <td className="p-4 bg-yellow-50/30 border-r border-yellow-50">
+                    <td className="p-3 bg-yellow-900/10 border-r border-yellow-900/20">
                       <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between text-xs border-b border-yellow-200/50 pb-1 hover:bg-yellow-100/50 p-1 rounded transition-colors">
+                        <div className="flex items-center justify-between text-[10px] border-b border-gray-800 pb-1">
                           <span className="text-gray-500 font-bold">DC:</span>
-                          <input type="number" value={order.dc || ""} onChange={(e) => handleEdit(order.id, 'dc', Number(e.target.value))} className="bg-transparent outline-none w-16 text-right font-bold border-b border-transparent hover:border-gray-400 focus:border-yellow-600" />
+                          <input type="number" value={order.dc || ""} onChange={(e) => handleEdit(order.id, 'dc', Number(e.target.value))} className="bg-transparent outline-none w-12 text-right font-bold text-gray-300 border-b border-transparent focus:border-yellow-600" />
                         </div>
-                        <div className="flex flex-col gap-1 bg-white p-1.5 rounded border border-yellow-100 shadow-sm">
-                           <div className="flex items-center justify-between text-xs">
-                             <span className="text-gray-500 font-bold">Extras:</span>
-                             <input type="number" value={order.extras || ""} onChange={(e) => handleEdit(order.id, 'extras', Number(e.target.value))} className="bg-transparent outline-none w-16 text-right font-bold border-b border-dashed border-gray-300 hover:border-solid hover:border-gray-500 focus:border-solid focus:border-yellow-600" />
+                        <div className="flex flex-col gap-1 bg-gray-800/50 p-1.5 rounded border border-gray-700">
+                           <div className="flex items-center justify-between text-[10px]">
+                             <span className="text-gray-400 font-bold">Ext:</span>
+                             <input type="number" value={order.extras || ""} onChange={(e) => handleEdit(order.id, 'extras', Number(e.target.value))} className="bg-transparent outline-none w-12 text-right font-bold text-gray-300 border-b border-dashed border-gray-600 focus:border-solid focus:border-yellow-500" />
                            </div>
-                           <input type="text" placeholder="Note (Ads, Packing...)" value={order.extra_note} onChange={(e) => handleEdit(order.id, 'extra_note', e.target.value)} className="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-[9px] w-full outline-none focus:border-aura-gold focus:bg-white text-gray-600" />
+                           <input type="text" placeholder="Note (Ads...)" value={order.extra_note} onChange={(e) => handleEdit(order.id, 'extra_note', e.target.value)} className="bg-[#1E1E1E] border border-gray-700 rounded px-1.5 py-1 text-[8px] w-full outline-none focus:border-aura-gold text-gray-400" />
                         </div>
                       </div>
                     </td>
 
                     {/* Sold Price */}
-                    <td className="p-4 bg-green-50/30 border-r border-green-50 hover:bg-green-50/60 transition-colors">
-                      <div className="flex items-center gap-1 text-sm font-black text-green-700">
-                        <span className="text-[10px] text-green-600 font-bold">Rs</span>
-                        <input type="number" value={order.sold_price || ""} onChange={(e) => handleEdit(order.id, 'sold_price', Number(e.target.value))} className="bg-transparent outline-none w-full border-b border-dashed border-green-300 hover:border-solid hover:border-green-500 focus:border-solid focus:border-green-700" />
+                    <td className="p-3 bg-green-900/10 border-r border-green-900/20">
+                      <div className="flex items-center gap-1 text-sm font-black text-green-400">
+                        <span className="text-[9px] text-green-600 font-bold">Rs</span>
+                        <input type="number" value={order.sold_price || ""} onChange={(e) => handleEdit(order.id, 'sold_price', Number(e.target.value))} className="bg-transparent outline-none w-full border-b border-dashed border-green-800 focus:border-solid focus:border-green-500" />
                       </div>
                     </td>
 
                     {/* 4% Tax Logic */}
-                    <td className="p-4 bg-gray-50 border-r border-gray-100">
+                    <td className="p-3 bg-gray-800/50 border-r border-gray-700">
                       <div className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-red-500 font-bold">-4% Tax:</span>
-                          <span className="font-mono bg-red-100 text-red-600 px-1 rounded">-Rs {Math.round(taxAmount).toLocaleString()}</span>
+                        <div className="flex items-center justify-between text-[9px]">
+                          <span className="text-red-400 font-bold">-4% Tax:</span>
+                          <span className="font-mono bg-red-900/50 text-red-300 px-1 rounded">-Rs {Math.round(taxAmount).toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] pt-1 border-t border-gray-200 mt-1">
-                          <span className="text-gray-600 font-bold">Remaining:</span>
-                          <span className="font-mono text-gray-800 font-bold">Rs {Math.round(afterTax).toLocaleString()}</span>
+                        <div className="flex items-center justify-between text-[9px] pt-1 border-t border-gray-700 mt-1">
+                          <span className="text-gray-400 font-bold">Rem:</span>
+                          <span className="font-mono text-gray-200 font-bold">Rs {Math.round(afterTax).toLocaleString()}</span>
                         </div>
                       </div>
                     </td>
 
                     {/* Auto Profit */}
-                    <td className="p-4 bg-aura-gold/10 border-r border-aura-gold/20 relative">
+                    <td className="p-3 bg-aura-gold/5 border-r border-aura-gold/10 relative">
                       {order.status === "Return" && (
-                        <div className="absolute inset-0 bg-red-50/90 flex items-center justify-center backdrop-blur-[1px] z-10">
-                          <span className="text-red-600 font-black text-[10px] uppercase tracking-widest px-2 py-1 bg-white rounded shadow-sm border border-red-200 flex items-center gap-1">
-                             <AlertCircle size={12}/> Return Loss
+                        <div className="absolute inset-0 bg-red-900/80 flex items-center justify-center backdrop-blur-[1px] z-10">
+                          <span className="text-red-200 font-black text-[9px] uppercase tracking-widest px-1.5 py-0.5 bg-red-950 rounded shadow-sm border border-red-800 flex items-center gap-1">
+                             Loss
                           </span>
                         </div>
                       )}
-                      <div className={`text-base font-black flex items-center gap-1 ${profit > 0 ? 'text-green-700' : 'text-red-600'}`}>
-                        <span className="text-[10px]">Rs</span> {Math.round(profit).toLocaleString()}
+                      <div className={`text-sm font-black flex items-center gap-1 ${profit > 0 ? 'text-aura-gold' : 'text-red-400'}`}>
+                        <span className="text-[9px]">Rs</span> {Math.round(profit).toLocaleString()}
                       </div>
-                      {!isDelivered && order.status !== "Return" && <span className="text-[8px] text-orange-600 font-bold uppercase tracking-wider block mt-1 bg-orange-100 w-fit px-1 rounded">(Unrealized)</span>}
+                      {!isDelivered && order.status !== "Return" && <span className="text-[7px] text-orange-400 font-bold uppercase tracking-wider block mt-1 bg-orange-900/30 w-fit px-1 rounded">(Unrealized)</span>}
                     </td>
 
                     {/* Notes */}
-                    <td className="p-4 border-r border-gray-50">
+                    <td className="p-3 border-r border-gray-800">
                       <textarea 
                         value={order.notes} onChange={(e) => handleEdit(order.id, 'notes', e.target.value)} 
-                        placeholder="Add notes..."
-                        className="bg-transparent border border-dashed border-gray-300 hover:border-solid hover:border-gray-400 focus:border-solid focus:border-aura-gold focus:bg-white rounded p-1.5 text-xs outline-none w-full h-12 resize-none transition-all"
+                        placeholder="Notes..."
+                        className="bg-transparent border border-dashed border-gray-700 focus:border-solid focus:border-aura-gold focus:bg-[#252525] rounded p-1.5 text-[10px] outline-none w-full h-12 resize-none transition-all text-gray-300"
                       />
+                    </td>
+                    
+                    {/* Delete Row Button */}
+                    <td className="p-3 border-r border-gray-800 text-center">
+                        <button onClick={() => handleDelete(order.id)} className="p-1.5 text-gray-500 hover:bg-red-900/50 hover:text-red-400 rounded-lg transition-colors">
+                            <Trash2 size={14}/>
+                        </button>
                     </td>
 
                     {/* Dynamic Custom Columns */}
                     {customColumns.map(col => (
-                      <td key={col} className="p-4 border-r border-gray-50">
-                        <input type="text" placeholder="Value..." value={order[col] || ""} onChange={(e) => handleEdit(order.id, col, e.target.value)} className="bg-transparent border-b border-dashed border-gray-300 text-xs w-full outline-none focus:border-blue-500 focus:border-solid hover:border-gray-500 hover:border-solid p-1" />
+                      <td key={col} className="p-3 border-r border-gray-800">
+                        <input type="text" placeholder="..." value={order[col] || ""} onChange={(e) => handleEdit(order.id, col, e.target.value)} className="bg-transparent border-b border-dashed border-gray-700 text-[10px] w-full outline-none focus:border-blue-500 focus:border-solid text-gray-300 p-1" />
                       </td>
                     ))}
 
@@ -543,13 +507,56 @@ export default function OrderManagement() {
         </div>
         
         {filteredOrders.length === 0 && (
-          <div className="p-16 text-center text-gray-400 font-serif bg-gray-50">
-            <Search size={48} className="mx-auto mb-4 opacity-30 text-aura-gold" />
-            <p className="text-xl font-bold text-aura-brown mb-2">No orders found.</p>
-            <p className="text-sm">Try changing the date filter or search keyword.</p>
+          <div className="p-12 text-center text-gray-500 font-serif bg-[#1E1E1E]">
+            <Search size={36} className="mx-auto mb-3 opacity-30 text-aura-gold" />
+            <p className="text-lg font-bold text-white mb-1">No orders found.</p>
+            <p className="text-xs">Try changing the date filter or search keyword.</p>
           </div>
         )}
       </div>
+
+      {/* 🚀 COURIER ANALYTICS DASHBOARD - MOVED TO BOTTOM */}
+      {courierStats.length > 0 && (
+          <div className="bg-[#1E1E1E] border border-gray-800 shadow-sm rounded-xl p-4 md:p-6 mb-8">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white mb-4 flex items-center gap-2"><Truck size={16} className="text-aura-gold"/> Courier Analytics (Current Filter)</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {courierStats.map((cs, i) => (
+                      <div key={i} className="bg-[#252525] border border-gray-800 rounded-xl p-4">
+                          <h4 className="font-bold text-base text-blue-400 mb-3">{cs.name}</h4>
+                          <div className="space-y-4">
+                              <div>
+                                  <div className="flex justify-between text-[10px] font-bold text-gray-400 mb-1.5">
+                                      <span>Avg Delivery</span>
+                                      <span className="text-gray-200">{cs.avgDays} Days</span>
+                                  </div>
+                                  <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                      <div className={`h-1.5 rounded-full ${Number(cs.avgDays) > 4 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(Number(cs.avgDays) * 10, 100)}%` }}></div>
+                                  </div>
+                              </div>
+                              <div>
+                                  <div className="flex justify-between text-[10px] font-bold text-gray-400 mb-1.5">
+                                      <span>Return Rate</span>
+                                      <span className={cs.returnRate > 20 ? 'text-red-400' : 'text-green-400'}>{cs.returnRate}%</span>
+                                  </div>
+                                  <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                      <div className={`h-1.5 rounded-full ${cs.returnRate > 20 ? 'bg-red-500' : 'bg-yellow-500'}`} style={{ width: `${cs.returnRate}%` }}></div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+
+      {/* Global Style overrides for dark mode scrollbar inside the table only */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1E1E1E; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+      `}} />
     </div>
   );
 }
