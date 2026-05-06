@@ -11,13 +11,14 @@ import toast from "react-hot-toast";
 import Sidebar from "@/components/admin/Sidebar";
 import InventoryTab from "@/components/admin/InventoryTab";
 import OrdersTab from "@/components/admin/OrdersTab";
-import FinanceTab from "@/components/admin/FinanceTab";
+// import FinanceTab from "@/components/admin/FinanceTab"; // 🛑 Old Finance Tab Commented Out
 import NotebookTab from "@/components/admin/NotebookTab";
 import ReturnsTab from "@/components/admin/ReturnsTab";
 import MessagesTab from "@/components/admin/MessagesTab";
 import MarketingTab from "@/components/admin/MarketingTab";
 import PricingCalculator from "@/components/admin/PricingCalculator";
-import RecordsTab from "@/components/admin/RecordsTab"; // 🚀 Added import
+import RecordsTab from "@/components/admin/RecordsTab"; 
+import OrderManagement from "@/components/admin/OrderManagement"; // 🚀 Added New OMS Component
 
 export default function AdminDashboard() {
   const { user, isLoading: authLoading } = useAuth(); 
@@ -225,9 +226,15 @@ export default function AdminDashboard() {
                 <>
                     {activeTab === 'inventory' && <InventoryTab products={products} fetchProducts={fetchProducts} />}
                     {activeTab === 'orders' && <OrdersTab orders={orders} fetchOrders={fetchOrders} />}
-                    {activeTab === 'finance' && <FinanceTab orders={orders} products={products} />}
+                    
+                    {/* 🛑 Old Finance Tab Commented Out */}
+                    {/* {activeTab === 'finance' && <FinanceTab orders={orders} products={products} />} */}
+                    
+                    {/* 🚀 NEW OMS Component Tab */}
+                    {activeTab === 'oms' && <OrderManagement />}
+                    
                     {activeTab === 'notes' && <NotebookTab />}
-                    {activeTab === 'records' && <RecordsTab />} {/* 🚀 Added Records Tab Render */}
+                    {activeTab === 'records' && <RecordsTab />} 
                     {activeTab === 'returns' && <ReturnsTab returnRequests={returnRequests} refreshData={fetchSupportData} />}
                     {activeTab === 'messages' && <MessagesTab messages={contactMessages} refreshData={fetchSupportData} />}
                     {activeTab === 'marketing' && <MarketingTab data={marketingData} />}
