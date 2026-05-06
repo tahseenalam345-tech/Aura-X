@@ -69,7 +69,8 @@ export default function CategoryPage() {
 
   const isWatchCategory = ['men', 'women', 'couple', 'watches'].includes(categorySlug.toLowerCase());
   
-  const movements = ["Automatic", "Mechanical", "Quartz"];
+// "Automatic" aur "Mechanical" ko ek option bana diya hai
+  const movements = ["Automatic / Mechanical", "Quartz"];
   const straps = ["Leather", "Metal", "Chain", "Silicon"];
 
   const [globalGender, setGlobalGender] = useState<string>("all");
@@ -179,8 +180,20 @@ export default function CategoryPage() {
     
     if (isWatchCategory) {
         if (selectedMovements.length > 0) {
-            const move = product.specs?.movement || "Quartz";
-            if (!selectedMovements.includes(move)) return false;
+            const move = (product.specs?.movement || "Quartz").toLowerCase();
+            
+            // Check karega agar movement inme se kisi se milti hai
+            const hasMatch = selectedMovements.some(sm => {
+                if (sm === "Automatic / Mechanical") {
+                    return move.includes("automatic") || move.includes("mechanical");
+                }
+                if (sm === "Quartz") {
+                    return move.includes("quartz") || move.includes("battery");
+                }
+                return false;
+            });
+            
+            if (!hasMatch) return false;
         }
 
         if (selectedStraps.length > 0) {
