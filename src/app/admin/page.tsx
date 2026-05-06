@@ -11,14 +11,13 @@ import toast from "react-hot-toast";
 import Sidebar from "@/components/admin/Sidebar";
 import InventoryTab from "@/components/admin/InventoryTab";
 import OrdersTab from "@/components/admin/OrdersTab";
-// import FinanceTab from "@/components/admin/FinanceTab"; // 🛑 Old Finance Tab Commented Out
+import OrderManagement from "@/components/admin/OrderManagement"; // 🚀 New OMS imported here!
 import NotebookTab from "@/components/admin/NotebookTab";
 import ReturnsTab from "@/components/admin/ReturnsTab";
 import MessagesTab from "@/components/admin/MessagesTab";
 import MarketingTab from "@/components/admin/MarketingTab";
 import PricingCalculator from "@/components/admin/PricingCalculator";
-import RecordsTab from "@/components/admin/RecordsTab"; 
-import OrderManagement from "@/components/admin/OrderManagement"; // 🚀 Added New OMS Component
+import RecordsTab from "@/components/admin/RecordsTab";
 
 export default function AdminDashboard() {
   const { user, isLoading: authLoading } = useAuth(); 
@@ -29,8 +28,6 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  
-  // --- MANUAL OVERRIDE STATE (Fixes the Stuck Loading) ---
   const [manualAuth, setManualAuth] = useState(false);
 
   // --- DASHBOARD STATE ---
@@ -48,7 +45,6 @@ export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
 
-  // --- 1. DATA FETCHING FUNCTIONS ---
   const fetchProducts = useCallback(async () => {
       const { data } = await supabase.from('products').select('*').order('priority', { ascending: false }).order('created_at', { ascending: false });
       if (data) setProducts(data);
@@ -69,27 +65,18 @@ export default function AdminDashboard() {
 
       if (returnsRes.data) setReturnRequests(returnsRes.data);
       if (messagesRes.data) setContactMessages(messagesRes.data);
-      setMarketingData({ 
-          launch: launchRes.data || [], 
-          newsletter: newsRes.data || [] 
-      });
+      setMarketingData({ launch: launchRes.data || [], newsletter: newsRes.data || [] });
   }, []);
 
   const loadDashboardData = useCallback(async () => {
       setDataLoading(true);
-      await Promise.all([
-          fetchProducts(),
-          fetchOrders(),
-          fetchSupportData()
-      ]);
+      await Promise.all([ fetchProducts(), fetchOrders(), fetchSupportData() ]);
       setDataLoading(false);
   }, [fetchProducts, fetchOrders, fetchSupportData]);
 
-  // --- 3. INITIAL LOAD (Runs on Context Load OR Manual Override) ---
   useEffect(() => {
     if (user || manualAuth) {
         loadDashboardData();
-
         const channel = supabase
           .channel('realtime-orders')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
@@ -97,34 +84,22 @@ export default function AdminDashboard() {
               toast.success("New Order Received!", { duration: 5000, icon: '🎉' });
           })
           .subscribe();
-
         return () => { supabase.removeChannel(channel); };
     }
   }, [user, manualAuth, loadDashboardData]);
 
-  // --- HANDLE SECURE LOGIN ---
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     setLoginError("");
 
     try {
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
-
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        
         toast.success("Welcome back, Commander");
-        
-        // --- FIX: IMMEDIATELY SHOW DASHBOARD (Don't wait for refresh) ---
         setManualAuth(true); 
-        // Trigger data load immediately
         loadDashboardData();
-
     } catch (err: any) {
-        console.error(err);
         setLoginError("Access Denied: Invalid Credentials");
     } finally {
         setIsLoggingIn(false);
@@ -133,71 +108,38 @@ export default function AdminDashboard() {
 
   if (!isMounted) return null;
 
-  // --- SHOW LOGIN SCREEN IF: No User AND No Manual Override ---
   if (!user && !manualAuth) {
     return (
       <div className="min-h-screen bg-[#1E1B18] flex items-center justify-center p-4 font-sans">
         <div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-2xl text-center relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-600 to-red-900"></div>
-          
-          <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-lg">
-            <Lock size={32} />
-          </div>
-
+          <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-lg"><Lock size={32} /></div>
           <h1 className="text-2xl font-serif font-bold text-gray-900 mb-2">Restricted Access</h1>
           <p className="text-gray-500 text-sm mb-8">Authorize with Admin Credentials</p>
 
           <form onSubmit={handleAdminLogin} className="space-y-4 text-left">
             <div className="relative">
                 <div className="absolute top-3.5 left-4 text-gray-400"><Mail size={18}/></div>
-                <input 
-                    type="email" 
-                    placeholder="Admin Email" 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-red-500 transition-colors"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
+                <input type="email" placeholder="Admin Email" className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-red-500 transition-colors" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
-            
             <div className="relative">
                 <div className="absolute top-3.5 left-4 text-gray-400"><Key size={18}/></div>
-                <input 
-                    type="password" 
-                    placeholder="Password" 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-red-500 transition-colors"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
+                <input type="password" placeholder="Password" className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-red-500 transition-colors" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
-            
-            {loginError && (
-              <div className="flex items-center justify-center gap-2 text-red-600 text-xs font-bold animate-pulse pt-2">
-                <ShieldAlert size={14} /> {loginError}
-              </div>
-            )}
-
-            <button 
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full bg-[#1E1B18] text-white py-4 rounded-xl font-bold tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2 mt-4"
-            >
+            {loginError && <div className="flex items-center justify-center gap-2 text-red-600 text-xs font-bold animate-pulse pt-2"><ShieldAlert size={14} /> {loginError}</div>}
+            <button type="submit" disabled={isLoggingIn} className="w-full bg-[#1E1B18] text-white py-4 rounded-xl font-bold tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2 mt-4">
               {isLoggingIn ? <Loader2 className="animate-spin" /> : <>AUTHENTICATE <ChevronRight size={16} /></>}
             </button>
           </form>
-          
           <p className="mt-8 text-[10px] text-gray-300 uppercase tracking-widest">System Secured • Encrypted</p>
         </div>
       </div>
     );
   }
 
-  // --- MAIN DASHBOARD RENDER ---
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-gray-800 overflow-hidden">
         
-        {/* SIDEBAR COMPONENT */}
         <Sidebar 
             activeTab={activeTab} 
             setActiveTab={setActiveTab} 
@@ -210,13 +152,11 @@ export default function AdminDashboard() {
             }}
         />
         
-        {/* MOBILE HEADER */}
         <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#1E1B18] text-white flex items-center justify-between px-4 z-40 shadow-md">
             <span className="font-serif font-bold text-aura-gold tracking-tighter">AURA-X ADMIN</span>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg"><Menu /></button>
         </div>
 
-        {/* MAIN CONTENT AREA */}
         <div className="flex-1 p-4 md:p-8 overflow-y-auto h-[100dvh] pt-20 md:pt-8 bg-gray-50">
             {dataLoading ? (
                 <div className="h-full flex items-center justify-center text-gray-400 animate-pulse">
@@ -227,11 +167,8 @@ export default function AdminDashboard() {
                     {activeTab === 'inventory' && <InventoryTab products={products} fetchProducts={fetchProducts} />}
                     {activeTab === 'orders' && <OrdersTab orders={orders} fetchOrders={fetchOrders} />}
                     
-                    {/* 🛑 Old Finance Tab Commented Out */}
-                    {/* {activeTab === 'finance' && <FinanceTab orders={orders} products={products} />} */}
-                    
-                    {/* 🚀 NEW OMS Component Tab */}
-                    {activeTab === 'oms' && <OrderManagement />}
+                    {/* 🚀 YAHAN MAGIC HAI: Ab Finance ki jagah OMS dikhega! */}
+                    {activeTab === 'finance' && <OrderManagement />}
                     
                     {activeTab === 'notes' && <NotebookTab />}
                     {activeTab === 'records' && <RecordsTab />} 
