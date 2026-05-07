@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { 
   Search, Plus, X, RotateCcw, Truck, DollarSign, TrendingUp, 
-  Package, CheckCircle2, AlertCircle, PlusCircle, MapPin, Megaphone, Trash2, Loader2
+  Package, CheckCircle2, AlertCircle, PlusCircle, MapPin, Megaphone, Trash2, Loader2, Calendar
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -39,11 +39,9 @@ export default function OrderManagement() {
   useEffect(() => {
     const fetchData = async () => {
         setLoading(true);
-        // Fetch Orders
         const { data: ordersData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
         if (ordersData) setOrders(ordersData);
         
-        // Fetch Products for dropdown
         const { data: productsData } = await supabase.from('products').select('id, name, price, specs, brand');
         if (productsData) setProducts(productsData);
         
@@ -51,7 +49,6 @@ export default function OrderManagement() {
     };
     fetchData();
 
-    // Realtime listener
     const channel = supabase.channel('realtime-oms')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
           setOrders(prev => [payload.new, ...prev]);
@@ -63,11 +60,7 @@ export default function OrderManagement() {
   // --- 2. UPDATE SUPABASE ON EDIT ---
   const updateDatabase = async (id: string, field: string, value: any) => {
       const { error } = await supabase.from('orders').update({ [field]: value }).eq('id', id);
-      if (error) {
-          toast.error("Failed to sync: " + error.message);
-      } else {
-          // Silent success for seamless experience
-      }
+      if (error) toast.error("Sync Error: " + error.message);
   };
 
   const handleEditLocal = (id: string, field: string, value: any) => {
@@ -76,7 +69,7 @@ export default function OrderManagement() {
         let updatedOrder = { ...o, [field]: value };
         if (field === 'status') {
             updatedOrder.status_date = getToday();
-            updateDatabase(id, 'status_date', getToday()); // update date in DB too
+            updateDatabase(id, 'status_date', getToday()); 
         }
         return updatedOrder;
       }
@@ -84,7 +77,6 @@ export default function OrderManagement() {
     }));
   };
 
-  // Trigger DB update when user leaves the input field (onBlur) or changes a dropdown
   const handleBlurOrChange = (id: string, field: string, value: any) => {
       updateDatabase(id, field, value);
   };
@@ -108,8 +100,8 @@ export default function OrderManagement() {
           courier: "None",
           status: "Pending",
           payment_status: "Pending",
-          actual_price: p.specs?.cost_price || 0, // Auto fetched cost
-          sold_price: p.price || 0,               // Auto fetched price
+          actual_price: p.specs?.cost_price || 0, 
+          sold_price: p.price || 0,               
           dc: 300,
           extras: 0,
           extra_note: "",
@@ -119,7 +111,8 @@ export default function OrderManagement() {
       const { data, error } = await supabase.from('orders').insert([orderPayload]).select();
       
       if (error) {
-          toast.error("Failed to add order!");
+          console.error("Insert Error:", error);
+          toast.error(`Failed! Error: ${error.message}`, { duration: 6000 }); // THIS WILL SHOW EXACT COLUMN ERROR
       } else if (data) {
           setOrders([data[0], ...orders]);
           toast.success("Order Added Successfully!");
@@ -136,7 +129,7 @@ export default function OrderManagement() {
             setOrders(prev => prev.filter(o => o.id !== id));
             toast.success("Order deleted.");
         } else {
-            toast.error("Failed to delete.");
+            toast.error("Delete Failed: " + error.message);
         }
     }
   };
@@ -236,11 +229,16 @@ export default function OrderManagement() {
             <button onClick={() => setDateFilter("today")} className={`px-3 py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-all flex-1 md:flex-none ${dateFilter === 'today' ? 'bg-aura-gold text-black' : 'hover:bg-gray-800 text-gray-400'}`}>Today</button>
             <button onClick={() => setDateFilter("yesterday")} className={`px-3 py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-all flex-1 md:flex-none ${dateFilter === 'yesterday' ? 'bg-aura-gold text-black' : 'hover:bg-gray-800 text-gray-400'}`}>Yesterday</button>
             <button onClick={() => setDateFilter("all")} className={`px-3 py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-all flex-1 md:flex-none ${dateFilter === 'all' ? 'bg-aura-gold text-black' : 'hover:bg-gray-800 text-gray-400'}`}>All Time</button>
+            
             <div className="flex items-center gap-1.5 px-2 border-l border-gray-700 w-full md:w-auto mt-2 md:mt-0 justify-center">
                 <input type="date" value={customDate.start} onChange={(e) => {setCustomDate({...customDate, start: e.target.value}); setDateFilter("custom");}} className="text-[10px] font-bold bg-transparent text-gray-300 outline-none" />
                 <span className="text-gray-500 text-[10px]">to</span>
                 <input type="date" value={customDate.end} onChange={(e) => {setCustomDate({...customDate, end: e.target.value}); setDateFilter("custom");}} className="text-[10px] font-bold bg-transparent text-gray-300 outline-none" />
-                {dateFilter === "custom" && <button onClick={() => { setDateFilter("today"); setCustomDate({ start: getToday(), end: getToday() }); }} className="ml-1 text-red-500 hover:text-red-400"><X size={14}/></button>}
+                {dateFilter === "custom" && (
+                    <button onClick={() => { setDateFilter("today"); setCustomDate({ start: getToday(), end: getToday() }); }} className="ml-1 text-red-500 hover:text-red-400" title="Clear Date Filter">
+                        <X size={14}/>
+                    </button>
+                )}
             </div>
         </div>
       </div>
